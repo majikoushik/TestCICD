@@ -165,11 +165,21 @@ export default function TokenTransfer() {
         return !!transferData.recipient;
       case 1:
         // Validate amount and purpose
+        if (
+          transferData.amount &&
+          !isNaN(transferData.amount) &&
+          !Number.isInteger(Number(transferData.amount))
+        ) {
+          setError('Token amount must be a whole number');
+          return false;
+        }
+        setError('');
         return (
-          transferData.amount && 
-          !isNaN(transferData.amount) && 
-          parseInt(transferData.amount) > 0 && 
-          parseInt(transferData.amount) <= tokenBalance &&
+          transferData.amount &&
+          !isNaN(transferData.amount) &&
+          Number.isInteger(Number(transferData.amount)) &&
+          parseInt(transferData.amount, 10) > 0 &&
+          parseInt(transferData.amount, 10) <= tokenBalance &&
           transferData.purpose
         );
       case 2:
@@ -188,7 +198,7 @@ export default function TokenTransfer() {
       // Use Redux to transfer tokens
       const result = await dispatch(transferTokens({
         recipientId: transferData.recipient.id,
-        amount: parseInt(transferData.amount),
+        amount: parseInt(transferData.amount, 10),
         description: transferData.purpose,
         note: transferData.note
       })).unwrap();

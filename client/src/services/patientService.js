@@ -266,7 +266,7 @@ export const getPatientMedicalRecords = async (patientId, options = {}) => {
       const paginatedRecords = filteredRecords.slice(startIndex, endIndex);
       
       // Create response
-      const mockResponse = {
+      const mockData = {
         records: paginatedRecords,
         pagination: {
           total: filteredRecords.length,
@@ -275,10 +275,10 @@ export const getPatientMedicalRecords = async (patientId, options = {}) => {
           pages: Math.ceil(filteredRecords.length / queryOptions.limit)
         }
       };
-      
-      return await mockResponse(mockResponse, 800);
+
+      return await mockResponse(mockData, 800);
     }
-    
+
     // Real API call
     return await get(`/patients/${patientId}/medical-records`, queryOptions);
   } catch (error) {
@@ -337,7 +337,7 @@ export const getPatientConsentRecords = async (patientId, options = {}) => {
       const paginatedRecords = filteredRecords.slice(startIndex, endIndex);
       
       // Create response
-      const mockResponse = {
+      const mockData = {
         records: paginatedRecords,
         pagination: {
           total: filteredRecords.length,
@@ -346,10 +346,10 @@ export const getPatientConsentRecords = async (patientId, options = {}) => {
           pages: Math.ceil(filteredRecords.length / queryOptions.limit)
         }
       };
-      
-      return await mockResponse(mockResponse, 800);
+
+      return await mockResponse(mockData, 800);
     }
-    
+
     // Real API call
     return await get(`/patients/${patientId}/consent-records`, queryOptions);
   } catch (error) {

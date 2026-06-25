@@ -101,7 +101,10 @@ function Patients() {
 
   // Initial load
   useEffect(() => {
-    loadPatients();
+    const timer = setTimeout(() => {
+      loadPatients();
+    }, 300);
+    return () => clearTimeout(timer);
   }, [loadPatients]);
 
   // No need for this effect anymore since loadPatients is memoized with the dependencies

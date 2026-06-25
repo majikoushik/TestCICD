@@ -149,7 +149,7 @@ export default function PatientRiskDashboard({
         }
       ]);
     }
-  }, [patient, riskFactors, theme]);
+  }, [patient, riskFactors]);
   
   // Calculate risk score based on risk factors
   const calculateRiskScore = (factors) => {

@@ -104,6 +104,7 @@ export default function Register() {
       navigate('/');
     } catch (error) {
       console.error('Registration error:', error);
+    } finally {
       setIsSubmitting(false);
     }
   };

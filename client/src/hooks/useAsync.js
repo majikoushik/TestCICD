@@ -1,61 +1,67 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 
-/**
- * Custom hook for handling asynchronous operations
- * 
- * @param {Function} asyncFunction - Async function to execute
- * @param {Array} dependencies - Dependencies array for useEffect
- * @param {boolean} immediate - Whether to execute the function immediately
- * @param {any} initialData - Initial data
- * @returns {Object} Async operation state and methods
- */
 export default function useAsync(
   asyncFunction,
   dependencies = [],
   immediate = true,
   initialData = null
 ) {
-  // State for async operation
   const [data, setData] = useState(initialData);
   const [loading, setLoading] = useState(immediate);
   const [error, setError] = useState(null);
   const [status, setStatus] = useState(immediate ? 'pending' : 'idle');
-  
-  // Execute the async function
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
   const execute = useCallback(async (...args) => {
-    setLoading(true);
-    setStatus('pending');
-    setError(null);
-    
+    if (isMounted.current) {
+      setLoading(true);
+      setStatus('pending');
+      setError(null);
+    }
+
     try {
       const result = await asyncFunction(...args);
-      setData(result);
-      setStatus('success');
+      if (isMounted.current) {
+        setData(result);
+        setStatus('success');
+      }
       return result;
-    } catch (error) {
-      setError(error);
-      setStatus('error');
-      throw error;
+    } catch (err) {
+      if (isMounted.current) {
+        setError(err);
+        setStatus('error');
+      }
+      throw err;
     } finally {
-      setLoading(false);
+      if (isMounted.current) {
+        setLoading(false);
+      }
     }
-  }, [asyncFunction]);
-  
-  // Reset the state
+  }, [asyncFunction]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const reset = useCallback(() => {
-    setData(initialData);
-    setLoading(false);
-    setError(null);
-    setStatus('idle');
+    if (isMounted.current) {
+      setData(initialData);
+      setLoading(false);
+      setError(null);
+      setStatus('idle');
+    }
   }, [initialData]);
-  
-  // Execute the function immediately if requested
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (immediate) {
       execute();
     }
   }, [execute, immediate, ...dependencies]);
-  
+
   return {
     data,
     loading,

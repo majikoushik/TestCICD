@@ -18,26 +18,30 @@ export function AuthProvider({ children }) {
 
   // Load user on initial render if token exists
   useEffect(() => {
+    let isMounted = true;
+
     const loadUser = async () => {
       if (!token) {
-        setLoading(false);
+        if (isMounted) setLoading(false);
         return;
       }
 
       try {
         const user = await authService.getCurrentUser();
-        setCurrentUser(user);
+        if (isMounted) setCurrentUser(user);
       } catch (err) {
         console.error('Error loading user:', err);
         authStorage.remove('token');
-        setToken(null);
-        setError('Session expired. Please log in again.');
+        if (isMounted) setToken(null);
+        if (isMounted) setError('Session expired. Please log in again.');
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     loadUser();
+
+    return () => { isMounted = false; };
   }, [token]);
 
   // Register user
@@ -45,8 +49,8 @@ export function AuthProvider({ children }) {
     try {
       setLoading(true);
       const response = await authService.register(userData);
-      
-      localStorage.setItem('authToken', response.token);
+
+      authStorage.set('token', response.token);
       setToken(response.token);
       setCurrentUser(response.user);
       setError('');
@@ -65,8 +69,8 @@ export function AuthProvider({ children }) {
     try {
       setLoading(true);
       const response = await authService.login({ email, password });
-      
-      localStorage.setItem('authToken', response.token);
+
+      authStorage.set('token', response.token);
       setToken(response.token);
       setCurrentUser(response.user);
       setError('');
@@ -84,13 +88,13 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     try {
       await authService.logout();
-      localStorage.removeItem('authToken');
+      authStorage.clear();
       setToken(null);
       setCurrentUser(null);
     } catch (err) {
       console.error('Logout error:', err);
       // Still clear local state even if API call fails
-      localStorage.removeItem('authToken');
+      authStorage.clear();
       setToken(null);
       setCurrentUser(null);
     }

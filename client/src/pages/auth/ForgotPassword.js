@@ -15,6 +15,7 @@ export default function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [localError, setLocalError] = useState('');
   const { forgotPassword, error, clearError } = useAuth();
 
   const handleSubmit = async (e) => {
@@ -23,7 +24,14 @@ export default function ForgotPassword() {
     if (!email) {
       return;
     }
-    
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setLocalError('Please enter a valid email address.');
+      return;
+    }
+
+    setLocalError('');
     setIsSubmitting(true);
     
     try {
@@ -50,6 +58,12 @@ export default function ForgotPassword() {
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={clearError}>
           {error}
+        </Alert>
+      )}
+
+      {localError && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setLocalError('')}>
+          {localError}
         </Alert>
       )}
       

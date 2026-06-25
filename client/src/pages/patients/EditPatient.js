@@ -312,7 +312,7 @@ export default function EditPatient() {
                   fullWidth
                   label="Patient ID"
                   name="patientId"
-                  value={patientData.patientId}
+                  value={patientData.patientId || ''}
                   onChange={handleInputChange}
                   disabled // Patient ID should not be editable
                 />
@@ -322,7 +322,7 @@ export default function EditPatient() {
                   fullWidth
                   label="Full Name"
                   name="name"
-                  value={patientData.name}
+                  value={patientData.name || ''}
                   onChange={handleInputChange}
                   required
                 />
@@ -333,11 +333,12 @@ export default function EditPatient() {
                   label="Date of Birth"
                   name="dateOfBirth"
                   type="date"
-                  value={patientData.dateOfBirth}
+                  value={patientData.dateOfBirth || ''}
                   onChange={handleInputChange}
                   InputLabelProps={{
                     shrink: true,
                   }}
+                  inputProps={{ max: new Date().toISOString().split('T')[0] }}
                   required
                 />
               </Grid>
@@ -426,6 +427,7 @@ export default function EditPatient() {
                     InputLabelProps={{
                       shrink: true,
                     }}
+                    inputProps={{ max: new Date().toISOString().split('T')[0] }}
                   />
                 </Grid>
                 <Grid item xs={12} sm={4}>
@@ -453,7 +455,7 @@ export default function EditPatient() {
               <Paper variant="outlined" sx={{ mt: 2, p: 2, maxHeight: 200, overflow: 'auto' }}>
                 {patientData.medicalHistory && patientData.medicalHistory.length > 0 ? (
                   patientData.medicalHistory.map((item, index) => (
-                    <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Box key={`condition-${index}`} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                       <Box>
                         <Typography variant="subtitle2">
                           {item.condition}
@@ -543,7 +545,7 @@ export default function EditPatient() {
               <Paper variant="outlined" sx={{ mt: 2, p: 2, maxHeight: 200, overflow: 'auto' }}>
                 {patientData.medications && patientData.medications.length > 0 ? (
                   patientData.medications.map((item, index) => (
-                    <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Box key={`medication-${index}`} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                       <Box>
                         <Typography variant="subtitle2">
                           {item.name} - {item.dosage}
@@ -625,7 +627,7 @@ export default function EditPatient() {
               <Paper variant="outlined" sx={{ mt: 2, p: 2, maxHeight: 200, overflow: 'auto' }}>
                 {patientData.allergies && patientData.allergies.length > 0 ? (
                   patientData.allergies.map((item, index) => (
-                    <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Box key={`allergy-${index}`} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                       <Box>
                         <Typography variant="subtitle2">
                           {item.allergen}

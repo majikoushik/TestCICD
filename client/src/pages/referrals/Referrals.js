@@ -127,8 +127,11 @@ export default function Referrals() {
 
   // Initial load
   useEffect(() => {
-    loadReferrals();
-    
+    const timer = setTimeout(() => {
+      loadReferrals();
+    }, 300);
+    return () => clearTimeout(timer);
+
     // Fetch status counts for badges
     // Commented out for now to use hardcoded values
     /*
@@ -140,7 +143,7 @@ export default function Referrals() {
         console.error('Error fetching referral status counts:', error);
       }
     };
-    
+
     fetchStatusCounts();
     */
   }, [loadReferrals]);

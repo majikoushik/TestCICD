@@ -18,7 +18,6 @@ export const getStorageItem = (key, parse = true) => {
     if (item === null) {
       return null;
     }
-    console.log("Storage Key", JSON.parse(item));
     return parse ? JSON.parse(item) : item;
   } catch (error) {
     console.error(`Error getting item from storage (${key}):`, error);

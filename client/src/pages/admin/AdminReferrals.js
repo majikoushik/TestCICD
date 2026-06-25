@@ -80,9 +80,9 @@ const AdminReferrals = () => {
           const response = await adminReferralService.getAllReferrals();
           
           if (response.success) {
-            setReferrals(response.data.referrals);
-            setFilteredReferrals(response.data.referrals);
-            setReferralStats(response.data.stats);
+            setReferrals(response.data?.referrals || []);
+            setFilteredReferrals(response.data?.referrals || []);
+            setReferralStats(response.data?.stats || {});
           } else {
             throw new Error('Failed to fetch referrals');
           }
@@ -134,10 +134,12 @@ const AdminReferrals = () => {
         }
         
         setFilteredReferrals(filtered);
+        setPage(0);
       }, [searchQuery, filterStatus, filterHasDispute, filterProvider, referrals]);
     
       const handleTabChange = (event, newValue) => {
         setTabValue(newValue);
+        setPage(0);
       };
     
       const handleChangePage = (event, newPage) => {
@@ -159,7 +161,7 @@ const AdminReferrals = () => {
         
         if (referral.dispute) {
           setDisputeResolution(referral.dispute.status === 'Resolved' ? referral.dispute.resolution : '');
-          setDisputeAmount(referral.dispute.requestedAmount.toString());
+          setDisputeAmount(referral.dispute?.requestedAmount != null ? referral.dispute.requestedAmount.toString() : '');
           setDisputeNotes(referral.dispute.notes || '');
         } else {
           setDisputeResolution('');

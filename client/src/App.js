@@ -79,51 +79,37 @@ const ProtectedRoute = ({ children }) => {
   }
   
   if (error) {
-    return <ErrorDisplay fullPage message={error} title="Authentication Error" />;
+    return <Navigate to="/login" />;
   }
-  
+
   if (!currentUser) {
     return <Navigate to="/login" />;
   }
-  
+
   return children;
 };
 
 // Admin Route Component
 const AdminRoute = ({ children }) => {
-  console.log('[AdminRoute] Checking authentication');
   const { currentUser, loading, error } = useAuth();
-  
-  console.log('[AdminRoute] Auth state:', { currentUser, loading, error });
-  
-  // In development mode, bypass authentication checks
-  if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_MOCK_API === 'true') {
-    console.log('[AdminRoute] Development mode - bypassing auth checks');
-    return children;
-  }
-  
+
   if (loading) {
-    console.log('[AdminRoute] Still loading, showing spinner');
     return <ModernLoadingIndicator fullPage message="Loading your profile..." variant="pulse" color="primary" />;
   }
-  
+
   if (error) {
-    console.log('[AdminRoute] Auth error:', error);
-    return <ErrorDisplay fullPage message={error} title="Authentication Error" />;
-  }
-  
-  if (!currentUser) {
-    console.log('[AdminRoute] No user, redirecting to admin login');
     return <Navigate to="/admin/login" />;
   }
-  
+
+  if (!currentUser) {
+    return <Navigate to="/admin/login" />;
+  }
+
   // Check if user has admin role
   if (currentUser.role !== 'admin') {
-    console.log('[AdminRoute] User is not admin, redirecting to admin login');
     return <Navigate to="/admin/login" />;
   }
-  
-  console.log('[AdminRoute] User is admin, rendering admin content');
+
   return children;
 };
 

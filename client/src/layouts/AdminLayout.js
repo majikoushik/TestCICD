@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, Link as RouterLink, useLocation } from 'react-router-dom';
+import { Outlet, Link as RouterLink, useLocation, Navigate } from 'react-router-dom';
 import { styled } from '@mui/material/styles';
 import {
   Box,
@@ -96,24 +96,16 @@ const getMenuItems = () => [
 ];
 
 const AdminLayout = () => {
-  console.log('[AdminLayout] Component rendering');
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  
   const [open, setOpen] = useState(!isMobile);
 
-  useEffect(() => {
-    console.log('[AdminLayout] Component mounted');
-    console.log('[AdminLayout] Current path:', location.pathname);
-    return () => {
-      console.log('[AdminLayout] Component unmounting');
-    };
-  }, []);
+  const adminToken = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
 
-  useEffect(() => {
-    console.log('[AdminLayout] Path changed to:', location.pathname);
-  }, [location.pathname]);
+  if (!adminToken) {
+    return <Navigate to="/admin/login" replace />;
+  }
 
   const handleDrawerOpen = () => {
     setOpen(true);

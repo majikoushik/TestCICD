@@ -18,30 +18,17 @@ const api = axios.create({
 // Add request interceptor to add auth token to requests
 api.interceptors.request.use(
   (config) => {
-    console.log('Request URL:', config.url);
-    console.log('Request method:', config.method);
-    
     // Get token from storage
     const token = authStorage.get('token', false);
-    console.log('Token from storage:', token ? 'Found' : 'Not found');
-    
-    // Check all auth storage keys
-    console.log('Auth storage keys:', authStorage.keys());
-    
+
     // If token exists, add it to the request headers
     if (token) {
       const cleanToken = token.replace(/^"|"$/g, '');
       // Ensure token is properly formatted
       const formattedToken = cleanToken.startsWith('Bearer ') ? cleanToken : `Bearer ${cleanToken}`;
       config.headers.Authorization = formattedToken;
-      
-      // Log token for debugging (remove in production)
-      console.log('Using auth token:', formattedToken.substring(0, 20) + '...');
-      console.log('Request headers:', config.headers);
-    } else {
-      console.warn('No auth token found for request to:', config.url);
     }
-    
+
     return config;
   },
   (error) => {
@@ -53,7 +40,6 @@ api.interceptors.request.use(
 // Add response interceptor to handle common errors
 api.interceptors.response.use(
   (response) => {
-    console.log("Received Response:",response);
     return response;
   },
   (error) => {
@@ -188,9 +174,6 @@ const handleApiError = (error) => {
     // The request was made and the server responded with a status code
     // that falls out of the range of 2xx
     const { data, status } = error.response;
-    
-    console.error('Response data:', data);
-    console.error('Response status:', status);
     
     errorMessage = data.message || data.error || errorMessage;
   } else if (error.request) {

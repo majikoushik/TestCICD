@@ -51,30 +51,22 @@ export const login = async (credentials) => {
     
     // Real API call
     const response = await post('/auth/login', credentials);
-    
-    console.log('Login response:', response);
-    
+
     // Ensure we have a valid response with token
     if (!response || !response.token) {
       console.error('Invalid login response:', response);
       throw new Error('Invalid login response: No token received');
     }
-    
+
     // Store tokens in local storage
-    console.log('Storing token in auth storage');
     authStorage.set('token', response.token);
-    
+
     if (response.refreshToken) {
       authStorage.set('refreshToken', response.refreshToken);
     }
-    
+
     authStorage.set('user', response.user);
-    
-    // Verify token was stored correctly
-    const storedToken = authStorage.get('token', false);
-    console.log('Stored token verification:', storedToken ? 'Success' : 'Failed');
-    console.log('Auth storage keys after login:', authStorage.keys());
-    
+
     return response;
   } catch (error) {
     console.error('Login error:', error);
@@ -112,13 +104,13 @@ export const register = async (userData) => {
         verificationStatus: 'pending'
       };
       
-      const mockResponse = {
+      const mockData = {
         user: mockUser,
         token: 'mock-jwt-token',
         refreshToken: 'mock-refresh-token'
       };
-      
-      const response = await mockResponse(mockResponse, 1500);
+
+      const response = await mockResponse(mockData, 1500);
       
       // Store tokens in local storage
       authStorage.set('token', response.data.token);
@@ -201,12 +193,12 @@ export const refreshToken = async () => {
     // Check if mock API is enabled
     if (process.env.REACT_APP_MOCK_API === 'true') {
       // Mock response
-      const mockResponse = {
+      const mockData = {
         token: 'mock-jwt-token-refreshed',
         refreshToken: 'mock-refresh-token-refreshed'
       };
-      
-      const response = await mockResponse(mockResponse, 500);
+
+      const response = await mockResponse(mockData, 500);
       
       // Store new tokens in local storage
       authStorage.set('token', response.data.token);

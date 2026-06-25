@@ -106,18 +106,19 @@ export default function CreateReferral() {
 
   // Fetch patient records when patient is selected
   useEffect(() => {
+    let isMounted = true;
     const fetchPatientRecords = async () => {
       if (!referralData.patient) return;
-      
+
       try {
         setLoading(prev => ({ ...prev, records: true }));
-        
+
         // In a real app, this would be an API call to fetch patient records
         // For this demo, we'll simulate the data
-        
+
         // Simulate API call delay
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
+
         // Simulate patient records
         const mockRecords = [
           {
@@ -145,16 +146,21 @@ export default function CreateReferral() {
             description: 'Patient Medical History'
           }
         ];
-        
-        setPatientRecords(mockRecords);
+
+        if (isMounted) {
+          setPatientRecords(mockRecords);
+        }
       } catch (err) {
         console.error('Error fetching patient records:', err);
       } finally {
-        setLoading(prev => ({ ...prev, records: false }));
+        if (isMounted) {
+          setLoading(prev => ({ ...prev, records: false }));
+        }
       }
     };
 
     fetchPatientRecords();
+    return () => { isMounted = false; };
   }, [referralData.patient]);
 
   const handleInputChange = (e) => {
@@ -233,6 +239,7 @@ export default function CreateReferral() {
     } catch (err) {
       console.error('Error creating referral:', err);
       setError('Failed to create referral. Please try again.');
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -444,6 +451,7 @@ export default function CreateReferral() {
                   InputLabelProps={{
                     shrink: true,
                   }}
+                  inputProps={{ min: new Date().toISOString().split('T')[0] }}
                 />
               </Grid>
               <Grid item xs={12}>

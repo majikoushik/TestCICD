@@ -285,6 +285,7 @@ export default function AddPatient() {
                   InputLabelProps={{
                     shrink: true,
                   }}
+                  inputProps={{ max: new Date().toISOString().split('T')[0] }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -369,6 +370,7 @@ export default function AddPatient() {
                   InputLabelProps={{
                     shrink: true,
                   }}
+                  inputProps={{ max: new Date().toISOString().split('T')[0] }}
                 />
               </Grid>
               <Grid item xs={12} sm={4}>
@@ -394,7 +396,7 @@ export default function AddPatient() {
             {patientData.medicalHistory.length > 0 && (
               <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
                 {patientData.medicalHistory.map((condition, index) => (
-                  <Box key={index} sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Box key={`condition-${index}`} sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
                       <Typography variant="body1">
                         {condition.condition}
@@ -476,7 +478,7 @@ export default function AddPatient() {
             {patientData.medications.length > 0 && (
               <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
                 {patientData.medications.map((med, index) => (
-                  <Box key={index} sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Box key={`medication-${index}`} sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
                       <Typography variant="body1">
                         {med.name} {med.dosage}
@@ -550,7 +552,7 @@ export default function AddPatient() {
             {patientData.allergies.length > 0 && (
               <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
                 {patientData.allergies.map((item, index) => (
-                  <Box key={index} sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Box key={`allergy-${index}`} sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
                       <Typography variant="body1">
                         {item.allergen}

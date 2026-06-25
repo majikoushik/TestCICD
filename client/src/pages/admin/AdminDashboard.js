@@ -584,7 +584,7 @@ const AdminDashboard = () => {
                     <Paper sx={{ p: 2, bgcolor: '#f0f7ff', textAlign: 'center' }}>
                       <Typography variant="h6">Risk Assessment Accuracy</Typography>
                       <Typography variant="h4" color="primary">
-                        {(aiAnalytics.accuracy.riskAssessment * 100).toFixed(1)}%
+                        {((aiAnalytics.accuracy?.riskAssessment ?? 0) * 100).toFixed(1)}%
                       </Typography>
                     </Paper>
                   </Grid>
@@ -593,7 +593,7 @@ const AdminDashboard = () => {
                     <Paper sx={{ p: 2, bgcolor: '#f0fff7', textAlign: 'center' }}>
                       <Typography variant="h6">Summary Generation Accuracy</Typography>
                       <Typography variant="h4" color="success.main">
-                        {(aiAnalytics.accuracy.summaryGeneration * 100).toFixed(1)}%
+                        {((aiAnalytics.accuracy?.summaryGeneration ?? 0) * 100).toFixed(1)}%
                       </Typography>
                     </Paper>
                   </Grid>
@@ -602,7 +602,7 @@ const AdminDashboard = () => {
                     <Paper sx={{ p: 2, bgcolor: '#fff7f0', textAlign: 'center' }}>
                       <Typography variant="h6">Recommendation Accuracy</Typography>
                       <Typography variant="h4" color="warning.main">
-                        {(aiAnalytics.accuracy.recommendationEngine * 100).toFixed(1)}%
+                        {((aiAnalytics.accuracy?.recommendationEngine ?? 0) * 100).toFixed(1)}%
                       </Typography>
                     </Paper>
                   </Grid>
