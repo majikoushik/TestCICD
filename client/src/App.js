@@ -74,6 +74,7 @@ const AdminFHIR = lazy(() => import('./pages/admin/AdminFHIR'));
 const AdminPriorAuth = lazy(() => import('./pages/admin/AdminPriorAuth'));
 const AdminPatientEngagement = lazy(() => import('./pages/admin/AdminPatientEngagement'));
 const AdminAmbientSessions = lazy(() => import('./pages/admin/AdminAmbientSessions'));
+const AdminReferralMatching = lazy(() => import('./pages/admin/AdminReferralMatching'));
 
 // Ambient Clinical Intelligence (provider)
 const AmbientRecorder = lazy(() => import('./pages/ambient/AmbientRecorder'));
@@ -378,6 +379,11 @@ function App() {
         <Route path="ambient-sessions" element={
           <Suspense fallback={<PageLoadingFallback />}>
             <AdminAmbientSessions />
+          </Suspense>
+        } />
+        <Route path="referral-matching" element={
+          <Suspense fallback={<PageLoadingFallback />}>
+            <AdminReferralMatching />
           </Suspense>
         } />
         <Route path="patient-records" element={

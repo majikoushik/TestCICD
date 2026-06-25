@@ -40,9 +40,11 @@ const patientEngagementRoutes = require('./routes/patientEngagement');
 const adminPatientEngagementRoutes = require('./routes/admin/patientEngagement');
 const ambientSessionRoutes = require('./routes/ambientSessions');
 const adminAmbientSessionRoutes = require('./routes/admin/ambientSessions');
+const referralMatchingRoutes = require('./routes/referralMatching');
 const { seedPriorAuths } = require('./seeds/priorAuthSeed');
 const { seedPatientEngagement } = require('./seeds/patientEngagementSeed');
 const { seedAmbientSessions } = require('./seeds/ambientSessionSeed');
+const { seedReferralMatchingProfiles } = require('./seeds/referralMatchingSeed');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -117,6 +119,7 @@ function mountLiveRoutes() {
   app.use('/api/admin/patient-engagement', [protect, authorize('admin', 'superadmin'), adminPatientEngagementRoutes]);
   app.use('/api/admin/ambient-sessions', [protect, authorize('admin', 'superadmin'), adminAmbientSessionRoutes]);
   app.use('/api/admin', [protect, authorize('admin', 'superadmin'), adminRoutes]);
+  app.use('/api/referral-matching', protect, referralMatchingRoutes);
   app.use('/api/patient-engagement', protect, patientEngagementRoutes);
   app.use('/api/ambient-sessions', protect, ambientSessionRoutes);
 
@@ -167,6 +170,7 @@ async function startServer() {
     await seedPriorAuths();
     await seedPatientEngagement();
     await seedAmbientSessions();
+    await seedReferralMatchingProfiles();
   } else {
     mountSyntheticRoutes();
   }

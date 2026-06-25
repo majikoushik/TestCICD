@@ -97,6 +97,7 @@ const getMenuItems = () => [
   { text: 'Prior Authorizations', icon: <AssignmentIcon />, path: '/admin/prior-auth' },
   { text: 'Patient Engagement', icon: <NotificationsActiveIcon />, path: '/admin/patient-engagement' },
   { text: 'Ambient AI Sessions', icon: <MicIcon />, path: '/admin/ambient-sessions' },
+  { text: 'AI Referral Matching', icon: <AIIcon />, path: '/admin/referral-matching' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/admin/settings' },
   { text: 'Patient Records', icon: <PatientRecordsIcon />, path: '/admin/patient-records' },
   { text: 'Referrals', icon: <ReferralsIcon />, path: '/admin/referrals' },

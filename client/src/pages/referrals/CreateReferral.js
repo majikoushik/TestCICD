@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as referralService from '../../services/referralService';
 import { ModernLoadingIndicator } from '../../components/common';
+import AIProviderSuggestions from '../../components/referral/AIProviderSuggestions';
 import {
   Box,
   Container,
@@ -54,6 +55,8 @@ export default function CreateReferral() {
     attachedRecords: []
   });
   
+  const [referralSpecialty, setReferralSpecialty] = useState('');
+
   // Data for dropdowns
   const [patients, setPatients] = useState([]);
   const [providers, setProviders] = useState([]);
@@ -334,6 +337,37 @@ export default function CreateReferral() {
           <Box>
             <Typography variant="h6" gutterBottom>
               Provider Information
+            </Typography>
+            <TextField
+              label="Specialty Needed (for AI matching)"
+              size="small"
+              fullWidth
+              value={referralSpecialty}
+              onChange={(e) => setReferralSpecialty(e.target.value)}
+              placeholder="e.g. Cardiology, Neurology, Orthopedics..."
+              sx={{ mb: 2 }}
+            />
+            <AIProviderSuggestions
+              specialty={referralSpecialty}
+              patientInsurance={referralData.patient?.insurance || ''}
+              patientCity={referralData.patient?.city || ''}
+              patientState={referralData.patient?.state || ''}
+              urgency={referralData.urgency}
+              selectedProviderId={referralData.receivingProvider?._id}
+              onSelectProvider={(match) => {
+                setReferralData(prev => ({
+                  ...prev,
+                  receivingProvider: {
+                    _id: match._id,
+                    name: match.providerName,
+                    specialty: match.specialty,
+                    organization: match.organizationName || '',
+                  }
+                }));
+              }}
+            />
+            <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 2, mb: 1 }}>
+              Or search all providers:
             </Typography>
             <Autocomplete
               options={providers}

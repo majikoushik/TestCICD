@@ -1752,6 +1752,172 @@ router.delete('/ambient-sessions/:id', protect, (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// AI Referral Matching routes (synthetic mode)
+// ---------------------------------------------------------------------------
+
+const syntheticProviderProfiles = [
+  { _id: 'mp001', providerName: 'Dr. Sarah Chen', email: 'sarah.chen@atlantahealth.com', specialty: 'Cardiology', subSpecialties: ['Interventional Cardiology', 'Heart Failure'], acceptedInsurance: ['Blue Cross Blue Shield', 'Aetna', 'United Healthcare', 'Medicare'], city: 'Atlanta', state: 'GA', zipCode: '30301', organizationName: 'Atlanta Heart Center', acceptanceRate: 0.92, avgResponseTimeDays: 1, totalReferralsReceived: 320, completedReferrals: 295, activeReferrals: 12, tokenBalance: 1850, tokenEarned: 4200, availabilityScore: 88, networkParticipation: true, isAcceptingReferrals: true, languagesSpoken: ['English', 'Mandarin'], yearsInPractice: 14, boardCertified: true, telehealth: true },
+  { _id: 'mp002', providerName: 'Dr. James Okonkwo', email: 'james.okonkwo@bostonneuro.com', specialty: 'Neurology', subSpecialties: ['Epilepsy', 'Movement Disorders'], acceptedInsurance: ['Cigna', 'Humana', 'Medicare', 'Medicaid', 'Anthem'], city: 'Boston', state: 'MA', zipCode: '02101', organizationName: 'Boston Neuroscience Institute', acceptanceRate: 0.87, avgResponseTimeDays: 2, totalReferralsReceived: 215, completedReferrals: 187, activeReferrals: 8, tokenBalance: 1200, tokenEarned: 2800, availabilityScore: 75, networkParticipation: true, isAcceptingReferrals: true, languagesSpoken: ['English', 'Igbo'], yearsInPractice: 11, boardCertified: true, telehealth: false },
+  { _id: 'mp003', providerName: 'Dr. Maria Gonzalez', email: 'maria.gonzalez@chicagoortho.com', specialty: 'Orthopedics', subSpecialties: ['Sports Medicine', 'Joint Replacement'], acceptedInsurance: ['Blue Cross Blue Shield', 'United Healthcare', 'Cigna', 'Kaiser Permanente'], city: 'Chicago', state: 'IL', zipCode: '60601', organizationName: 'Chicago Orthopedic Group', acceptanceRate: 0.95, avgResponseTimeDays: 1, totalReferralsReceived: 410, completedReferrals: 389, activeReferrals: 15, tokenBalance: 2200, tokenEarned: 5000, availabilityScore: 92, networkParticipation: true, isAcceptingReferrals: true, languagesSpoken: ['English', 'Spanish'], yearsInPractice: 18, boardCertified: true, telehealth: true },
+  { _id: 'mp004', providerName: 'Dr. Robert Kim', email: 'robert.kim@dallasgi.com', specialty: 'Gastroenterology', subSpecialties: ['Endoscopy', 'Hepatology'], acceptedInsurance: ['Aetna', 'Humana', 'Medicare', 'WellCare'], city: 'Dallas', state: 'TX', zipCode: '75201', organizationName: 'Dallas GI Associates', acceptanceRate: 0.89, avgResponseTimeDays: 3, totalReferralsReceived: 175, completedReferrals: 156, activeReferrals: 6, tokenBalance: 780, tokenEarned: 1900, availabilityScore: 82, networkParticipation: true, isAcceptingReferrals: true, languagesSpoken: ['English', 'Korean'], yearsInPractice: 9, boardCertified: true, telehealth: false },
+  { _id: 'mp005', providerName: 'Dr. Angela White', email: 'angela.white@phoenixendo.com', specialty: 'Endocrinology', subSpecialties: ['Diabetes Management', 'Thyroid'], acceptedInsurance: ['Blue Cross Blue Shield', 'United Healthcare', 'Anthem', 'Kaiser Permanente'], city: 'Phoenix', state: 'AZ', zipCode: '85001', organizationName: 'Phoenix Endocrine Center', acceptanceRate: 0.93, avgResponseTimeDays: 2, totalReferralsReceived: 290, completedReferrals: 270, activeReferrals: 10, tokenBalance: 1650, tokenEarned: 3600, availabilityScore: 85, networkParticipation: true, isAcceptingReferrals: true, languagesSpoken: ['English'], yearsInPractice: 13, boardCertified: true, telehealth: true },
+  { _id: 'mp006', providerName: 'Dr. David Park', email: 'david.park@nyoncology.com', specialty: 'Oncology', subSpecialties: ['Medical Oncology', 'Hematology'], acceptedInsurance: ['Aetna', 'United Healthcare', 'Medicare', 'Cigna', 'Anthem'], city: 'New York', state: 'NY', zipCode: '10001', organizationName: 'NY Cancer Institute', acceptanceRate: 0.78, avgResponseTimeDays: 4, totalReferralsReceived: 380, completedReferrals: 296, activeReferrals: 22, tokenBalance: 950, tokenEarned: 2200, availabilityScore: 60, networkParticipation: true, isAcceptingReferrals: true, languagesSpoken: ['English', 'Korean'], yearsInPractice: 16, boardCertified: true, telehealth: false },
+  { _id: 'mp007', providerName: 'Dr. Linda Torres', email: 'linda.torres@lapulm.com', specialty: 'Pulmonology', subSpecialties: ['Critical Care', 'Sleep Medicine'], acceptedInsurance: ['Blue Cross Blue Shield', 'Humana', 'Medicaid', 'WellCare'], city: 'Los Angeles', state: 'CA', zipCode: '90001', organizationName: 'LA Pulmonary Specialists', acceptanceRate: 0.84, avgResponseTimeDays: 2, totalReferralsReceived: 142, completedReferrals: 119, activeReferrals: 5, tokenBalance: 620, tokenEarned: 1400, availabilityScore: 79, networkParticipation: false, isAcceptingReferrals: true, languagesSpoken: ['English', 'Spanish'], yearsInPractice: 8, boardCertified: true, telehealth: true },
+  { _id: 'mp008', providerName: 'Dr. Michael Johnson', email: 'michael.johnson@houstonrheum.com', specialty: 'Rheumatology', subSpecialties: ['Autoimmune', 'Immunology'], acceptedInsurance: ['Cigna', 'United Healthcare', 'Medicare', 'Anthem'], city: 'Houston', state: 'TX', zipCode: '77001', organizationName: 'Houston Rheumatology Center', acceptanceRate: 0.91, avgResponseTimeDays: 3, totalReferralsReceived: 198, completedReferrals: 180, activeReferrals: 9, tokenBalance: 1100, tokenEarned: 2500, availabilityScore: 83, networkParticipation: true, isAcceptingReferrals: true, languagesSpoken: ['English'], yearsInPractice: 12, boardCertified: true, telehealth: false },
+  { _id: 'mp009', providerName: 'Dr. Rachel Brown', email: 'rachel.brown@miamiderm.com', specialty: 'Dermatology', subSpecialties: ['Mohs Surgery'], acceptedInsurance: ['Aetna', 'Blue Cross Blue Shield', 'United Healthcare', 'Cigna', 'Humana'], city: 'Miami', state: 'FL', zipCode: '33101', organizationName: 'Miami Dermatology Associates', acceptanceRate: 0.97, avgResponseTimeDays: 1, totalReferralsReceived: 445, completedReferrals: 432, activeReferrals: 8, tokenBalance: 2450, tokenEarned: 5000, availabilityScore: 95, networkParticipation: true, isAcceptingReferrals: true, languagesSpoken: ['English', 'Spanish'], yearsInPractice: 20, boardCertified: true, telehealth: true },
+  { _id: 'mp010', providerName: 'Dr. Steven Lee', email: 'steven.lee@seattlenephro.com', specialty: 'Nephrology', subSpecialties: ['Dialysis', 'Renal'], acceptedInsurance: ['Medicare', 'Medicaid', 'Humana', 'WellCare'], city: 'Seattle', state: 'WA', zipCode: '98101', organizationName: 'Seattle Kidney Center', acceptanceRate: 0.86, avgResponseTimeDays: 2, totalReferralsReceived: 167, completedReferrals: 144, activeReferrals: 7, tokenBalance: 840, tokenEarned: 1950, availabilityScore: 77, networkParticipation: true, isAcceptingReferrals: true, languagesSpoken: ['English', 'Korean'], yearsInPractice: 10, boardCertified: true, telehealth: false },
+  { _id: 'mp011', providerName: 'Dr. Patricia Davis', email: 'patricia.davis@atlantacardio2.com', specialty: 'Cardiology', subSpecialties: ['Electrophysiology', 'Cardiac Surgery'], acceptedInsurance: ['Blue Cross Blue Shield', 'Cigna', 'Anthem', 'Medicare'], city: 'Atlanta', state: 'GA', zipCode: '30302', organizationName: 'Emory Heart & Vascular', acceptanceRate: 0.88, avgResponseTimeDays: 2, totalReferralsReceived: 255, completedReferrals: 224, activeReferrals: 14, tokenBalance: 1350, tokenEarned: 3100, availabilityScore: 80, networkParticipation: true, isAcceptingReferrals: true, languagesSpoken: ['English'], yearsInPractice: 15, boardCertified: true, telehealth: false },
+  { _id: 'mp012', providerName: 'Dr. Thomas Wilson', email: 'thomas.wilson@chicagourology.com', specialty: 'Urology', subSpecialties: ['Urological Surgery'], acceptedInsurance: ['Aetna', 'United Healthcare', 'Blue Cross Blue Shield', 'Humana'], city: 'Chicago', state: 'IL', zipCode: '60602', organizationName: 'Chicago Urology Partners', acceptanceRate: 0.90, avgResponseTimeDays: 2, totalReferralsReceived: 189, completedReferrals: 170, activeReferrals: 7, tokenBalance: 980, tokenEarned: 2300, availabilityScore: 84, networkParticipation: true, isAcceptingReferrals: true, languagesSpoken: ['English'], yearsInPractice: 11, boardCertified: true, telehealth: true },
+  { _id: 'mp013', providerName: 'Dr. Jennifer Martinez', email: 'jennifer.martinez@nyptych.com', specialty: 'Psychiatry', subSpecialties: ['Mental Health', 'Psychology'], acceptedInsurance: ['Cigna', 'Aetna', 'Medicaid', 'WellCare', 'Anthem'], city: 'New York', state: 'NY', zipCode: '10002', organizationName: 'NY Behavioral Health Institute', acceptanceRate: 0.82, avgResponseTimeDays: 3, totalReferralsReceived: 312, completedReferrals: 256, activeReferrals: 18, tokenBalance: 730, tokenEarned: 1700, availabilityScore: 71, networkParticipation: false, isAcceptingReferrals: true, languagesSpoken: ['English', 'Spanish'], yearsInPractice: 9, boardCertified: true, telehealth: true },
+  { _id: 'mp014', providerName: 'Dr. Christopher Anderson', email: 'christopher.anderson@dallasallergy.com', specialty: 'Allergy', subSpecialties: ['Allergy & Immunology'], acceptedInsurance: ['Blue Cross Blue Shield', 'United Healthcare', 'Aetna', 'Kaiser Permanente'], city: 'Dallas', state: 'TX', zipCode: '75202', organizationName: 'Dallas Allergy & Asthma Center', acceptanceRate: 0.94, avgResponseTimeDays: 1, totalReferralsReceived: 228, completedReferrals: 214, activeReferrals: 6, tokenBalance: 1420, tokenEarned: 3300, availabilityScore: 90, networkParticipation: true, isAcceptingReferrals: true, languagesSpoken: ['English'], yearsInPractice: 16, boardCertified: true, telehealth: false },
+  { _id: 'mp015', providerName: 'Dr. Amanda Thompson', email: 'amanda.thompson@laent.com', specialty: 'ENT', subSpecialties: ['Otolaryngology', 'Head and Neck Surgery'], acceptedInsurance: ['Humana', 'United Healthcare', 'Cigna', 'Medicaid'], city: 'Los Angeles', state: 'CA', zipCode: '90002', organizationName: 'LA ENT Specialists', acceptanceRate: 0.88, avgResponseTimeDays: 2, totalReferralsReceived: 193, completedReferrals: 170, activeReferrals: 9, tokenBalance: 890, tokenEarned: 2050, availabilityScore: 81, networkParticipation: true, isAcceptingReferrals: true, languagesSpoken: ['English', 'Spanish'], yearsInPractice: 13, boardCertified: true, telehealth: false },
+];
+
+const syntheticMatchSessions = [
+  { _id: 'ms001', requestedByName: 'Dr. John Smith', specialty: 'Cardiology', patientInsurance: 'Blue Cross Blue Shield', patientCity: 'Atlanta', patientState: 'GA', urgency: 'routine', resultsCount: 5, topMatchScore: 94, selectedProviderId: 'mp001', selectedProviderName: 'Dr. Sarah Chen', selectedMatchScore: 94, createdAt: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString() },
+  { _id: 'ms002', requestedByName: 'Dr. Emily Davis', specialty: 'Neurology', patientInsurance: 'Cigna', patientCity: 'Boston', patientState: 'MA', urgency: 'urgent', resultsCount: 3, topMatchScore: 87, selectedProviderId: null, selectedProviderName: null, selectedMatchScore: null, createdAt: new Date(Date.now() - 1 * 24 * 3600 * 1000).toISOString() },
+  { _id: 'ms003', requestedByName: 'Dr. John Smith', specialty: 'Orthopedics', patientInsurance: 'Aetna', patientCity: 'Chicago', patientState: 'IL', urgency: 'routine', resultsCount: 4, topMatchScore: 91, selectedProviderId: 'mp003', selectedProviderName: 'Dr. Maria Gonzalez', selectedMatchScore: 91, createdAt: new Date(Date.now() - 3 * 3600 * 1000).toISOString() },
+  { _id: 'ms004', requestedByName: 'Dr. Sarah Lee', specialty: 'Endocrinology', patientInsurance: 'United Healthcare', patientCity: 'Phoenix', patientState: 'AZ', urgency: 'routine', resultsCount: 2, topMatchScore: 88, selectedProviderId: 'mp005', selectedProviderName: 'Dr. Angela White', selectedMatchScore: 88, createdAt: new Date(Date.now() - 5 * 3600 * 1000).toISOString() },
+  { _id: 'ms005', requestedByName: 'Dr. Emily Davis', specialty: 'Dermatology', patientInsurance: 'Humana', patientCity: 'Miami', patientState: 'FL', urgency: 'routine', resultsCount: 5, topMatchScore: 96, selectedProviderId: 'mp009', selectedProviderName: 'Dr. Rachel Brown', selectedMatchScore: 96, createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString() },
+];
+
+const SPECIALTY_SYNONYMS = {
+  'Cardiology': ['cardiology','cardiovascular','cardiac surgery','interventional cardiology','electrophysiology'],
+  'Orthopedics': ['orthopedics','orthopedic surgery','sports medicine','joint replacement','spine surgery'],
+  'Neurology': ['neurology','neurosurgery','neurological surgery','epilepsy','movement disorders'],
+  'Gastroenterology': ['gastroenterology','gi','hepatology','endoscopy','colorectal surgery'],
+  'Oncology': ['oncology','hematology','medical oncology','radiation oncology','surgical oncology'],
+  'Pulmonology': ['pulmonology','pulmonary medicine','critical care','sleep medicine','thoracic surgery'],
+  'Rheumatology': ['rheumatology','immunology','autoimmune'],
+  'Endocrinology': ['endocrinology','diabetes management','metabolism','thyroid'],
+  'Ophthalmology': ['ophthalmology','eye care','retina','glaucoma','cornea'],
+  'Dermatology': ['dermatology','skin','mohs surgery'],
+  'Nephrology': ['nephrology','renal','kidney','dialysis'],
+  'Urology': ['urology','urological surgery'],
+  'Psychiatry': ['psychiatry','mental health','psychology'],
+  'ENT': ['ent','otolaryngology','head and neck surgery'],
+  'Allergy': ['allergy','allergy & immunology'],
+};
+
+function syntheticScoreProvider(profile, criteria) {
+  const { specialty, patientInsurance, urgency } = criteria;
+  let specialtyScore = 0;
+  if (specialty) {
+    const reqLower = specialty.toLowerCase();
+    const profLower = profile.specialty.toLowerCase();
+    if (profLower === reqLower) {
+      specialtyScore = 30;
+    } else {
+      const synonymGroup = Object.values(SPECIALTY_SYNONYMS).find(g => g.includes(reqLower) || g.includes(profLower));
+      if (synonymGroup && synonymGroup.includes(reqLower) && synonymGroup.includes(profLower)) {
+        specialtyScore = 22;
+      } else if ((profile.subSpecialties || []).some(s => s.toLowerCase() === reqLower)) {
+        specialtyScore = 18;
+      }
+    }
+  }
+  let insuranceScore = 12;
+  if (patientInsurance && profile.acceptedInsurance && profile.acceptedInsurance.length > 0) {
+    const ins = patientInsurance.toLowerCase();
+    if (profile.acceptedInsurance.some(a => a.toLowerCase() === ins)) insuranceScore = 25;
+    else if (profile.acceptedInsurance.some(a => a.toLowerCase().includes(ins) || ins.includes(a.toLowerCase().split(' ')[0]))) insuranceScore = 18;
+    else insuranceScore = 2;
+  }
+  const acceptanceScore = Math.round(profile.acceptanceRate * 20);
+  const availScore = profile.isAcceptingReferrals ? Math.round((profile.availabilityScore / 100) * 15) : 0;
+  let tokenScore = 1;
+  if (profile.tokenEarned >= 1000) tokenScore = 10;
+  else if (profile.tokenEarned >= 500) tokenScore = 8;
+  else if (profile.tokenEarned >= 200) tokenScore = 6;
+  else if (profile.tokenEarned >= 50) tokenScore = 4;
+  else if (profile.tokenEarned > 0) tokenScore = 2;
+  let bonus = 0;
+  if (profile.networkParticipation) bonus += 3;
+  if (profile.boardCertified) bonus += 2;
+  if (profile.telehealth && (urgency === 'urgent' || urgency === 'emergency')) bonus += 2;
+  if (profile.avgResponseTimeDays <= 1) bonus += 3;
+  else if (profile.avgResponseTimeDays <= 2) bonus += 2;
+  else if (profile.avgResponseTimeDays <= 3) bonus += 1;
+  const matchScore = Math.min(100, specialtyScore + insuranceScore + acceptanceScore + availScore + tokenScore + bonus);
+  return { ...profile, matchScore, scoreBreakdown: { specialty: specialtyScore, insurance: insuranceScore, acceptanceRate: acceptanceScore, availability: availScore, tokenStanding: tokenScore, bonuses: bonus } };
+}
+
+router.post('/referral-matching/match', protect, (req, res) => {
+  const { specialty, patientInsurance, patientCity, patientState, urgency, limit = 10 } = req.body;
+  if (!specialty) return res.status(400).json({ success: false, error: 'specialty is required' });
+  const criteria = { specialty, patientInsurance, patientCity, patientState, urgency };
+  const scored = syntheticProviderProfiles
+    .filter(p => p.isAcceptingReferrals)
+    .map(p => syntheticScoreProvider(p, criteria))
+    .filter(p => p.matchScore > 5)
+    .sort((a, b) => b.matchScore - a.matchScore)
+    .slice(0, limit);
+  const session = { _id: 'ms' + Date.now(), requestedByName: req.user ? req.user.name : 'Unknown', specialty, patientInsurance, patientCity, patientState, urgency, resultsCount: scored.length, topMatchScore: scored[0] ? scored[0].matchScore : 0, selectedProviderId: null, createdAt: new Date().toISOString() };
+  syntheticMatchSessions.unshift(session);
+  res.json({ success: true, data: { matches: scored, criteria, total: scored.length, sessionId: session._id } });
+});
+
+router.get('/referral-matching/stats', protect, (req, res) => {
+  const total = syntheticMatchSessions.length;
+  const withSelection = syntheticMatchSessions.filter(s => s.selectedProviderId).length;
+  const selectionRate = total > 0 ? Math.round((withSelection / total) * 100) : 0;
+  const avgTopScore = total > 0 ? Math.round(syntheticMatchSessions.reduce((sum, s) => sum + (s.topMatchScore || 0), 0) / total) : 0;
+  const activeProviders = syntheticProviderProfiles.filter(p => p.isAcceptingReferrals).length;
+  const specialtyCounts = {};
+  syntheticMatchSessions.forEach(s => { if (s.specialty) specialtyCounts[s.specialty] = (specialtyCounts[s.specialty] || 0) + 1; });
+  const topSpecialties = Object.entries(specialtyCounts).map(([specialty, count]) => ({ specialty, count })).sort((a, b) => b.count - a.count).slice(0, 10);
+  res.json({ success: true, data: { total, selectionRate, avgTopMatchScore: avgTopScore, activeProviders, totalSessions: total, topSpecialties } });
+});
+
+router.get('/referral-matching/sessions', protect, (req, res) => {
+  const { page = 1, limit = 15 } = req.query;
+  const pageNum = parseInt(page, 10) || 1;
+  const limitNum = parseInt(limit, 10) || 15;
+  const skip = (pageNum - 1) * limitNum;
+  const paged = syntheticMatchSessions.slice(skip, skip + limitNum);
+  res.json({ success: true, data: { sessions: paged, total: syntheticMatchSessions.length } });
+});
+
+router.post('/referral-matching/sessions/:sessionId/select', protect, (req, res) => {
+  const { sessionId } = req.params;
+  const { selectedProviderId, selectedProviderName, selectedMatchScore, linkedReferralId } = req.body;
+  const session = syntheticMatchSessions.find(s => s._id === sessionId);
+  if (session) {
+    session.selectedProviderId = selectedProviderId;
+    session.selectedProviderName = selectedProviderName;
+    session.selectedMatchScore = selectedMatchScore;
+    session.linkedReferralId = linkedReferralId;
+  }
+  res.json({ success: true });
+});
+
+router.get('/referral-matching/providers', protect, (req, res) => {
+  const { specialty, state, search, page = 1, limit = 20 } = req.query;
+  let results = [...syntheticProviderProfiles];
+  if (specialty) results = results.filter(p => p.specialty.toLowerCase().includes(specialty.toLowerCase()));
+  if (state) results = results.filter(p => p.state === state.toUpperCase());
+  if (search) results = results.filter(p => p.providerName.toLowerCase().includes(search.toLowerCase()) || p.organizationName.toLowerCase().includes(search.toLowerCase()));
+  const pageNum = parseInt(page, 10) || 1;
+  const limitNum = parseInt(limit, 10) || 20;
+  const skip = (pageNum - 1) * limitNum;
+  const paged = results.slice(skip, skip + limitNum);
+  res.json({ success: true, data: { providers: paged, total: results.length, page: pageNum, limit: limitNum } });
+});
+
+router.get('/referral-matching/providers/:id', protect, (req, res) => {
+  const profile = syntheticProviderProfiles.find(p => p._id === req.params.id);
+  if (!profile) return res.status(404).json({ success: false, error: 'Provider not found' });
+  res.json({ success: true, data: profile });
+});
+
+router.put('/referral-matching/providers/:id', protect, (req, res) => {
+  const idx = syntheticProviderProfiles.findIndex(p => p._id === req.params.id);
+  if (idx === -1) return res.status(404).json({ success: false, error: 'Provider not found' });
+  Object.assign(syntheticProviderProfiles[idx], req.body, { _id: syntheticProviderProfiles[idx]._id });
+  res.json({ success: true, data: syntheticProviderProfiles[idx] });
+});
+
+// ---------------------------------------------------------------------------
 // FHIR R4 API routes (synthetic mode — transforms in-memory data)
 // ---------------------------------------------------------------------------
 

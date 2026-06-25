@@ -19,6 +19,7 @@ import adminAnalyticsService from './adminAnalyticsService';
 import notificationService from './notificationService';
 import adminEngagementService from './adminEngagementService';
 import ambientSessionService from './ambientSessionService';
+import referralMatchingService from './referralMatchingService';
 import mockData from './mockData';
 
 // Export individual services
@@ -46,6 +47,7 @@ export {
   adminTokenService,
   adminEngagementService,
   ambientSessionService,
+  referralMatchingService,
 
   // Mock Data Service
   mockData
@@ -66,6 +68,7 @@ export const Services = {
   adminTokenService,
   adminEngagementService,
   ambientSessionService,
+  referralMatchingService,
   notificationService,
   mockData
 };

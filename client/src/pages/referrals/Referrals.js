@@ -432,7 +432,7 @@ export default function Referrals() {
                   <Badge 
                     badgeContent={25} 
                     color="primary" 
-                    sx={{ ml: 1 }}
+                    sx={{ ml: 2 }}
                     max={999}
                     showZero
                   />
@@ -448,7 +448,7 @@ export default function Referrals() {
                   <Badge 
                     badgeContent={8} 
                     color="warning" 
-                    sx={{ ml: 1 }}
+                    sx={{ ml: 2 }}
                     max={999}
                     showZero
                   />
@@ -464,7 +464,7 @@ export default function Referrals() {
                   <Badge 
                     badgeContent={6} 
                     color="info" 
-                    sx={{ ml: 1 }}
+                    sx={{ ml: 2 }}
                     max={999}
                     showZero
                   />
@@ -480,7 +480,7 @@ export default function Referrals() {
                   <Badge 
                     badgeContent={5} 
                     color="success" 
-                    sx={{ ml: 1 }}
+                    sx={{ ml: 2 }}
                     max={999}
                     showZero
                   />
@@ -496,7 +496,7 @@ export default function Referrals() {
                   <Badge 
                     badgeContent={3} 
                     color="error" 
-                    sx={{ ml: 1 }}
+                    sx={{ ml: 2 }}
                     max={999}
                     showZero
                   />
@@ -512,7 +512,7 @@ export default function Referrals() {
                   <Badge 
                     badgeContent={3} 
                     color="error" 
-                    sx={{ ml: 1 }}
+                    sx={{ ml: 2 }}
                     max={999}
                     showZero
                   />
