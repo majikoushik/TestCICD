@@ -17,6 +17,7 @@ import adminService from './adminService';
 import adminTokenService from './adminTokenService';
 import adminAnalyticsService from './adminAnalyticsService';
 import notificationService from './notificationService';
+import adminEngagementService from './adminEngagementService';
 import mockData from './mockData';
 
 // Export individual services
@@ -42,6 +43,7 @@ export {
   adminAuthService,
   adminService,
   adminTokenService,
+  adminEngagementService,
   
   // Mock Data Service
   mockData
@@ -60,6 +62,7 @@ export const Services = {
   adminAuthService,
   adminService,
   adminTokenService,
+  adminEngagementService,
   notificationService,
   mockData
 };

@@ -1326,6 +1326,264 @@ router.post('/admin/prior-auth/:id/analyze', protect, (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Patient Engagement routes (synthetic mode)
+// ---------------------------------------------------------------------------
+
+const syntheticTemplates = [
+  { _id: 'tmpl-001', name: 'Appointment Reminder', type: 'appointment_reminder', subject: 'Upcoming Appointment Reminder', body: 'Dear {{patientName}}, you have an appointment scheduled on {{appointmentDate}} at {{appointmentTime}} with {{providerName}}. Please arrive 15 minutes early.', smsBody: 'Reminder: Appt on {{appointmentDate}} at {{appointmentTime}} with {{providerName}}.', defaultChannels: ['email', 'sms', 'in_app'], variables: ['patientName', 'appointmentDate', 'appointmentTime', 'providerName'], isActive: true, usageCount: 45, createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString() },
+  { _id: 'tmpl-002', name: 'Referral Status Update', type: 'referral_update', subject: 'Your Referral Has Been Updated', body: 'Dear {{patientName}}, your referral for {{serviceType}} to {{providerName}} has been {{status}}.', smsBody: 'Your referral for {{serviceType}} has been {{status}}. Log in for details.', defaultChannels: ['email', 'in_app'], variables: ['patientName', 'serviceType', 'providerName', 'status'], isActive: true, usageCount: 28, createdAt: new Date(Date.now() - 55 * 24 * 60 * 60 * 1000).toISOString() },
+  { _id: 'tmpl-003', name: 'Prior Authorization Update', type: 'prior_auth_update', subject: 'Prior Authorization Decision', body: 'Dear {{patientName}}, your prior authorization request for {{serviceType}} has been {{decision}}.', smsBody: 'PA for {{serviceType}}: {{decision}}. Check portal for details.', defaultChannels: ['email', 'sms', 'in_app'], variables: ['patientName', 'serviceType', 'decision', 'reason'], isActive: true, usageCount: 19, createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString() },
+  { _id: 'tmpl-004', name: 'Preventive Care Reminder', type: 'care_gap', subject: 'Time for Your Preventive Care Checkup', body: 'Dear {{patientName}}, our records show you are due for {{careType}}. Please schedule an appointment with {{providerName}} at your earliest convenience.', smsBody: 'Hi {{patientName}}, you are due for {{careType}}. Please schedule with {{providerName}}.', defaultChannels: ['email', 'sms'], variables: ['patientName', 'careType', 'providerName'], isActive: true, usageCount: 67, createdAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString() },
+  { _id: 'tmpl-005', name: 'Lab Results Ready', type: 'lab_result', subject: 'Your Lab Results Are Ready', body: 'Dear {{patientName}}, your lab results from {{testDate}} are now available in the patient portal.', smsBody: 'Lab results from {{testDate}} ready. Log in to portal or call {{providerName}}.', defaultChannels: ['email', 'in_app'], variables: ['patientName', 'testDate', 'providerName'], isActive: true, usageCount: 33, createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() },
+  { _id: 'tmpl-006', name: 'Prescription Ready for Pickup', type: 'prescription', subject: 'Your Prescription is Ready', body: 'Dear {{patientName}}, your prescription for {{medicationName}} is ready for pickup at {{pharmacyName}}.', smsBody: 'Rx for {{medicationName}} ready at {{pharmacyName}}. Bring ID.', defaultChannels: ['sms', 'in_app'], variables: ['patientName', 'medicationName', 'pharmacyName', 'pharmacyHours'], isActive: true, usageCount: 22, createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString() },
+];
+
+const syntheticPatientNotifications = [
+  { _id: 'pn-001', patientId: 'PT-100001', patientName: 'James Wilson', patientEmail: 'james.wilson@email.com', patientPhone: '+15551234567', title: 'Appointment Reminder', message: 'Dear James Wilson, you have an appointment scheduled on Jun 20, 2025 at 10:00 AM with Dr. John Smith. Please arrive 15 minutes early.', type: 'appointment_reminder', priority: 'normal', channels: ['email', 'sms', 'in_app'], channelStatus: { email: { sent: true, sentAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), deliveredAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 60000).toISOString(), messageId: 'msg-001' }, sms: { sent: true, sentAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), sid: 'SM001' }, in_app: { sent: true, read: true, readAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() } }, status: 'read', templateId: 'tmpl-001', sentByName: 'Dr. John Smith', sentAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() },
+  { _id: 'pn-002', patientId: 'PT-100002', patientName: 'Emily Rodriguez', patientEmail: 'emily.rodriguez@email.com', patientPhone: '+15552345678', title: 'Referral Status Update', message: 'Dear Emily Rodriguez, your referral for Pulmonology to Metro Medical Center has been accepted.', type: 'referral_update', priority: 'normal', channels: ['email', 'in_app'], channelStatus: { email: { sent: true, sentAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), deliveredAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 120000).toISOString(), messageId: 'msg-002' }, in_app: { sent: true, read: false } }, status: 'delivered', templateId: 'tmpl-002', sentByName: 'System', sentAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() },
+  { _id: 'pn-003', patientId: 'PT-100003', patientName: 'Thomas Brown', patientEmail: 'thomas.brown@email.com', patientPhone: '+15553456789', title: 'Prior Authorization Approved', message: 'Dear Thomas Brown, your prior authorization request for MRI Scan has been approved. Valid for 90 days.', type: 'prior_auth_update', priority: 'high', channels: ['email', 'sms', 'in_app'], channelStatus: { email: { sent: true, sentAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), deliveredAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000 + 60000).toISOString() }, sms: { sent: true, sentAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), sid: 'SM003' }, in_app: { sent: true, read: true, readAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString() } }, status: 'read', sentByName: 'Admin User', sentAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() },
+  { _id: 'pn-004', patientId: 'PT-100001', patientName: 'James Wilson', patientEmail: 'james.wilson@email.com', patientPhone: '+15551234567', title: 'Annual Wellness Check Due', message: 'Dear James Wilson, you are due for your Annual Wellness Check. Please schedule with Dr. John Smith.', type: 'care_gap', priority: 'normal', channels: ['email', 'sms'], channelStatus: { email: { sent: true, sentAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), deliveredAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000 + 90000).toISOString() }, sms: { sent: true, sentAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), sid: 'SM004' } }, status: 'delivered', campaignId: 'camp-002', sentByName: 'Admin User', sentAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString() },
+  { _id: 'pn-005', patientId: 'PT-100004', patientName: 'Maria Garcia', patientEmail: 'maria.garcia@email.com', patientPhone: '+15554567890', title: 'Lab Results Ready', message: 'Dear Maria Garcia, your lab results from Jun 1, 2025 are now available. Please log into the patient portal.', type: 'lab_result', priority: 'normal', channels: ['email', 'in_app'], channelStatus: { email: { sent: true, sentAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), deliveredAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000 + 60000).toISOString() }, in_app: { sent: true, read: true, readAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() } }, status: 'read', sentByName: 'Dr. John Smith', sentAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString() },
+  { _id: 'pn-006', patientId: 'PT-100005', patientName: 'David Lee', patientEmail: 'david.lee@email.com', patientPhone: '+15555678901', title: 'Prescription Ready for Pickup', message: 'Dear David Lee, your prescription for Metformin is ready for pickup at City Pharmacy.', type: 'prescription', priority: 'normal', channels: ['sms', 'in_app'], channelStatus: { sms: { sent: false, error: 'Invalid phone number format' }, in_app: { sent: true, read: false } }, status: 'failed', sentByName: 'Dr. John Smith', sentAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString() },
+  { _id: 'pn-007', patientId: 'PT-100002', patientName: 'Emily Rodriguez', patientEmail: 'emily.rodriguez@email.com', patientPhone: '+15552345678', title: 'Flu Season Vaccination Reminder', message: 'Dear Emily Rodriguez, flu season is here. We recommend scheduling your annual flu vaccination.', type: 'campaign', priority: 'low', channels: ['email', 'sms'], channelStatus: { email: { sent: true, sentAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), deliveredAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000 + 60000).toISOString() }, sms: { sent: true, sentAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), sid: 'SM007' } }, status: 'delivered', campaignId: 'camp-001', sentByName: 'Admin User', sentAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString() },
+  { _id: 'pn-008', patientId: 'PT-100003', patientName: 'Thomas Brown', patientEmail: 'thomas.brown@email.com', patientPhone: '+15553456789', title: 'Upcoming Cardiology Appointment', message: 'Dear Thomas Brown, your appointment with Dr. Michael Chen is on Jun 25, 2025 at 2:00 PM.', type: 'appointment_reminder', priority: 'high', channels: ['email', 'sms', 'in_app'], channelStatus: { email: { sent: true, sentAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString() }, sms: { sent: true, sentAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), sid: 'SM008' }, in_app: { sent: true, read: false } }, status: 'sent', sentByName: 'Dr. Michael Chen', sentAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString() },
+  { _id: 'pn-009', patientId: 'PT-100001', patientName: 'James Wilson', patientEmail: 'james.wilson@email.com', patientPhone: '+15551234567', title: 'Prior Authorization Denied', message: 'Dear James Wilson, your prior authorization for Cardiac Catheterization has been denied. Please contact your provider.', type: 'prior_auth_update', priority: 'urgent', channels: ['email', 'sms', 'in_app'], channelStatus: { email: { sent: true, sentAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(), deliveredAt: new Date(Date.now() - 8 * 60 * 60 * 1000 + 60000).toISOString() }, sms: { sent: true, sentAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(), sid: 'SM009' }, in_app: { sent: true, read: false } }, status: 'delivered', sentByName: 'Admin User', sentAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(), createdAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString() },
+  { _id: 'pn-010', patientId: 'PT-100005', patientName: 'David Lee', patientEmail: 'david.lee@email.com', patientPhone: '+15555678901', title: 'Cholesterol Screening Reminder', message: 'Dear David Lee, based on your medical history, we recommend scheduling a cholesterol screening.', type: 'care_gap', priority: 'normal', channels: ['email', 'in_app'], channelStatus: { email: { sent: false, error: 'Delivery timeout' }, in_app: { sent: true, read: false } }, status: 'failed', sentByName: 'Dr. John Smith', sentAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(), createdAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString() },
+  { _id: 'pn-011', patientId: 'PT-100003', patientName: 'Thomas Brown', patientEmail: 'thomas.brown@email.com', patientPhone: '+15553456789', title: 'Pending Prior Authorization', message: 'Dear Thomas Brown, your prior authorization for Physical Therapy is currently under review.', type: 'prior_auth_update', priority: 'normal', channels: ['in_app'], channelStatus: { in_app: { sent: true, read: false } }, status: 'pending', sentByName: 'System', createdAt: new Date().toISOString() },
+  { _id: 'pn-012', patientId: 'PT-100004', patientName: 'Maria Garcia', patientEmail: 'maria.garcia@email.com', patientPhone: '+15554567890', title: 'General Health Update', message: 'Dear Maria Garcia, please remember to take your medications as prescribed and maintain a healthy lifestyle.', type: 'general', priority: 'low', channels: ['in_app'], channelStatus: { in_app: { sent: true, read: true, readAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString() } }, status: 'read', sentByName: 'Dr. John Smith', sentAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() },
+];
+
+const syntheticCampaigns = [
+  { _id: 'camp-001', name: 'Flu Season Vaccination Reminder', description: 'Annual flu vaccination reminder sent to all active patients', templateId: 'tmpl-004', templateName: 'Preventive Care Reminder', channels: ['email', 'sms'], targetCriteria: { all: true }, status: 'completed', startedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), completedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000 + 3600000).toISOString(), stats: { totalTargeted: 5, totalSent: 5, totalDelivered: 4, totalFailed: 1, totalRead: 2, openRate: 40 }, createdByName: 'Admin User', createdAt: new Date(Date.now() - 11 * 24 * 60 * 60 * 1000).toISOString() },
+  { _id: 'camp-002', name: 'Annual Wellness Check', description: 'Targeted reminder for high-risk patients to schedule annual wellness exams', templateId: 'tmpl-004', templateName: 'Preventive Care Reminder', channels: ['email', 'sms'], targetCriteria: { riskScoreMin: 60, all: false }, status: 'completed', startedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), completedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000 + 1800000).toISOString(), stats: { totalTargeted: 3, totalSent: 3, totalDelivered: 3, totalFailed: 0, totalRead: 1, openRate: 33 }, createdByName: 'Admin User', createdAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString() },
+  { _id: 'camp-003', name: 'Diabetes Management Program', description: 'Outreach for diabetes education and management program enrollment', templateId: 'tmpl-001', templateName: 'Appointment Reminder', channels: ['email', 'in_app'], targetCriteria: { conditions: ['Type 2 Diabetes', 'Diabetes'], all: false }, status: 'draft', stats: { totalTargeted: 0, totalSent: 0, totalDelivered: 0, totalFailed: 0, totalRead: 0, openRate: 0 }, createdByName: 'Admin User', createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() },
+];
+
+// ── Patient Engagement: Notifications ────────────────────────────────────────
+
+router.get('/admin/patient-engagement/stats', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const total = syntheticPatientNotifications.length;
+  const sent = syntheticPatientNotifications.filter(n => ['sent','delivered','read'].includes(n.status)).length;
+  const delivered = syntheticPatientNotifications.filter(n => ['delivered','read'].includes(n.status)).length;
+  const failed = syntheticPatientNotifications.filter(n => n.status === 'failed').length;
+  const pending = syntheticPatientNotifications.filter(n => n.status === 'pending').length;
+  const read = syntheticPatientNotifications.filter(n => n.status === 'read').length;
+  const deliveryRate = total > 0 ? Math.round((delivered / total) * 100) : 0;
+
+  const byType = {};
+  syntheticPatientNotifications.forEach(n => { byType[n.type] = (byType[n.type] || 0) + 1; });
+  const byChannel = {};
+  syntheticPatientNotifications.forEach(n => (n.channels || []).forEach(ch => { byChannel[ch] = (byChannel[ch] || 0) + 1; }));
+
+  res.json({ success: true, data: { total, sent, delivered, failed, pending, read, deliveryRate, byType, byChannel } });
+});
+
+router.get('/admin/patient-engagement/templates', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const { type, isActive } = req.query;
+  let results = [...syntheticTemplates];
+  if (type) results = results.filter(t => t.type === type);
+  if (isActive !== undefined) results = results.filter(t => t.isActive === (isActive === 'true'));
+  res.json({ success: true, data: results });
+});
+
+router.post('/admin/patient-engagement/templates', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const { name, description, type, subject, body, smsBody, pushTitle, defaultChannels, variables } = req.body;
+  if (!name || !type || !body) return res.status(400).json({ success: false, error: 'name, type, and body are required' });
+  const newTemplate = {
+    _id: `tmpl-${Date.now()}`, name, description, type, subject, body, smsBody, pushTitle,
+    defaultChannels: defaultChannels || ['in_app'],
+    variables: Array.isArray(variables) ? variables : (variables || '').split(',').map(v => v.trim()).filter(Boolean),
+    isActive: true, usageCount: 0, createdAt: new Date().toISOString()
+  };
+  syntheticTemplates.push(newTemplate);
+  res.status(201).json({ success: true, data: newTemplate });
+});
+
+router.put('/admin/patient-engagement/templates/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const tpl = syntheticTemplates.find(t => t._id === req.params.id);
+  if (!tpl) return res.status(404).json({ success: false, error: 'Not found' });
+  Object.assign(tpl, req.body, { updatedAt: new Date().toISOString() });
+  res.json({ success: true, data: tpl });
+});
+
+router.delete('/admin/patient-engagement/templates/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const tpl = syntheticTemplates.find(t => t._id === req.params.id);
+  if (!tpl) return res.status(404).json({ success: false, error: 'Not found' });
+  tpl.isActive = false;
+  res.json({ success: true, message: 'Template deactivated' });
+});
+
+router.get('/admin/patient-engagement/campaigns', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const { status } = req.query;
+  let results = [...syntheticCampaigns];
+  if (status && status !== 'all') results = results.filter(c => c.status === status);
+  res.json({ success: true, data: { campaigns: results, total: results.length } });
+});
+
+router.post('/admin/patient-engagement/campaigns', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const { name, description, templateId, channels, customMessage, targetCriteria, scheduledAt } = req.body;
+  if (!name || !channels?.length) return res.status(400).json({ success: false, error: 'name and channels are required' });
+  const tpl = syntheticTemplates.find(t => t._id === templateId);
+  const newCampaign = {
+    _id: `camp-${Date.now()}`, name, description,
+    templateId, templateName: tpl?.name,
+    channels, customMessage,
+    targetCriteria: targetCriteria || { all: true },
+    status: 'draft',
+    scheduledAt,
+    stats: { totalTargeted: 0, totalSent: 0, totalDelivered: 0, totalFailed: 0, totalRead: 0, openRate: 0 },
+    createdByName: req.user?.name || 'Admin',
+    createdAt: new Date().toISOString()
+  };
+  syntheticCampaigns.push(newCampaign);
+  res.status(201).json({ success: true, data: newCampaign });
+});
+
+router.put('/admin/patient-engagement/campaigns/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const campaign = syntheticCampaigns.find(c => c._id === req.params.id);
+  if (!campaign) return res.status(404).json({ success: false, error: 'Not found' });
+  if (!['draft', 'scheduled'].includes(campaign.status)) return res.status(400).json({ success: false, error: 'Can only edit draft or scheduled campaigns' });
+  Object.assign(campaign, req.body, { updatedAt: new Date().toISOString() });
+  res.json({ success: true, data: campaign });
+});
+
+router.post('/admin/patient-engagement/campaigns/:id/launch', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const campaign = syntheticCampaigns.find(c => c._id === req.params.id);
+  if (!campaign) return res.status(404).json({ success: false, error: 'Not found' });
+  if (!['draft', 'scheduled'].includes(campaign.status)) return res.status(400).json({ success: false, error: 'Cannot launch campaign in current state' });
+  const { store: synStore } = require('../data/syntheticData');
+  const patients = synStore.patients.findAll();
+  const now = new Date().toISOString();
+  patients.forEach(patient => {
+    syntheticPatientNotifications.push({
+      _id: `pn-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      patientId: patient.patientId, patientName: patient.name,
+      patientEmail: patient.contactInfo?.email, patientPhone: patient.contactInfo?.phone,
+      title: campaign.name,
+      message: campaign.customMessage || `Dear ${patient.name}, ${campaign.description || 'you have a new notification from your healthcare provider.'}`,
+      type: 'campaign', priority: 'normal', channels: campaign.channels,
+      channelStatus: Object.fromEntries(campaign.channels.map(ch => [ch, { sent: true, sentAt: now }])),
+      status: 'sent', campaignId: campaign._id, sentByName: req.user?.name || 'Admin',
+      sentAt: now, createdAt: now
+    });
+  });
+  campaign.status = 'completed';
+  campaign.startedAt = now; campaign.completedAt = now;
+  campaign.stats = { totalTargeted: patients.length, totalSent: patients.length, totalDelivered: patients.length, totalFailed: 0, totalRead: 0, openRate: 0 };
+  res.json({ success: true, data: campaign });
+});
+
+router.post('/admin/patient-engagement/campaigns/:id/cancel', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const campaign = syntheticCampaigns.find(c => c._id === req.params.id);
+  if (!campaign) return res.status(404).json({ success: false, error: 'Not found' });
+  campaign.status = 'cancelled';
+  res.json({ success: true, data: campaign });
+});
+
+router.delete('/admin/patient-engagement/campaigns/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const idx = syntheticCampaigns.findIndex(c => c._id === req.params.id);
+  if (idx === -1) return res.status(404).json({ success: false, error: 'Not found' });
+  if (!['draft', 'cancelled'].includes(syntheticCampaigns[idx].status)) return res.status(400).json({ success: false, error: 'Only draft or cancelled campaigns can be deleted' });
+  syntheticCampaigns.splice(idx, 1);
+  res.json({ success: true, message: 'Campaign deleted' });
+});
+
+router.get('/admin/patient-engagement', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const { status, type, patientId, search, page = 0, limit = 15 } = req.query;
+  let results = [...syntheticPatientNotifications];
+  if (status && status !== 'all') results = results.filter(n => n.status === status);
+  if (type && type !== 'all') results = results.filter(n => n.type === type);
+  if (patientId) results = results.filter(n => n.patientId === patientId);
+  if (search) { const q = search.toLowerCase(); results = results.filter(n => n.patientName?.toLowerCase().includes(q) || n.title?.toLowerCase().includes(q)); }
+  const total = results.length;
+  results = results.slice(parseInt(page) * parseInt(limit), (parseInt(page) + 1) * parseInt(limit));
+  const totalSent = syntheticPatientNotifications.filter(n => ['sent','delivered','read'].includes(n.status)).length;
+  const totalDelivered = syntheticPatientNotifications.filter(n => ['delivered','read'].includes(n.status)).length;
+  const totalPending = syntheticPatientNotifications.filter(n => n.status === 'pending').length;
+  const totalFailed = syntheticPatientNotifications.filter(n => n.status === 'failed').length;
+  res.json({ success: true, data: { notifications: results, total, stats: { totalSent, totalDelivered, totalPending, totalFailed } } });
+});
+
+router.get('/admin/patient-engagement/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const n = syntheticPatientNotifications.find(x => x._id === req.params.id);
+  if (!n) return res.status(404).json({ success: false, error: 'Not found' });
+  res.json({ success: true, data: n });
+});
+
+router.post('/admin/patient-engagement', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const { patientId, title, message, type, priority, channels } = req.body;
+  if (!patientId || !title || !message || !channels?.length) return res.status(400).json({ success: false, error: 'patientId, title, message, and channels are required' });
+  const { store: synStore } = require('../data/syntheticData');
+  const patient = synStore.patients.findOne({ patientId });
+  if (!patient) return res.status(404).json({ success: false, error: 'Patient not found' });
+  const now = new Date().toISOString();
+  const newNotif = {
+    _id: `pn-${Date.now()}`,
+    patientId, patientName: patient.name,
+    patientEmail: patient.contactInfo?.email, patientPhone: patient.contactInfo?.phone,
+    title, message, type: type || 'general', priority: priority || 'normal', channels,
+    channelStatus: Object.fromEntries(channels.map(ch => [ch, { sent: true, sentAt: now }])),
+    status: 'sent', sentByName: req.user?.name || 'Admin',
+    sentAt: now, createdAt: now
+  };
+  syntheticPatientNotifications.push(newNotif);
+  res.status(201).json({ success: true, data: newNotif });
+});
+
+router.post('/admin/patient-engagement/:id/resend', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const n = syntheticPatientNotifications.find(x => x._id === req.params.id);
+  if (!n) return res.status(404).json({ success: false, error: 'Not found' });
+  const now = new Date().toISOString();
+  n.status = 'sent'; n.sentAt = now;
+  (n.channels || []).forEach(ch => { if (n.channelStatus) n.channelStatus[ch] = { sent: true, sentAt: now }; });
+  res.json({ success: true, data: n });
+});
+
+router.delete('/admin/patient-engagement/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const idx = syntheticPatientNotifications.findIndex(x => x._id === req.params.id);
+  if (idx === -1) return res.status(404).json({ success: false, error: 'Not found' });
+  syntheticPatientNotifications.splice(idx, 1);
+  res.json({ success: true, message: 'Notification deleted' });
+});
+
+// Provider-facing patient engagement
+router.get('/patient-engagement', protect, (req, res) => {
+  const { status, type, patientId, page = 0, limit = 15 } = req.query;
+  let results = [...syntheticPatientNotifications];
+  if (status) results = results.filter(n => n.status === status);
+  if (type) results = results.filter(n => n.type === type);
+  if (patientId) results = results.filter(n => n.patientId === patientId);
+  const total = results.length;
+  results = results.slice(parseInt(page) * parseInt(limit), (parseInt(page) + 1) * parseInt(limit));
+  res.json({ success: true, data: { notifications: results, total } });
+});
+
+router.get('/patient-engagement/templates', protect, (req, res) => {
+  res.json({ success: true, data: syntheticTemplates.filter(t => t.isActive) });
+});
+
+router.post('/patient-engagement/send', protect, (req, res) => {
+  const { patientId, title, message, channels, type, priority } = req.body;
+  if (!patientId || !title || !message) return res.status(400).json({ success: false, error: 'patientId, title, and message are required' });
+  const { store: synStore } = require('../data/syntheticData');
+  const patient = synStore.patients.findOne({ patientId });
+  if (!patient) return res.status(404).json({ success: false, error: 'Patient not found' });
+  const now = new Date().toISOString();
+  const notif = {
+    _id: `pn-${Date.now()}`,
+    patientId, patientName: patient.name,
+    patientEmail: patient.contactInfo?.email, patientPhone: patient.contactInfo?.phone,
+    title, message, type: type || 'general', priority: priority || 'normal',
+    channels: channels || ['in_app'],
+    channelStatus: Object.fromEntries((channels || ['in_app']).map(ch => [ch, { sent: true, sentAt: now }])),
+    status: 'sent', sentByName: req.user?.name || req.user?.email,
+    sentAt: now, createdAt: now
+  };
+  syntheticPatientNotifications.push(notif);
+  res.status(201).json({ success: true, data: notif });
+});
+
+// ---------------------------------------------------------------------------
 // FHIR R4 API routes (synthetic mode — transforms in-memory data)
 // ---------------------------------------------------------------------------
 

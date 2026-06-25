@@ -72,6 +72,7 @@ const AdminMessaging = lazy(() => import('./pages/admin/AdminMessaging'));
 const AdminAuditEHI = lazy(() => import('./pages/admin/AdminAuditEHI'));
 const AdminFHIR = lazy(() => import('./pages/admin/AdminFHIR'));
 const AdminPriorAuth = lazy(() => import('./pages/admin/AdminPriorAuth'));
+const AdminPatientEngagement = lazy(() => import('./pages/admin/AdminPatientEngagement'));
 
 // FHIR Pages
 const FHIRExplorer = lazy(() => import('./pages/fhir/FHIRExplorer'));
@@ -356,6 +357,11 @@ function App() {
         <Route path="prior-auth" element={
           <Suspense fallback={<PageLoadingFallback />}>
             <AdminPriorAuth />
+          </Suspense>
+        } />
+        <Route path="patient-engagement" element={
+          <Suspense fallback={<PageLoadingFallback />}>
+            <AdminPatientEngagement />
           </Suspense>
         } />
         <Route path="patient-records" element={

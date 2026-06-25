@@ -35,6 +35,7 @@ import {
   Security as SecurityIcon,
   Api as ApiIcon,
   Assignment as AssignmentIcon,
+  NotificationsActive as NotificationsActiveIcon,
 } from '@mui/icons-material';
 import adminAuthService from '../services/adminAuthService';
 import { isAuthenticated, hasRole } from '../utils/authUtils';
@@ -93,6 +94,7 @@ const getMenuItems = () => [
   { text: 'EHI Audit', icon: <SecurityIcon />, path: '/admin/audit/ehi' },
   { text: 'FHIR R4 API', icon: <ApiIcon />, path: '/admin/fhir' },
   { text: 'Prior Authorizations', icon: <AssignmentIcon />, path: '/admin/prior-auth' },
+  { text: 'Patient Engagement', icon: <NotificationsActiveIcon />, path: '/admin/patient-engagement' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/admin/settings' },
   { text: 'Patient Records', icon: <PatientRecordsIcon />, path: '/admin/patient-records' },
   { text: 'Referrals', icon: <ReferralsIcon />, path: '/admin/referrals' },
