@@ -1,23 +1,19 @@
 import React from 'react';
 import { Outlet, Navigate, Link as RouterLink } from 'react-router-dom';
-import { useAuth, useThemeContext } from '../contexts';
+import { useAuth } from '../contexts';
 import { LoadingSpinner, ThemeToggle } from '../components/common';
 import { 
-  Box, 
-  Container, 
-  Paper, 
-  Grid, 
+  Box,
+  Container,
+  Paper,
+  Grid,
   Typography,
-  useMediaQuery,
-  IconButton,
   useTheme as useMuiTheme
 } from '@mui/material';
 
 export default function AuthLayout() {
   const { currentUser, loading } = useAuth();
-  const { mode } = useThemeContext();
   const theme = useMuiTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   // If loading, show loading spinner
   if (loading) {

@@ -3,7 +3,7 @@
  * 
  * This file exports all profile-related page components with dynamic imports for better performance
  */
-import React, { lazy } from 'react';
+import { lazy } from 'react';
 
 // Dynamically import profile page component
 const Profile = lazy(() => import('./Profile'));

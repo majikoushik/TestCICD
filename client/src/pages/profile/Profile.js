@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { ModernLoadingIndicator } from '../../components/common';
-import axios from 'axios';
 import {
   Box,
   Container,

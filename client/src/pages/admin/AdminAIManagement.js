@@ -3,8 +3,6 @@ import {
   Container,
   Typography,
   Box,
-  Tabs,
-  Tab,
   Paper,
   Button,
   Grid,
@@ -28,17 +26,10 @@ import {
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
-  Flag as FlagIcon,
-  Schedule as ScheduleIcon,
   Settings as SettingsIcon,
   Psychology as PsychologyIcon,
   Insights as InsightsIcon,
-  ModelTraining as ModelTrainingIcon,
   Save as SaveIcon,
   Close as CloseIcon
 } from '@mui/icons-material';
@@ -59,7 +50,7 @@ import { adminMockData } from '../../services/mockData';
 
 const AdminAIManagement = () => {
   // State variables
-  const [tabValue, setTabValue] = useState(0);
+  const [tabValue] = useState(0);
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -140,17 +131,6 @@ const AdminAIManagement = () => {
     }
   };
 
-  // Handle tab change
-  const handleTabChange = (event, newValue) => {
-    setTabValue(newValue);
-  };
-  
-  // Handle opening detail dialog
-  const handleOpenDetailDialog = (report) => {
-    setSelectedReport(report);
-    setOpenDetailDialog(true);
-  };
-  
   // Handle opening review dialog
   const handleOpenReviewDialog = (report) => {
     setSelectedReport(report);
@@ -297,23 +277,6 @@ const AdminAIManagement = () => {
   const handleOpenModelTrainingFeedbackDialog = (model) => {
     setSelectedModel(model);
     setOpenModelTrainingFeedbackDialog(true);
-  };
-  
-  // Handle opening report scheduler dialog
-  const handleOpenReportSchedulerDialog = (report) => {
-    setSelectedReport(report);
-    setOpenReportSchedulerDialog(true);
-  };
-  
-  // Handle opening schedule dialog
-  const handleOpenScheduleDialog = (report) => {
-    setSelectedReport(report);
-    setScheduleForm({
-      recipientId: '',
-      frequency: 'weekly',
-      nextDelivery: new Date().toISOString().split('T')[0]
-    });
-    setOpenScheduleDialog(true);
   };
   
   // Handle review submission

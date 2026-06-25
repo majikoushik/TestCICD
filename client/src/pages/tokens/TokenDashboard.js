@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, memo, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { useAuth } from '../../contexts/AuthContext';
 import {
   fetchTokenBalance,
   fetchTokenTransactions,
@@ -11,7 +10,6 @@ import {
   selectTokenTransactions,
   selectRedemptionServices,
   selectTokenEarnSources,
-  selectTokenLoading,
   selectTokenError
 } from '../../redux/slices/tokenSlice';
 import {
@@ -72,7 +70,6 @@ const TabPanel = memo(function TabPanel(props) {
 });
 
 function TokenDashboard() {
-  const { currentUser } = useAuth();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [tabValue, setTabValue] = useState(0);

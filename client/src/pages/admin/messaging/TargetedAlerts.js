@@ -60,7 +60,7 @@ const TargetedAlerts = () => {
   const [formMode, setFormMode] = useState('create'); // 'create' or 'edit'
 
   // Mock providers for recipient selection
-  const [providers, setProviders] = useState([
+  const [providers] = useState([
     { id: 'user-1', name: 'Dr. Sarah Johnson', email: 'sarah.johnson@clinictrust.ai' },
     { id: 'user-2', name: 'Dr. Michael Chen', email: 'michael.chen@clinictrust.ai' },
     { id: 'user-3', name: 'Dr. Emily Rodriguez', email: 'emily.rodriguez@clinictrust.ai' },

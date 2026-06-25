@@ -3,7 +3,7 @@
  * 
  * This file exports all admin-related page components with dynamic imports for better performance
  */
-import React, { lazy } from 'react';
+import { lazy } from 'react';
 
 // Dynamically import admin page components
 const AdminDashboard = lazy(() => import('./AdminDashboard'));

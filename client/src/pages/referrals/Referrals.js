@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import * as referralService from '../../services/referralService';
 import { 
   fetchReferrals, 
   setFilters as setReferralsFilters, 
@@ -88,23 +87,12 @@ export default function Referrals() {
   const searchTerm = reduxFilters.searchTerm || '';
   const sortField = reduxFilters.sortBy || 'createdAt';
   const sortDirection = reduxFilters.sortOrder || 'desc';
-  const totalReferrals = useSelector(selectTotalReferrals);
-  
   // Local UI state
   const [tabValue, setTabValue] = useState(0);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const [selectedReferralId, setSelectedReferralId] = useState(null);
   const [filterMenuAnchorEl, setFilterMenuAnchorEl] = useState(null);
   const [sortMenuAnchorEl, setSortMenuAnchorEl] = useState(null);
-  // Status counts for badges
-  const [statusCounts, setStatusCounts] = useState({
-    all: 25,
-    pending: 8,
-    accepted: 6,
-    completed: 5,
-    rejected: 3,
-    cancelled: 3
-  });
   // Local filters state for the filter menu
   const [localFilters, setLocalFilters] = useState({
     status: reduxFilters.status || 'all',
@@ -258,23 +246,12 @@ export default function Referrals() {
     handleFilterMenuClose();
   }, [dispatch, handleFilterMenuClose]);
 
-  const handleSortMenuOpen = useCallback((event) => {
-    setSortMenuAnchorEl(event.currentTarget);
-  }, []);
-
   const handleSortMenuClose = useCallback(() => {
     setSortMenuAnchorEl(null);
   }, []);
 
   const handleUpdateStatus = (status) => {
     // In a real app, this would call an API to update the referral status
-    const updatedReferrals = referrals.map(ref => {
-      if (ref.id === selectedReferralId) {
-        return { ...ref, status };
-      }
-      return ref;
-    });
-    
     // We don't need to set referrals locally since we're using Redux
     // The referrals will be updated via API call
     handleMenuClose();

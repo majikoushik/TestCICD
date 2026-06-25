@@ -3,7 +3,7 @@
  * 
  * This file exports all admin components with dynamic imports for better performance
  */
-import React, { lazy } from 'react';
+import { lazy } from 'react';
 
 // Dynamically import admin components
 const AIModelDetails = lazy(() => import('./AIModelDetails'));

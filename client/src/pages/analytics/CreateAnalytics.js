@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { ModernLoadingIndicator } from '../../components/common';
 import {
   Box,
@@ -17,7 +16,6 @@ import {
   FormHelperText,
   Autocomplete,
   Chip,
-  Divider,
   Alert,
   Stepper,
   Step,

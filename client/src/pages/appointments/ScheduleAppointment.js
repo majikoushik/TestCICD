@@ -13,14 +13,11 @@ import {
   Select,
   MenuItem,
   Alert,
-  Snackbar,
-  FormHelperText,
-  Autocomplete
+  FormHelperText
 } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { format } from 'date-fns';
 import { useNotification } from '../../contexts';
 import { ModernLoadingIndicator } from '../../components/common';
 
@@ -37,7 +34,7 @@ export default function ScheduleAppointment() {
   const [error, setError] = useState('');
   const [patient, setPatient] = useState(null);
   const [providers, setProviders] = useState([]);
-  const [appointmentTypes, setAppointmentTypes] = useState([
+  const [appointmentTypes] = useState([
     { id: 'initial', name: 'Initial Consultation' },
     { id: 'followup', name: 'Follow-up Visit' },
     { id: 'procedure', name: 'Procedure' },

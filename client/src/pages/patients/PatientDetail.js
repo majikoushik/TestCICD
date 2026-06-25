@@ -9,6 +9,7 @@ import {
   selectPatientsError 
 } from '../../redux/slices/patientsSlice';
 import { createConsentRecord, exportPatientEHI } from '../../services/patientService';
+import fhirService from '../../services/fhirService';
 import { ModernLoadingIndicator } from '../../components/common';
 import {
   Box,
@@ -39,14 +40,17 @@ import {
   Person as PersonIcon,
   Edit as EditIcon,
   Share as ShareIcon,
-  Assignment as AssignmentIcon,
-  LocalHospital as MedicalIcon,
   Warning as WarningIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
   ArrowBack as ArrowBackIcon,
   Download as DownloadIcon,
+  Api as ApiIcon,
+  ContentCopy as CopyIcon,
+  Refresh as RefreshIcon,
+  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
+import Tooltip from '@mui/material/Tooltip';
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -86,6 +90,11 @@ export default function PatientDetail() {
   const [exportLoading, setExportLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
+  // FHIR state
+  const [fhirData, setFhirData] = useState(null);
+  const [fhirLoading, setFhirLoading] = useState(false);
+  const [fhirError, setFhirError] = useState(null);
+
   useEffect(() => {
     // Fetch patient details using Redux thunk
     dispatch(fetchPatientById(id));
@@ -120,6 +129,29 @@ export default function PatientDetail() {
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
+    if (newValue === 4 && !fhirData && patient) {
+      loadFHIRRecord();
+    }
+  };
+
+  const loadFHIRRecord = async () => {
+    if (!patient) return;
+    const pid = patient.patientId || id;
+    setFhirLoading(true);
+    setFhirError(null);
+    try {
+      const bundle = await fhirService.getPatientFHIRBundle(pid);
+      setFhirData(bundle);
+    } catch (e) {
+      setFhirError(e?.response?.data?.issue?.[0]?.diagnostics || e.message || 'Failed to load FHIR data');
+    } finally {
+      setFhirLoading(false);
+    }
+  };
+
+  const handleCopyFHIR = (data) => {
+    navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+    setSnackbar({ open: true, message: 'FHIR JSON copied to clipboard', severity: 'success' });
   };
 
   const handleEditPatient = () => {
@@ -362,6 +394,14 @@ export default function PatientDetail() {
             <Tab label="Medical History" id="patient-tab-1" aria-controls="patient-tabpanel-1" />
             <Tab label="Medications" id="patient-tab-2" aria-controls="patient-tabpanel-2" />
             <Tab label="Consent Records" id="patient-tab-3" aria-controls="patient-tabpanel-3" />
+            <Tab
+              label="FHIR R4 Record"
+              id="patient-tab-4"
+              aria-controls="patient-tabpanel-4"
+              icon={<ApiIcon fontSize="small" />}
+              iconPosition="start"
+              sx={{ minHeight: 48 }}
+            />
           </Tabs>
         </Box>
         
@@ -669,8 +709,114 @@ export default function PatientDetail() {
             )}
           </Paper>
         </TabPanel>
+
+        {/* FHIR R4 Record Tab */}
+        <TabPanel value={tabValue} index={4}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <ApiIcon color="primary" />
+              <Typography variant="h6" fontWeight="bold">FHIR R4 Patient Record</Typography>
+              <Chip label="HL7 FHIR R4" color="primary" size="small" />
+              <Chip label="US Core Profiles" color="success" size="small" variant="outlined" />
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Tooltip title="Reload FHIR data">
+                <span>
+                  <IconButton size="small" onClick={loadFHIRRecord} disabled={fhirLoading}>
+                    <RefreshIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Box>
+          </Box>
+
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <Typography variant="body2">
+              Patient data exposed as HL7 FHIR R4 resources per <strong>CMS-0057-F Interoperability Rule</strong>.
+              Each resource follows US Core R4 profiles. Endpoint: <code style={{ fontFamily: 'monospace' }}>/api/fhir/Patient/{patient?.patientId || id}</code>
+            </Typography>
+          </Alert>
+
+          {fhirLoading && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
+            </Box>
+          )}
+
+          {fhirError && (
+            <Alert severity="error" sx={{ mb: 2 }}>{fhirError}</Alert>
+          )}
+
+          {!fhirData && !fhirLoading && !fhirError && (
+            <Box sx={{ textAlign: 'center', py: 6 }}>
+              <ApiIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2, opacity: 0.4 }} />
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                FHIR R4 resources not yet loaded
+              </Typography>
+              <Button variant="outlined" startIcon={<ApiIcon />} onClick={loadFHIRRecord} sx={{ mt: 1 }}>
+                Load FHIR Record
+              </Button>
+            </Box>
+          )}
+
+          {fhirData && !fhirLoading && (
+            <Grid container spacing={2}>
+              {[
+                { key: 'patient',         label: 'Patient',               resourceType: 'Patient',              isSingle: true },
+                { key: 'conditions',      label: 'Conditions',            resourceType: 'Condition',            isSingle: false },
+                { key: 'medications',     label: 'Medications',           resourceType: 'MedicationRequest',    isSingle: false },
+                { key: 'allergies',       label: 'Allergy Intolerances',  resourceType: 'AllergyIntolerance',   isSingle: false },
+                { key: 'coverage',        label: 'Coverage',              resourceType: 'Coverage',             isSingle: false },
+                { key: 'serviceRequests', label: 'Service Requests',      resourceType: 'ServiceRequest',       isSingle: false },
+              ].map(({ key, label, resourceType, isSingle }) => {
+                const data = fhirData[key];
+                const count = isSingle ? 1 : (data?.total ?? 0);
+                return (
+                  <Grid item xs={12} sm={6} key={key}>
+                    <Paper variant="outlined" sx={{ p: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CheckCircleIcon fontSize="small" color="success" />
+                          <Typography variant="subtitle2" fontWeight="bold">{label}</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                          <Chip label={resourceType} size="small" color="primary" sx={{ fontSize: '0.65rem', height: 20 }} />
+                          {!isSingle && <Chip label={`${count} entries`} size="small" variant="outlined" sx={{ fontSize: '0.65rem', height: 20 }} />}
+                          <Tooltip title="Copy JSON">
+                            <IconButton size="small" onClick={() => handleCopyFHIR(data)}>
+                              <CopyIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      </Box>
+                      <Box
+                        component="pre"
+                        sx={{
+                          bgcolor: 'grey.50',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          borderRadius: 1,
+                          p: 1.5,
+                          overflowY: 'auto',
+                          overflowX: 'auto',
+                          maxHeight: 200,
+                          fontSize: '0.7rem',
+                          fontFamily: 'monospace',
+                          lineHeight: 1.4,
+                          m: 0,
+                        }}
+                      >
+                        {data ? JSON.stringify(data, null, 2) : 'No data'}
+                      </Box>
+                    </Paper>
+                  </Grid>
+                );
+              })}
+            </Grid>
+          )}
+        </TabPanel>
       </Paper>
-      
+
       {/* EHI Export Feedback */}
       <Snackbar
         open={snackbar.open}

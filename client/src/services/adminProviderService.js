@@ -4,7 +4,7 @@
  * This service handles API calls for admin provider management
  */
 
-import { get, post, put, del } from '../utils/apiUtils';
+import { get, put, del } from '../utils/apiUtils';
 import { adminMockData } from './mockData';
 
 /**

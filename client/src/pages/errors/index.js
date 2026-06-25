@@ -3,7 +3,7 @@
  * 
  * This file exports all error-related page components with dynamic imports for better performance
  */
-import React, { lazy } from 'react';
+import { lazy } from 'react';
 
 // Dynamically import error page component
 const NotFound = lazy(() => import('./NotFound'));

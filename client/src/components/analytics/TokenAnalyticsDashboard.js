@@ -14,7 +14,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
   Avatar,
   Stack,
   IconButton,
@@ -32,11 +31,7 @@ import {
   SwapHoriz as SwapIcon,
   CallReceived as ReceivedIcon,
   CallMade as SentIcon,
-  Insights as InsightsIcon,
-  Groups as GroupsIcon,
   CalendarToday as CalendarIcon,
-  FilterList as FilterIcon,
-  MoreVert as MoreVertIcon,
   Download as DownloadIcon
 } from '@mui/icons-material';
 

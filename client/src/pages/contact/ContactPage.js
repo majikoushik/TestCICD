@@ -10,8 +10,7 @@ import {
   MenuItem,
   Snackbar,
   Alert,
-  useTheme,
-  useMediaQuery
+  useTheme
 } from '@mui/material';
 import { Send as SendIcon } from '@mui/icons-material';
 
@@ -22,7 +21,6 @@ import { Send as SendIcon } from '@mui/icons-material';
  */
 export default function ContactPage() {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
   // Form state
   const [formData, setFormData] = useState({

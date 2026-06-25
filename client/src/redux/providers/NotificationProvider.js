@@ -19,7 +19,6 @@ import {
  */
 export const useNotification = () => {
   const dispatch = useDispatch();
-  const notification = useSelector(selectNotification);
   const unreadCount = useSelector(selectUnreadCount);
   const loading = useSelector(selectNotificationsLoading);
 

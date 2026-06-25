@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
@@ -21,13 +21,7 @@ import {
 export const TokenProvider = ({ children }) => {
   const dispatch = useDispatch();
   const { currentUser } = useAuth();
-  const { notifySuccess, notifyError } = useNotification();
-  
-  // Get token state from Redux
-  const balance = useSelector(selectTokenBalance);
-  const loading = useSelector(selectTokenLoading);
-  const error = useSelector(selectTokenError);
-  
+
   // Load token data when user changes
   useEffect(() => {
     if (currentUser) {

@@ -49,7 +49,6 @@ import {
   Clear as ClearIcon,
   CheckCircle as CheckCircleIcon,
   TrendingUp as TrendingUpIcon,
-  LocalHospital as LocalHospitalIcon,
   AccessTime as AccessTimeIcon,
   Timeline as TimelineIcon
 } from '@mui/icons-material';
@@ -75,12 +74,8 @@ function Patients() {
   const totalPatients = useMemo(() => pagination.totalItems, [pagination.totalItems]);
   const currentPage = useMemo(() => pagination.page - 1, [pagination.page]); // Convert 1-indexed to 0-indexed for MUI
   const rowsPerPage = useMemo(() => pagination.pageSize, [pagination.pageSize]);
-  const sortField = useMemo(() => reduxFilters.sortBy, [reduxFilters.sortBy]);
-  const sortDirection = useMemo(() => reduxFilters.sortOrder, [reduxFilters.sortOrder]);
-  const searchTerm = useMemo(() => reduxFilters.searchTerm, [reduxFilters.searchTerm]);
-  
   // Local UI state for filter menu
-  const [localFilters, setLocalFilters] = React.useState({
+  const [, setLocalFilters] = React.useState({
     riskLevel: reduxFilters.status || 'all',
     gender: reduxFilters.gender || 'all'
   });
@@ -119,14 +114,6 @@ function Patients() {
       page: 1 // Reset to first page
     }));
   }, [dispatch]);
-
-  const handleSort = useCallback((field) => {
-    const isAsc = sortField === field && sortDirection === 'asc';
-    dispatch(setPatientsFilters({
-      sortBy: field,
-      sortOrder: isAsc ? 'desc' : 'asc'
-    }));
-  }, [dispatch, sortField, sortDirection]);
 
   const handleSearchChange = useCallback((event) => {
     dispatch(setPatientsFilters({
@@ -228,16 +215,6 @@ function Patients() {
     // Close filter menu
     handleFilterClose();
   }, [dispatch, handleFilterClose]);
-
-  const formatDate = useCallback((dateString) => {
-    if (!dateString) return 'N/A';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString();
-    } catch (e) {
-      return 'Invalid Date';
-    }
-  }, []);
 
   const calculateAge = useCallback((dateOfBirth) => {
     // Handle null or undefined date

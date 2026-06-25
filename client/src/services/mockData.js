@@ -108,7 +108,6 @@ const lastNames = ['Wright', 'Lopez', 'Hill', 'Scott', 'Green', 'Adams', 'Baker'
   
 const genders = ['Male', 'Female', 'Other'];
 const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-const riskLevels = ['low', 'medium', 'high'];
 const conditions = ['Hypertension', 'Diabetes', 'Asthma', 'Arthritis', 'Depression', 'Anxiety', 'COPD', 'Cancer', 'Heart Disease', 'Obesity'];
 const medications = ['Lisinopril', 'Metformin', 'Albuterol', 'Ibuprofen', 'Sertraline', 'Alprazolam', 'Atorvastatin', 'Levothyroxine', 'Amlodipine', 'Omeprazole'];
 const insuranceProviders = ['Blue Cross', 'Aetna', 'UnitedHealthcare', 'Cigna', 'Humana', 'Kaiser Permanente', 'Medicare', 'Medicaid', 'Tricare', 'Oscar Health'];

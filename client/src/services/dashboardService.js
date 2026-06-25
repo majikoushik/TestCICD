@@ -1,4 +1,4 @@
-import { get, post, put } from '../utils/apiUtils';
+import { get } from '../utils/apiUtils';
 import { executeGraphQLQuery } from '../utils/graphqlUtils';
 import { 
   generateUsers, 
@@ -8,9 +8,6 @@ import {
   generateTokenTransactions,
   mockProviderPerformance,
   mockReferralConversionData,
-  mockTokenEconomyData,
-  mockAIAnalyticsData,
-  mockScheduledReports,
   mockTokenEconomyTrends,
   mockAIAnalytics,
   careQualityIndex,
@@ -355,9 +352,6 @@ const dashboardService = {
     try {
       // Check if we should use mock data
       if (process.env.REACT_APP_MOCK_API === 'true') {
-        // Use mockAIAnalyticsData from mockData.js
-        const aiAnalyticsData = mockAIAnalyticsData;
-        
         // Generate users for reference
         const users = generateUsers(5);
         

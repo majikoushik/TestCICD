@@ -4,7 +4,7 @@
  * This service handles user-related API calls
  */
 
-import { get, post, put, del, mockResponse } from '../utils/apiUtils';
+import { get, post, put, mockResponse } from '../utils/apiUtils';
 import { generateUsers } from './mockData';
 import { authStorage } from '../utils/storageUtils';
 

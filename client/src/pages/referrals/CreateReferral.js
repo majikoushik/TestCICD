@@ -26,8 +26,7 @@ import {
 import {
   Save as SaveIcon,
   ArrowBack as ArrowBackIcon,
-  ArrowForward as ArrowForwardIcon,
-  Person as PersonIcon
+  ArrowForward as ArrowForwardIcon
 } from '@mui/icons-material';
 
 const steps = ['Select Patient', 'Provider Information', 'Referral Details'];

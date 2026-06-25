@@ -25,8 +25,7 @@ import {
   CheckCircle as CheckCircleIcon,
   Warning as WarningIcon,
   Info as InfoIcon,
-  Error as ErrorIcon,
-  FilterList as FilterListIcon
+  Error as ErrorIcon
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 

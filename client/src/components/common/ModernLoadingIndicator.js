@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, CircularProgress, Typography, useTheme } from '@mui/material';
+import { Box, CircularProgress, Typography } from '@mui/material';
 import { keyframes } from '@mui/system';
 
 /**
@@ -21,8 +21,6 @@ export default function ModernLoadingIndicator({
   variant = 'circular',
   color = 'primary'
 }) {
-  const theme = useTheme();
-  
   // Determine spinner size based on prop
   const spinnerSizes = {
     small: 24,

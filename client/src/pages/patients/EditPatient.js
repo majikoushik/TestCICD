@@ -20,18 +20,14 @@ import {
   Alert,
   Stepper,
   Step,
-  StepLabel,
-  IconButton
+  StepLabel
 } from '@mui/material';
-import { 
+import {
   Save as SaveIcon,
   ArrowBack as ArrowBackIcon,
   ArrowForward as ArrowForwardIcon,
-  Delete as DeleteIcon,
   Add as AddIcon
 } from '@mui/icons-material';
-import { API_BASE_URL } from '../../config';
-import { authStorage } from '../../utils/storageUtils';
 
 const steps = ['Personal Information', 'Medical Information', 'Insurance Details'];
 

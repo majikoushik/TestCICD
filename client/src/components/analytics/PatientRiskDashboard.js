@@ -34,7 +34,6 @@ import {
   Medication as MedicationIcon,
   ReceiptLong as ReceiptIcon,
   EventNote as EventIcon,
-  MoreVert as MoreVertIcon,
   Visibility as VisibilityIcon,
   Assignment as AssignmentIcon,
   TrendingUp as TrendingUpIcon,
@@ -42,7 +41,7 @@ import {
 } from '@mui/icons-material';
 
 // Import chart components
-import { LineChart, PieChart, RadarChart } from '../charts';
+import { LineChart, RadarChart } from '../charts';
 
 /**
  * PatientRiskDashboard Component

@@ -66,7 +66,6 @@ const AdminUsers = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [filterDialogOpen, setFilterDialogOpen] = useState(false);
   const [filterRole, setFilterRole] = useState('all');
-  const [filterActive, setFilterActive] = useState(true);
   const [filterStatus, setFilterStatus] = useState('all');
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -136,15 +135,6 @@ const AdminUsers = () => {
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
-  };
-
-  const handleEditClick = (user) => {
-    setCurrentUser(user);
-    setEditRole(user.role);
-    setEditIsActive(user.isActive !== false); // Default to true if undefined
-    setEditDialogOpen(true);
-    setSaveError(null);
-    setSaveSuccess(false);
   };
 
   const handleAddUser = () => {

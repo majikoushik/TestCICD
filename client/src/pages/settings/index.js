@@ -3,7 +3,7 @@
  * 
  * This file exports all settings-related page components with dynamic imports for better performance
  */
-import React, { lazy } from 'react';
+import { lazy } from 'react';
 
 // Dynamically import settings page component
 const Settings = lazy(() => import('./Settings'));

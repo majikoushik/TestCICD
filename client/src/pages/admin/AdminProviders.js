@@ -29,10 +29,8 @@ import {
   Tabs,
   Tab,
   Grid,
-  Divider,
   Card,
-  CardContent,
-  CardActions
+  CardContent
 } from '@mui/material';
 import { ModernLoadingIndicator } from '../../components/common';
 import {

@@ -2168,6 +2168,25 @@ db.ehi_audit_logs.createIndex({ oncException: 1 });
 // Compound index for the most common admin query pattern
 db.ehi_audit_logs.createIndex({ timestamp: -1, action: 1, resourceType: 1 });
 
+// ---------------------------------------------------------------------------
+// FHIR R4 API — No new MongoDB collections required.
+// The FHIR layer is a read-only transformation of existing collections:
+//   patients     → Patient, Condition, MedicationRequest, AllergyIntolerance, Coverage
+//   users        → Practitioner
+//   referrals    → ServiceRequest
+//
+// Recommended supporting indexes for FHIR query performance:
+// ---------------------------------------------------------------------------
+
+// Fast Patient lookup by patientId (used by all /fhir/* patient-scoped queries)
+db.patients.createIndex({ patientId: 1 }, { unique: true, sparse: true, name: "fhir_patientId_lookup" });
+
+// Fast Practitioner lookup (already covered by _id, but alias for FHIR clarity)
+// db.users._id is always indexed by MongoDB.
+
+// Fast ServiceRequest (Referral) lookup by patient ref
+db.referrals.createIndex({ patient: 1 }, { name: "fhir_referral_by_patient" });
+
 print("Database population complete!");
 print("Created collections:");
 db.getCollectionNames().forEach(function(collection) {

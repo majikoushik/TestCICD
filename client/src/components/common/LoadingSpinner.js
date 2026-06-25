@@ -1,6 +1,5 @@
 import React from 'react';
 import { Box, CircularProgress, Typography } from '@mui/material';
-import ModernLoadingIndicator from './ModernLoadingIndicator';
 
 /**
  * LoadingSpinner component

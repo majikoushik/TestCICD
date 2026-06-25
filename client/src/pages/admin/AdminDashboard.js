@@ -1,35 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import ScheduleReportDialog from '../../components/admin/ScheduleReportDialog';
 import {
-  Container, Grid, Typography, Box, Paper, Card, CardContent, CardHeader,
-  Button, IconButton, Menu, MenuItem, Tabs, Tab, Divider, TextField,
+  Container, Grid, Typography, Box, Paper,
+  Button, IconButton, MenuItem, Tabs, Tab,
   FormControl, InputLabel, Select, Chip, Alert,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow
 } from '@mui/material';
 import { ModernLoadingIndicator } from '../../components/common';
 import { 
-  Dashboard as DashboardIcon,
-  Settings as SettingsIcon,
-  People as PeopleIcon,
-  Security as SecurityIcon,
-  BiotechOutlined as AIIcon,
-  Storage as BlockchainIcon,
-  Notifications as NotificationsIcon,
   FileDownload as DownloadIcon,
   Schedule as ScheduleIcon,
   Email as EmailIcon,
-  MoreVert as MoreVertIcon,
-  FilterList as FilterListIcon,
   Refresh as RefreshIcon,
   Edit as EditIcon,
   Delete as DeleteIcon
 } from '@mui/icons-material';
 import { 
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  BarChart, Bar, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
 import { adminAnalyticsService } from '../../services';
-import generatePDF from '../../utils/pdfExport';
 
 const AdminDashboard = () => {
   // State for analytics data
@@ -41,8 +31,7 @@ const AdminDashboard = () => {
   
   // Period selection state
   const [tokenPeriod, setTokenPeriod] = useState('last6months');
-  const [aiPeriod, setAIPeriod] = useState('last6months');
-  
+
   // Schedule report dialog state
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
@@ -186,66 +175,6 @@ const AdminDashboard = () => {
       } catch (err) {
         alert(err.message || 'An error occurred while deleting the report');
       }
-    }
-  };
-
-  // Export report as PDF
-  const handleExportPDF = async () => {
-    try {
-      let reportType, data;
-      
-      // Get the appropriate data based on active tab
-      switch (activeTab) {
-        case 0: // Provider Performance
-          reportType = 'provider_performance';
-          data = providerPerformance;
-          break;
-        case 1: // Referral Conversion
-          reportType = 'referral_conversion';
-          data = referralConversion;
-          break;
-        case 2: // Token Economy
-          reportType = 'token_economy';
-          data = tokenEconomy;
-          break;
-        case 3: // AI Analytics
-          reportType = 'ai_analytics';
-          data = aiAnalytics;
-          break;
-        default:
-          reportType = 'provider_performance';
-          data = providerPerformance;
-      }
-      
-      // Check if we have data to export
-      if (!data || (Array.isArray(data) && data.length === 0)) {
-        alert('No data available to export');
-        return;
-      }
-      
-      // Generate PDF document
-      const doc = generatePDF(reportType, data, {
-        title: `${reportType.replace('_', ' ').toUpperCase()} REPORT`,
-        subtitle: `Generated on ${new Date().toLocaleDateString()}`
-      });
-      
-      // Save the PDF
-      doc.save(`vibehealth_${reportType}_report_${new Date().toISOString().split('T')[0]}.pdf`);
-      
-      // Alternatively, use the API service if preferred
-      // const response = await adminAnalyticsService.exportReport({
-      //   format: 'pdf',
-      //   reportType: reportType
-      // });
-      // 
-      // if (response.success && response.fileUrl) {
-      //   window.open(response.fileUrl, '_blank');
-      // } else {
-      //   alert(response.error || 'Failed to export report');
-      // }
-    } catch (err) {
-      console.error('Error exporting PDF:', err);
-      alert(err.message || 'An error occurred while exporting the report');
     }
   };
 

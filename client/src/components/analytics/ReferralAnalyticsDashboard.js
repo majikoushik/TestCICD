@@ -7,16 +7,13 @@ import {
   Grid,
   Typography,
   Divider,
-  Chip,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
   Avatar,
-  Stack,
   IconButton,
   Tooltip,
   FormControl,
@@ -30,21 +27,13 @@ import {
   TrendingUp as TrendingUpIcon,
   TrendingDown as TrendingDownIcon,
   Share as ShareIcon,
-  CallReceived as ReceivedIcon,
-  CallMade as SentIcon,
-  CheckCircle as CheckCircleIcon,
-  Schedule as ScheduleIcon,
-  Cancel as CancelIcon,
   CalendarToday as CalendarIcon,
-  FilterList as FilterIcon,
   MoreVert as MoreVertIcon,
-  Download as DownloadIcon,
-  LocalHospital as HospitalIcon,
   Person as PersonIcon
 } from '@mui/icons-material';
 
 // Import chart components
-import { LineChart, BarChart, PieChart, RadarChart } from '../charts';
+import { LineChart, BarChart, RadarChart } from '../charts';
 
 /**
  * ReferralAnalyticsDashboard Component
@@ -187,60 +176,6 @@ export default function ReferralAnalyticsDashboard({
         benchmark: Math.floor(Math.random() * 20) + 70
       }
     ]);
-  };
-  
-  // Get referral status chip
-  const getReferralStatusChip = (status) => {
-    switch (status.toLowerCase()) {
-      case 'completed':
-        return (
-          <Chip
-            icon={<CheckCircleIcon />}
-            label="Completed"
-            size="small"
-            color="success"
-            variant="outlined"
-          />
-        );
-      case 'in progress':
-        return (
-          <Chip
-            icon={<ScheduleIcon />}
-            label="In Progress"
-            size="small"
-            color="primary"
-            variant="outlined"
-          />
-        );
-      case 'pending':
-        return (
-          <Chip
-            icon={<ScheduleIcon />}
-            label="Pending"
-            size="small"
-            color="warning"
-            variant="outlined"
-          />
-        );
-      case 'cancelled':
-        return (
-          <Chip
-            icon={<CancelIcon />}
-            label="Cancelled"
-            size="small"
-            color="error"
-            variant="outlined"
-          />
-        );
-      default:
-        return (
-          <Chip
-            label={status}
-            size="small"
-            variant="outlined"
-          />
-        );
-    }
   };
   
   // Get trend indicator

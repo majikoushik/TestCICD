@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, useToken, usePatient, useReferral, useAnalytics } from '../../contexts';
 import dashboardService from '../../services/dashboardService';
@@ -21,9 +21,6 @@ import {
   Paper,
   Typography,
   Button,
-  Card,
-  CardContent,
-  CardActions,
   Divider,
   List,
   ListItem,
@@ -35,11 +32,7 @@ import {
   Tabs,
   LinearProgress,
   Tooltip,
-  IconButton,
-  Menu,
-  MenuItem,
-  Alert,
-  AlertTitle
+  IconButton
 } from '@mui/material';
 import {
   TrendingUp as TrendingUpIcon,
@@ -48,19 +41,9 @@ import {
   Analytics as AnalyticsIcon,
   Token as TokenIcon,
   Warning as WarningIcon,
-  CheckCircle as CheckCircleIcon,
   AccessTime as AccessTimeIcon,
-  LocalHospital as LocalHospitalIcon,
-  MedicalServices as MedicalServicesIcon,
   Insights as InsightsIcon,
-  Timeline as TimelineIcon,
   TrendingDown as TrendingDownIcon,
-  MoreVert as MoreVertIcon,
-  Notifications as NotificationsIcon,
-  Lightbulb as LightbulbIcon,
-  BarChart as BarChartIcon,
-  PieChart as PieChartIcon,
-  BubbleChart as BubbleChartIcon,
   Speed as SpeedIcon,
   Favorite as FavoriteIcon,
   Psychology as PsychologyIcon
@@ -128,57 +111,6 @@ const StatCard = memo(({ title, value, icon, color, subtitle, additionalInfo, on
 ));
 
 // AI Insight Card component
-const AIInsightCard = memo(({ title, insight, severity, actionText, onAction }) => {
-  const severityColors = {
-    low: 'info',
-    medium: 'warning',
-    high: 'error',
-    positive: 'success'
-  };
-  
-  return (
-    <Paper
-      elevation={2}
-      sx={{
-        p: 2,
-        mb: 2,
-        borderLeft: `4px solid ${severityColors[severity]}.main`,
-        borderRadius: 2,
-        transition: 'transform 0.2s',
-        '&:hover': {
-          transform: 'translateY(-2px)',
-          boxShadow: 3
-        }
-      }}
-    >
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-        <Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-            <LightbulbIcon sx={{ mr: 1, color: `${severityColors[severity]}.main` }} />
-            <Typography variant="subtitle1" fontWeight="bold">
-              {title}
-            </Typography>
-          </Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            {insight}
-          </Typography>
-          {actionText && (
-            <Button size="small" color={severityColors[severity]} onClick={onAction}>
-              {actionText}
-            </Button>
-          )}
-        </Box>
-        <Chip 
-          size="small" 
-          color={severityColors[severity]} 
-          label={severity.charAt(0).toUpperCase() + severity.slice(1)} 
-          sx={{ ml: 1 }}
-        />
-      </Box>
-    </Paper>
-  );
-});
-
 // Patient Risk Analysis Chart component
 const PatientRiskAnalysisChart = memo(({ data }) => {
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
@@ -345,16 +277,15 @@ const AIPerformanceMetrics = memo(({ metrics }) => {
 
 function Dashboard() {
   const { currentUser } = useAuth();
-  const { balance, getBalance } = useToken();
-  const { getPatients } = usePatient();
-  const { getReferrals } = useReferral();
-  const { getAnalyticsReports, getPatientRiskAnalytics } = useAnalytics();
+  useToken();
+  usePatient();
+  useReferral();
+  useAnalytics();
   const navigate = useNavigate();
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState(0);
-  const [aiInsightsAnchorEl, setAiInsightsAnchorEl] = useState(null);
   const [dashboardData, setDashboardData] = useState({
     patients: { total: 0, highRisk: 0, careQualityIndex: 0 },
     referrals: { pending: 0, completed: 0, conversionRate: 0 },
@@ -364,7 +295,7 @@ function Dashboard() {
     providerPerformance: { averageAcceptanceRate: 0, averageCompletionTime: 0 },
     aiMetrics: { riskAssessment: 0, summaryGeneration: 0, recommendations: 0, overall: 0 }
   });
-  const [aiInsights, setAiInsights] = useState([]);
+  const [, setAiInsights] = useState([]);
   const [clinicalMetrics, setClinicalMetrics] = useState([]);
   const [referralEfficiency, setReferralEfficiency] = useState([]);
   const [patientRiskData, setPatientRiskData] = useState([]);
@@ -562,16 +493,6 @@ function Dashboard() {
       day: 'numeric',
       year: 'numeric'
     });
-  }, []);
-
-  // Get status chip for analytics reports - memoized with useCallback
-  const getStatusChip = useCallback((status) => {
-    const statusMap = {
-      completed: { color: 'success', label: 'Completed' },
-      processing: { color: 'warning', label: 'Processing' },
-      failed: { color: 'error', label: 'Failed' }
-    };
-    return <Chip size="small" color={statusMap[status]?.color || 'default'} label={statusMap[status]?.label || status} />;
   }, []);
 
   // Get activity icon - memoized with useCallback

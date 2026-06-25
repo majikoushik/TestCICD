@@ -1,7 +1,7 @@
 import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts';
-import { ModernLoadingIndicator, ErrorDisplay } from './components/common';
+import { ModernLoadingIndicator } from './components/common';
 
 // Layouts - Keep these as regular imports since they're critical for the app structure
 import { MainLayout, AuthLayout, LandingLayout, AdminLayout } from './layouts';
@@ -70,6 +70,10 @@ const AdminAIManagement = lazy(() => import('./pages/admin/AdminAIManagement'));
 const AdminTokenManagement = lazy(() => import('./pages/admin/AdminTokenManagement'));
 const AdminMessaging = lazy(() => import('./pages/admin/AdminMessaging'));
 const AdminAuditEHI = lazy(() => import('./pages/admin/AdminAuditEHI'));
+const AdminFHIR = lazy(() => import('./pages/admin/AdminFHIR'));
+
+// FHIR Pages
+const FHIRExplorer = lazy(() => import('./pages/fhir/FHIRExplorer'));
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -285,6 +289,13 @@ function App() {
             <ScheduleAppointment />
           </Suspense>
         } />
+
+        {/* FHIR R4 Explorer */}
+        <Route path="fhir" element={
+          <Suspense fallback={<PageLoadingFallback />}>
+            <FHIRExplorer />
+          </Suspense>
+        } />
       </Route>
       
       {/* Admin Routes */}
@@ -326,6 +337,11 @@ function App() {
         <Route path="audit/ehi" element={
           <Suspense fallback={<PageLoadingFallback />}>
             <AdminAuditEHI />
+          </Suspense>
+        } />
+        <Route path="fhir" element={
+          <Suspense fallback={<PageLoadingFallback />}>
+            <AdminFHIR />
           </Suspense>
         } />
         <Route path="patient-records" element={

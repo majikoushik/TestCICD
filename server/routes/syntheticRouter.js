@@ -9,6 +9,17 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { store } = require('../data/syntheticData');
+const {
+  toFHIRPatient,
+  toFHIRPractitioner,
+  toFHIRCondition,
+  toFHIRMedicationRequest,
+  toFHIRAllergyIntolerance,
+  toFHIRCoverage,
+  toFHIRServiceRequest,
+  toFHIRBundle,
+  capabilityStatement,
+} = require('../utils/fhirTransformer');
 
 // ---------------------------------------------------------------------------
 // Auth helpers
@@ -923,6 +934,169 @@ router.get('/admin/ai-management/reports', protect, authorize('admin', 'superadm
 
 router.get('/admin/ai-management/aggregate', protect, authorize('admin', 'superadmin'), (req, res) => {
   res.status(200).json({ success: true, data: { totalReports: 0, publishedReports: 0, avgAccuracy: 0 } });
+});
+
+// ---------------------------------------------------------------------------
+// FHIR R4 API routes (synthetic mode — transforms in-memory data)
+// ---------------------------------------------------------------------------
+
+const FHIR_CT = 'application/fhir+json';
+const getFhirBase = (req) => `${req.protocol}://${req.get('host')}/api/fhir`;
+
+// GET /fhir/metadata — public CapabilityStatement
+router.get('/fhir/metadata', (req, res) => {
+  res.type(FHIR_CT).json(capabilityStatement(getFhirBase(req)));
+});
+
+// GET /fhir/Patient
+router.get('/fhir/Patient', protect, (req, res) => {
+  let patients = store.patients.findAll();
+  if (req.query.identifier) {
+    patients = patients.filter((p) => p.patientId === req.query.identifier);
+  }
+  if (req.query.name) {
+    const q = req.query.name.toLowerCase();
+    patients = patients.filter((p) => (p.name || '').toLowerCase().includes(q));
+  }
+  const resources = patients.map((p) => {
+    const provider = p.primaryProvider ? store.users.findById(p.primaryProvider) : null;
+    return toFHIRPatient(p, provider ? provider._id : null);
+  });
+  res.type(FHIR_CT).json(toFHIRBundle('Patient', resources, getFhirBase(req)));
+});
+
+// GET /fhir/Patient/:id
+router.get('/fhir/Patient/:id', protect, (req, res) => {
+  const patients = store.patients.findAll();
+  const patient = patients.find((p) => p.patientId === req.params.id || p._id === req.params.id);
+  if (!patient) {
+    return res.status(404).type(FHIR_CT).json({
+      resourceType: 'OperationOutcome',
+      issue: [{ severity: 'error', code: 'not-found', diagnostics: 'Patient not found' }],
+    });
+  }
+  const provider = patient.primaryProvider ? store.users.findById(patient.primaryProvider) : null;
+  res.type(FHIR_CT).json(toFHIRPatient(patient, provider ? provider._id : null));
+});
+
+// GET /fhir/Practitioner/:id
+router.get('/fhir/Practitioner/:id', protect, (req, res) => {
+  const user = store.users.findById(req.params.id);
+  if (!user) {
+    return res.status(404).type(FHIR_CT).json({
+      resourceType: 'OperationOutcome',
+      issue: [{ severity: 'error', code: 'not-found', diagnostics: 'Practitioner not found' }],
+    });
+  }
+  res.type(FHIR_CT).json(toFHIRPractitioner(user));
+});
+
+// Helper — resolve patient from patientId or _id
+const resolveSyntheticPatient = (idParam) => {
+  const all = store.patients.findAll();
+  return all.find((p) => p.patientId === idParam || p._id === idParam) || null;
+};
+
+// GET /fhir/Condition?patient=:id
+router.get('/fhir/Condition', protect, (req, res) => {
+  if (!req.query.patient) {
+    return res.status(400).type(FHIR_CT).json({
+      resourceType: 'OperationOutcome',
+      issue: [{ severity: 'error', code: 'required', diagnostics: 'patient parameter is required' }],
+    });
+  }
+  const patient = resolveSyntheticPatient(req.query.patient);
+  if (!patient) {
+    return res.status(404).type(FHIR_CT).json({
+      resourceType: 'OperationOutcome',
+      issue: [{ severity: 'error', code: 'not-found', diagnostics: 'Patient not found' }],
+    });
+  }
+  const patientId = patient.patientId || patient._id;
+  const resources = (patient.medicalHistory || []).map((c, i) => toFHIRCondition(c, patientId, i));
+  res.type(FHIR_CT).json(toFHIRBundle('Condition', resources, getFhirBase(req)));
+});
+
+// GET /fhir/MedicationRequest?patient=:id
+router.get('/fhir/MedicationRequest', protect, (req, res) => {
+  if (!req.query.patient) {
+    return res.status(400).type(FHIR_CT).json({
+      resourceType: 'OperationOutcome',
+      issue: [{ severity: 'error', code: 'required', diagnostics: 'patient parameter is required' }],
+    });
+  }
+  const patient = resolveSyntheticPatient(req.query.patient);
+  if (!patient) {
+    return res.status(404).type(FHIR_CT).json({
+      resourceType: 'OperationOutcome',
+      issue: [{ severity: 'error', code: 'not-found', diagnostics: 'Patient not found' }],
+    });
+  }
+  const patientId = patient.patientId || patient._id;
+  const resources = (patient.medications || []).map((m, i) => toFHIRMedicationRequest(m, patientId, i));
+  res.type(FHIR_CT).json(toFHIRBundle('MedicationRequest', resources, getFhirBase(req)));
+});
+
+// GET /fhir/AllergyIntolerance?patient=:id
+router.get('/fhir/AllergyIntolerance', protect, (req, res) => {
+  if (!req.query.patient) {
+    return res.status(400).type(FHIR_CT).json({
+      resourceType: 'OperationOutcome',
+      issue: [{ severity: 'error', code: 'required', diagnostics: 'patient parameter is required' }],
+    });
+  }
+  const patient = resolveSyntheticPatient(req.query.patient);
+  if (!patient) {
+    return res.status(404).type(FHIR_CT).json({
+      resourceType: 'OperationOutcome',
+      issue: [{ severity: 'error', code: 'not-found', diagnostics: 'Patient not found' }],
+    });
+  }
+  const patientId = patient.patientId || patient._id;
+  const resources = (patient.allergies || []).map((a, i) => toFHIRAllergyIntolerance(a, patientId, i));
+  res.type(FHIR_CT).json(toFHIRBundle('AllergyIntolerance', resources, getFhirBase(req)));
+});
+
+// GET /fhir/Coverage?patient=:id
+router.get('/fhir/Coverage', protect, (req, res) => {
+  if (!req.query.patient) {
+    return res.status(400).type(FHIR_CT).json({
+      resourceType: 'OperationOutcome',
+      issue: [{ severity: 'error', code: 'required', diagnostics: 'patient parameter is required' }],
+    });
+  }
+  const patient = resolveSyntheticPatient(req.query.patient);
+  if (!patient) {
+    return res.status(404).type(FHIR_CT).json({
+      resourceType: 'OperationOutcome',
+      issue: [{ severity: 'error', code: 'not-found', diagnostics: 'Patient not found' }],
+    });
+  }
+  const patientId = patient.patientId || patient._id;
+  const resources = patient.insuranceInfo ? [toFHIRCoverage(patient.insuranceInfo, patientId)] : [];
+  res.type(FHIR_CT).json(toFHIRBundle('Coverage', resources, getFhirBase(req)));
+});
+
+// GET /fhir/ServiceRequest?patient=:id
+router.get('/fhir/ServiceRequest', protect, (req, res) => {
+  if (!req.query.patient) {
+    return res.status(400).type(FHIR_CT).json({
+      resourceType: 'OperationOutcome',
+      issue: [{ severity: 'error', code: 'required', diagnostics: 'patient parameter is required' }],
+    });
+  }
+  const patient = resolveSyntheticPatient(req.query.patient);
+  if (!patient) {
+    return res.status(404).type(FHIR_CT).json({
+      resourceType: 'OperationOutcome',
+      issue: [{ severity: 'error', code: 'not-found', diagnostics: 'Patient not found' }],
+    });
+  }
+  const referrals = store.referrals.findAll().filter(
+    (r) => r.patient === patient._id || r.patientId === patient._id
+  );
+  const resources = referrals.map(toFHIRServiceRequest);
+  res.type(FHIR_CT).json(toFHIRBundle('ServiceRequest', resources, getFhirBase(req)));
 });
 
 // ---------------------------------------------------------------------------

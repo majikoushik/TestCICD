@@ -17,7 +17,6 @@ import {
 } from '@mui/material';
 import {
   Edit as EditIcon,
-  Receipt as ReceiptIcon,
   CheckCircle as CheckCircleIcon,
   Warning as WarningIcon,
   Schedule as ScheduleIcon

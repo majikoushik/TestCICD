@@ -33,11 +33,10 @@ import {
   AccountCircle as AccountIcon,
   ChevronLeft as ChevronLeftIcon,
   AdminPanelSettings as AdminIcon,
-  Storage as BlockchainIcon
+  Storage as BlockchainIcon,
 } from '@mui/icons-material';
 import { useAuth, useToken, useNotification } from '../contexts';
 import referralService from '../services/referralService';
-import { useThemeContext } from '../contexts';
 import { ThemeToggle } from '../components/common';
 import { useNavigate, Link as RouterLink, useLocation } from 'react-router-dom';
 
@@ -92,8 +91,7 @@ const DrawerHeader = styled('div')(({ theme }) => ({
 export default function MainLayout() {
   const { currentUser, logout } = useAuth();
   const { balance } = useToken();
-  const { notifySuccess, unreadCount } = useNotification();
-  const { mode, toggleMode } = useThemeContext();
+  const { notifySuccess } = useNotification();
   const navigate = useNavigate();
   const location = useLocation();
   const muiTheme = useTheme();

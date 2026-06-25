@@ -1,6 +1,6 @@
 import React, { useTransition } from 'react';
 import { Box, Button, Container, Typography, Paper } from '@mui/material';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Error as ErrorIcon } from '@mui/icons-material';
 
 /**

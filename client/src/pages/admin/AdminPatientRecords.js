@@ -18,10 +18,6 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   IconButton,
   Chip,
   Tabs,
@@ -41,8 +37,7 @@ import {
   History as HistoryIcon,
   GetApp as DownloadIcon,
   VerifiedUser as VerifiedUserIcon,
-  Warning as WarningIcon,
-  Edit as EditIcon
+  Warning as WarningIcon
 } from '@mui/icons-material';
 import { adminMockData } from '../../services/mockData';
 import { ModernLoadingIndicator } from '../../components/common';

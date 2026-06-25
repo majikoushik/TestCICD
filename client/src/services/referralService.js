@@ -95,8 +95,6 @@ export const getReferrals = async (options = {}) => {
       });
       
       // Paginate referrals
-      const startIndex = queryOptions.page * queryOptions.limit;
-      const endIndex = startIndex + queryOptions.limit;
       const paginatedReferrals = filteredReferrals;
       
       // Create response

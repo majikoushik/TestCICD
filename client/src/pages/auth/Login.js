@@ -2,7 +2,6 @@ import React from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth, useNotification } from '../../contexts';
 import { useForm } from '../../hooks';
-import { isValidEmail } from '../../utils';
 import {
   Box,
   TextField,

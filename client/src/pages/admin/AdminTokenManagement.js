@@ -19,24 +19,15 @@ import {
   MenuItem,
   Snackbar,
   Alert,
-  Divider,
   Grid,
   Card,
   CardContent,
-  CardActions,
-  Chip,
-  Tooltip,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  TablePagination,
   Popover,
   Badge,
   Checkbox,
@@ -49,14 +40,8 @@ import {
   Edit as EditIcon,
   Refresh as RefreshIcon,
   LocalAtm as TokenIcon,
-  MonetizationOn as MintIcon,
-  RemoveCircle as BurnIcon,
   CardGiftcard as BonusIcon,
-  Store as CatalogIcon,
-  SwapHoriz as ConversionIcon,
-  History as HistoryIcon,
   Redeem as RedeemIcon,
-  Loyalty as LoyaltyIcon,
   Settings as SettingsIcon,
   Close as CloseIcon,
   FilterList as FilterIcon,
@@ -80,8 +65,6 @@ const AdminTokenManagement = () => {
   const [filteredProviders, setFilteredProviders] = useState([]);
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [tokenHistory, setTokenHistory] = useState([]);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [catalogItems, setCatalogItems] = useState([]);
   const [conversionRules, setConversionRules] = useState([]);
@@ -655,16 +638,6 @@ const AdminTokenManagement = () => {
       setSnackbar({ ...snackbar, open: false });
     };
     
-    // Handle page change for tables
-    const handleChangePage = (event, newPage) => {
-      setPage(newPage);
-    };
-    
-    // Handle rows per page change for tables
-    const handleChangeRowsPerPage = (event) => {
-      setRowsPerPage(parseInt(event.target.value, 10));
-      setPage(0);
-    };
   // Render function
   return (
     <Container maxWidth="lg">

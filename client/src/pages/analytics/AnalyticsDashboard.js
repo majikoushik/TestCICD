@@ -42,10 +42,8 @@ import {
   Warning as WarningIcon,
   CheckCircle as CheckCircleIcon,
   Schedule as ScheduleIcon,
-  InsertChart as InsertChartIcon,
   Insights as InsightsIcon,
-  CalendarToday as CalendarIcon,
-  FilterList as FilterIcon
+  CalendarToday as CalendarIcon
 } from '@mui/icons-material';
 
 // Import our chart components
@@ -104,15 +102,15 @@ export default function AnalyticsDashboard() {
   // Enhanced analytics states
   const [predictiveAlerts, setPredictiveAlerts] = useState([]);
   const [alertsLoading, setAlertsLoading] = useState(true);
-  const [alertsError, setAlertsError] = useState(null);
-  
+  const [, setAlertsError] = useState(null);
+
   const [nlSummary, setNlSummary] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
-  const [summaryError, setSummaryError] = useState(null);
-  
+  const [, setSummaryError] = useState(null);
+
   const [benchmarkingData, setBenchmarkingData] = useState([]);
   const [benchmarkingLoading, setBenchmarkingLoading] = useState(true);
-  const [benchmarkingError, setBenchmarkingError] = useState(null);
+  const [, setBenchmarkingError] = useState(null);
   
   // Alert details dialog state
   const [selectedAlert, setSelectedAlert] = useState(null);

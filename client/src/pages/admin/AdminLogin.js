@@ -16,7 +16,7 @@ import {
   VisibilityOff,
   AdminPanelSettings as AdminIcon
 } from '@mui/icons-material';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { adminLogin } from '../../services/adminAuthService';
 import { isAuthenticated, hasRole } from '../../utils/authUtils';
 

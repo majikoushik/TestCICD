@@ -32,6 +32,7 @@ const adminAuthRoutes = require('./routes/adminAuth');
 const adminReferralRoutes = require('./routes/admin/referrals');
 const adminAIManagementRoutes = require('./routes/admin/aiManagement');
 const graphqlRoutes = require('./routes/graphql');
+const fhirRoutes = require('./routes/fhir');
 const syntheticRouter = require('./routes/syntheticRouter');
 
 const app = express();
@@ -103,6 +104,9 @@ function mountLiveRoutes() {
   app.use('/api/admin', [protect, authorize('admin', 'superadmin'), adminRoutes]);
   app.use('/api/admin/referrals', [protect, authorize('admin', 'superadmin'), adminReferralRoutes]);
   app.use('/api/admin/ai-management', [protect, authorize('admin', 'superadmin'), adminAIManagementRoutes]);
+
+  // FHIR R4 API — ONC 21st Century Cures Act / CMS-0057-F compliant
+  app.use('/api/fhir', fhirRoutes);
 
   // GraphQL
   app.use('/graphql', graphqlRoutes);

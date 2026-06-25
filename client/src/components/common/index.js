@@ -3,7 +3,7 @@
  * 
  * This file exports all common components with dynamic imports for better performance
  */
-import React, { lazy } from 'react';
+import { lazy } from 'react';
 
 // Dynamic imports for common components
 // Note: LoadingSpinner, ModernLoadingIndicator and ErrorDisplay are kept as regular imports since they're used as fallbacks

@@ -4,7 +4,7 @@
  * This service handles admin-specific authentication
  */
 
-import { get, post, put, del } from '../utils/apiUtils';
+import { get, post } from '../utils/apiUtils';
 import { authStorage } from '../utils/storageUtils';
 
 /**

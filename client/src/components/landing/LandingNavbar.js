@@ -7,7 +7,6 @@ import {
   Container,
   Drawer,
   IconButton,
-  Link,
   List,
   ListItem,
   ListItemButton,
@@ -15,7 +14,6 @@ import {
   Stack,
   Toolbar,
   Typography,
-  useMediaQuery,
   useTheme
 } from '@mui/material';
 import {
@@ -35,7 +33,6 @@ import { useThemeContext as useAppTheme } from '../../contexts';
 export default function LandingNavbar({ transparent = false }) {
   const theme = useTheme();
   const { mode, toggleMode } = useAppTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const location = useLocation();
   const navigate = useNavigate();
   const [isPending, startTransition] = useTransition();

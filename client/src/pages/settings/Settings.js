@@ -1,15 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import axios from 'axios';
 import {
   Box,
   Container,
   Typography,
   Button,
   Paper,
-  Grid,
   Switch,
-  FormControlLabel,
   Divider,
   Alert,
   List,
@@ -59,7 +55,6 @@ function TabPanel(props) {
 }
 
 export default function Settings() {
-  const { currentUser, logout } = useAuth();
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

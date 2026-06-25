@@ -3,7 +3,7 @@
  * 
  * This file exports all token components with dynamic imports for better performance
  */
-import React, { lazy } from 'react';
+import { lazy } from 'react';
 
 // Dynamic imports for token components
 const TokenEarnSources = lazy(() => import('./TokenEarnSources'));

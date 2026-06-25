@@ -4,9 +4,7 @@ import {
   mockReferralConversionData,
   mockTokenEconomyData,
   mockAIAnalyticsData,
-  mockScheduledReports,
-  mockTokenEconomyTrends,
-  mockAIAnalytics
+  mockScheduledReports
 } from './mockData';
 
 // Get provider performance data

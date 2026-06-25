@@ -1,4 +1,4 @@
-import { get, post, put, del } from '../utils/apiUtils';
+import { get, post, put } from '../utils/apiUtils';
 import { adminMockData } from './mockData';
 
 /**

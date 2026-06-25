@@ -21,7 +21,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { adminMockData } from '../../services/mockData';
 import SettingCard from '../../components/admin/SettingCard';
 import axios from 'axios';
-import { API_BASE_URL } from '../../config';
 
 // Function to get authentication token from localStorage
 const getToken = () => {

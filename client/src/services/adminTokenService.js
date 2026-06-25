@@ -4,7 +4,7 @@
  * This service handles admin token management API calls
  */
 
-import { get, post, put, del, mockResponse } from '../utils/apiUtils';
+import { get, post, del, mockResponse } from '../utils/apiUtils';
 import { 
   mockProviders, 
   mockProviderTokenHistory, 

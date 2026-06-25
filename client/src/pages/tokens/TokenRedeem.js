@@ -1,16 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { useAuth } from '../../contexts/AuthContext';
 import {
   fetchTokenBalance,
   fetchRedemptionServices,
   redeemTokens,
   selectTokenBalance,
   selectRedemptionServices,
-  selectTokenLoading,
-  selectTokenError,
-  selectRedemptionResult
+  selectTokenLoading
 } from '../../redux/slices/tokenSlice';
 import {
   Box,
@@ -23,7 +20,6 @@ import {
   CardContent,
   CardMedia,
   CardActions,
-  Divider,
   Chip,
   Dialog,
   DialogTitle,
@@ -31,19 +27,8 @@ import {
   DialogContentText,
   DialogActions,
   TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   InputAdornment,
-  IconButton,
-  Tooltip,
-  Tabs,
-  Tab,
-  Badge,
-  Alert,
-  Snackbar,
-  FormHelperText
+  Alert
 } from '@mui/material';
 import { ModernLoadingIndicator } from '../../components/common';
 import {
@@ -55,7 +40,6 @@ import {
 } from '@mui/icons-material';
 
 export default function TokenRedeem() {
-  const { currentUser } = useAuth();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   
@@ -63,11 +47,8 @@ export default function TokenRedeem() {
   const tokenBalance = useSelector(selectTokenBalance);
   const services = useSelector(selectRedemptionServices) || [];
   const tokenLoading = useSelector(selectTokenLoading);
-  const tokenError = useSelector(selectTokenError);
-  const redemptionResult = useSelector(selectRedemptionResult);
   
   // Local UI state
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredServices, setFilteredServices] = useState([]);
@@ -83,10 +64,7 @@ export default function TokenRedeem() {
     // Fetch data from Redux
     dispatch(fetchTokenBalance());
     dispatch(fetchRedemptionServices());
-    
-    // Local loading state for UI components not directly tied to Redux
-    setLoading(false);
-    
+
     // If we need to simulate services data when the API is not ready, we can use this
     /* const mockServices = [
           {

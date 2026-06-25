@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Outlet, Link as RouterLink, useLocation, Navigate } from 'react-router-dom';
 import { styled } from '@mui/material/styles';
 import {
@@ -26,7 +26,6 @@ import {
   SwapHoriz as ReferralsIcon,
   Settings as SettingsIcon,
   ChevronLeft as ChevronLeftIcon,
-  AdminPanelSettings as AdminIcon,
   Login as LoginIcon,
   MedicalServices as ProvidersIcon,
   Description as PatientRecordsIcon,
@@ -34,6 +33,7 @@ import {
   Psychology as AIIcon,
   Message as MessageIcon,
   Security as SecurityIcon,
+  Api as ApiIcon,
 } from '@mui/icons-material';
 import adminAuthService from '../services/adminAuthService';
 import { isAuthenticated, hasRole } from '../utils/authUtils';
@@ -90,6 +90,7 @@ const getMenuItems = () => [
   { text: 'Providers', icon: <ProvidersIcon />, path: '/admin/providers' },
   { text: 'Login Audit', icon: <LoginIcon />, path: '/admin/audit/login' },
   { text: 'EHI Audit', icon: <SecurityIcon />, path: '/admin/audit/ehi' },
+  { text: 'FHIR R4 API', icon: <ApiIcon />, path: '/admin/fhir' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/admin/settings' },
   { text: 'Patient Records', icon: <PatientRecordsIcon />, path: '/admin/patient-records' },
   { text: 'Referrals', icon: <ReferralsIcon />, path: '/admin/referrals' },

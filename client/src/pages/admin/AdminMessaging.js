@@ -5,9 +5,8 @@ import {
   Typography, 
   Paper, 
   Tabs, 
-  Tab, 
-  Divider,
-  useTheme
+  Tab,
+  Divider
 } from '@mui/material';
 import BroadcastMessages from './messaging/BroadcastMessages';
 import TargetedAlerts from './messaging/TargetedAlerts';
@@ -34,7 +33,6 @@ function TabPanel(props) {
  * AdminMessaging component for managing broadcast messages, targeted alerts, and escalation workflows
  */
 const AdminMessaging = () => {
-  const theme = useTheme();
   const [activeTab, setActiveTab] = useState(0);
 
   const handleTabChange = (event, newValue) => {

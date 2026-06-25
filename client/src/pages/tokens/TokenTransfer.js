@@ -6,9 +6,7 @@ import {
   fetchTokenBalance, 
   transferTokens,
   selectTokenBalance,
-  selectTokenLoading,
-  selectTokenError,
-  selectTransactionResult
+  selectTokenLoading
 } from '../../redux/slices/tokenSlice';
 import {
   Box,
@@ -44,12 +42,12 @@ import {
 const steps = ['Select Recipient', 'Amount & Purpose', 'Confirm Transfer'];
 
 export default function TokenTransfer() {
-  const { currentUser } = useAuth();
+  useAuth();
   const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [, setSuccess] = useState(false);
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [transactionId, setTransactionId] = useState('');
   
@@ -65,8 +63,6 @@ export default function TokenTransfer() {
   const dispatch = useDispatch();
   const tokenBalance = useSelector(selectTokenBalance);
   const tokenLoading = useSelector(selectTokenLoading);
-  const tokenError = useSelector(selectTokenError);
-  const transactionResult = useSelector(selectTransactionResult);
   
   // Local state for recipients
   const [recipients, setRecipients] = useState([]);

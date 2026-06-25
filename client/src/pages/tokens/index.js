@@ -3,7 +3,7 @@
  * 
  * This file exports all token-related page components with dynamic imports for better performance
  */
-import React, { lazy } from 'react';
+import { lazy } from 'react';
 
 // Dynamically import token page components
 const TokenDashboard = lazy(() => import('./TokenDashboard'));

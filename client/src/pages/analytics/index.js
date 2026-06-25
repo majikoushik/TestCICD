@@ -3,7 +3,7 @@
  * 
  * This file exports all analytics-related page components with dynamic imports for better performance
  */
-import React, { lazy } from 'react';
+import { lazy } from 'react';
 
 // Dynamically import analytics page components
 const AnalyticsDashboard = lazy(() => import('./AnalyticsDashboard'));

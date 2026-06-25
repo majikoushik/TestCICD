@@ -8,12 +8,8 @@ import {
   Typography,
   Card,
   CardContent,
-  CardMedia,
-  Divider,
-  Paper,
   Stack,
   useTheme,
-  useMediaQuery,
   Avatar,
   List,
   ListItem,
@@ -21,8 +17,6 @@ import {
   ListItemText
 } from '@mui/material';
 import {
-  Speed as SpeedIcon,
-  Verified as VerifiedIcon,
   CheckCircle as CheckCircleIcon,
   ArrowForward as ArrowForwardIcon
 } from '@mui/icons-material';
@@ -34,8 +28,6 @@ import {
  */
 export default function LandingPage() {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
   const navigate = useNavigate();
   const [isPending, startTransition] = useTransition();
   

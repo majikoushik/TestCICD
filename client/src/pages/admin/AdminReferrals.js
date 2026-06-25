@@ -1,24 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Container, Typography, Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, 
-  TableRow, TablePagination, Alert, Button, Dialog, DialogTitle, 
-  DialogContent, DialogActions, TextField, FormControl, InputLabel, Select, MenuItem, 
-  IconButton, Chip, Tabs, Tab, Grid, Card, CardContent, Divider, Tooltip, Badge
+  Container, Typography, Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead,
+  TableRow, TablePagination, Alert, Button, Dialog, DialogTitle,
+  DialogContent, DialogActions, TextField, FormControl, InputLabel, Select, MenuItem,
+  IconButton, Chip, Tabs, Tab, Grid, Card, CardContent, Tooltip, Badge
 } from '@mui/material';
 import { ModernLoadingIndicator } from '../../components/common';
 import {
   Search as SearchIcon,
-  FilterList as FilterListIcon,
   Visibility as VisibilityIcon,
-  History as HistoryIcon,
-  AttachMoney as MoneyIcon,
-  VerifiedUser as VerifiedUserIcon,
   Warning as WarningIcon,
-  Edit as EditIcon,
   Assessment as AssessmentIcon,
-  CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon,
-  PriorityHigh as PriorityHighIcon
+  CheckCircle as CheckCircleIcon
 } from '@mui/icons-material';
 import adminReferralService from '../../services/adminReferralService';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
@@ -54,20 +47,9 @@ const AdminReferrals = () => {
     const [tabValue, setTabValue] = useState(0);
     const [detailDialogOpen, setDetailDialogOpen] = useState(false);
     const [currentReferral, setCurrentReferral] = useState(null);
-    const [disputeDialogOpen, setDisputeDialogOpen] = useState(false);
-    const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-    const [verifyDialogOpen, setVerifyDialogOpen] = useState(false);
-    const [verificationResult, setVerificationResult] = useState(null);
-    const [verificationLoading, setVerificationLoading] = useState(false);
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterHasDispute, setFilterHasDispute] = useState('all');
-    const [filterProvider, setFilterProvider] = useState('');
-    const [disputeResolution, setDisputeResolution] = useState('');
-    const [disputeAmount, setDisputeAmount] = useState('');
-    const [disputeNotes, setDisputeNotes] = useState('');
-    const [paymentAmount, setPaymentAmount] = useState('');
-    const [paymentTxHash, setPaymentTxHash] = useState('');
-    const [paymentNotes, setPaymentNotes] = useState('');
+    const [filterProvider] = useState('');
     const [statsDialogOpen, setStatsDialogOpen] = useState(false);
     const [referralStats, setReferralStats] = useState(null);
     
@@ -156,126 +138,6 @@ const AdminReferrals = () => {
         setDetailDialogOpen(true);
       };
     
-      const handleOpenDisputeDialog = (referral) => {
-        setCurrentReferral(referral);
-        
-        if (referral.dispute) {
-          setDisputeResolution(referral.dispute.status === 'Resolved' ? referral.dispute.resolution : '');
-          setDisputeAmount(referral.dispute?.requestedAmount != null ? referral.dispute.requestedAmount.toString() : '');
-          setDisputeNotes(referral.dispute.notes || '');
-        } else {
-          setDisputeResolution('');
-          setDisputeAmount('');
-          setDisputeNotes('');
-        }
-        
-        setDisputeDialogOpen(true);
-      };
-    
-      const handleResolveDispute = async () => {
-        try {
-          setLoading(true);
-          
-          const resolutionData = {
-            resolution: disputeResolution,
-            resolvedBy: 'Admin User',
-            notes: disputeNotes
-          };
-          
-          const response = await adminReferralService.resolveDispute(currentReferral.id, resolutionData);
-          
-          if (response.success) {
-            // Update the referral in the list
-            const updatedReferrals = referrals.map(ref => 
-              ref.id === currentReferral.id ? response.data : ref
-            );
-            
-            setReferrals(updatedReferrals);
-            setFilteredReferrals(updatedReferrals);
-            setCurrentReferral(response.data);
-          } else {
-            throw new Error('Failed to resolve dispute');
-          }
-          
-          setDisputeDialogOpen(false);
-          setLoading(false);
-        } catch (error) {
-          console.error('Error resolving dispute:', error);
-          setLoading(false);
-        }
-      };
-    
-      const handleOpenPaymentDialog = (referral) => {
-        setCurrentReferral(referral);
-        setPaymentAmount(referral.paymentAmount ? referral.paymentAmount.toString() : '');
-        setPaymentTxHash('');
-        setPaymentNotes('');
-        setPaymentDialogOpen(true);
-      };
-    
-      const handleProcessPayment = async () => {
-        try {
-          setLoading(true);
-          
-          const paymentData = {
-            amount: paymentAmount,
-            processedBy: 'Admin User',
-            transactionHash: paymentTxHash,
-            notes: paymentNotes
-          };
-          
-          const response = await adminReferralService.processPayment(currentReferral.id, paymentData);
-          
-          if (response.success) {
-            // Update the referral in the list
-            const updatedReferrals = referrals.map(ref => 
-              ref.id === currentReferral.id ? response.data : ref
-            );
-            
-            setReferrals(updatedReferrals);
-            setFilteredReferrals(updatedReferrals);
-            setCurrentReferral(response.data);
-          } else {
-            throw new Error('Failed to process payment');
-          }
-          
-          setPaymentDialogOpen(false);
-          setLoading(false);
-        } catch (error) {
-          console.error('Error processing payment:', error);
-          setLoading(false);
-        }
-      };
-    
-      const handleVerifyTransaction = async (txHash) => {
-        try {
-          setVerificationLoading(true);
-          setVerificationResult(null);
-          
-          const response = await adminReferralService.verifyTransaction(txHash);
-          
-          if (response.success) {
-            setVerificationResult(response.data);
-          } else {
-            throw new Error('Failed to verify transaction');
-          }
-          
-          setVerificationLoading(false);
-        } catch (error) {
-          console.error('Error verifying transaction:', error);
-          setVerificationLoading(false);
-          setVerificationResult({
-            verified: false,
-            message: 'Error verifying transaction'
-          });
-        }
-      };
-    
-      const handleOpenVerifyDialog = (referral) => {
-        setCurrentReferral(referral);
-        setVerificationResult(null);
-        setVerifyDialogOpen(true);
-      };
 
       const getStatusColor = (status) => {
         switch (status) {
@@ -417,35 +279,6 @@ const AdminReferrals = () => {
                           <VisibilityIcon fontSize="small" />
                         </IconButton>
                         
-                        {referral.hasDispute && referral.dispute.status !== 'Resolved' && (
-                          <IconButton 
-                            size="small" 
-                            color="warning"
-                            onClick={() => handleOpenDisputeDialog(referral)}
-                          >
-                            <WarningIcon fontSize="small" />
-                          </IconButton>
-                        )}
-                        
-                        {(referral.status === 'Completed' && referral.paymentStatus !== 'Paid') && (
-                          <IconButton 
-                            size="small" 
-                            color="success"
-                            onClick={() => handleOpenPaymentDialog(referral)}
-                          >
-                            <MoneyIcon fontSize="small" />
-                          </IconButton>
-                        )}
-                        
-                        {referral.paymentTxHash && (
-                          <IconButton 
-                            size="small" 
-                            color="info"
-                            onClick={() => handleOpenVerifyDialog(referral)}
-                          >
-                            <VerifiedUserIcon fontSize="small" />
-                          </IconButton>
-                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -781,58 +614,7 @@ const AdminReferrals = () => {
                 </Grid>
               )}
               
-              <Grid item xs={12}>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Actions
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                      {currentReferral.hasDispute && currentReferral.dispute.status !== 'Resolved' && (
-                        <Button 
-                          variant="outlined" 
-                          color="warning"
-                          startIcon={<WarningIcon />}
-                          onClick={() => {
-                            setDetailDialogOpen(false);
-                            handleOpenDisputeDialog(currentReferral);
-                          }}
-                        >
-                          Resolve Dispute
-                        </Button>
-                      )}
-                      
-                      {(currentReferral.status === 'Completed' && currentReferral.paymentStatus !== 'Paid') && (
-                        <Button 
-                          variant="outlined" 
-                          color="success"
-                          startIcon={<MoneyIcon />}
-                          onClick={() => {
-                            setDetailDialogOpen(false);
-                            handleOpenPaymentDialog(currentReferral);
-                          }}
-                        >
-                          Process Payment
-                        </Button>
-                      )}
-                      
-                      {currentReferral.paymentTxHash && (
-                        <Button 
-                          variant="outlined" 
-                          color="info"
-                          startIcon={<VerifiedUserIcon />}
-                          onClick={() => {
-                            setDetailDialogOpen(false);
-                            handleOpenVerifyDialog(currentReferral);
-                          }}
-                        >
-                          Verify Transaction
-                        </Button>
-                      )}
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
+
             </Grid>
           )}
         </DialogContent>

@@ -76,8 +76,6 @@ export const getPatients = async (options = {}) => {
       });
       
       // Paginate patients
-      const startIndex = queryOptions.page * queryOptions.limit;
-      const endIndex = startIndex + queryOptions.limit;
       const paginatedPatients = filteredPatients;
       
       // Create response
