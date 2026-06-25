@@ -5,10 +5,28 @@
  * for the ClinicTrust AI Platform.
  */
 
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const chalk = require('chalk');
+
+// Kill any process currently occupying the given port
+function killPort(port) {
+  try {
+    // Works on Windows (PowerShell) — silently ignores if nothing is on the port
+    const pid = execSync(
+      `powershell -Command "try { (Get-NetTCPConnection -LocalPort ${port} -ErrorAction Stop).OwningProcess } catch { '' }"`,
+      { stdio: ['pipe', 'pipe', 'pipe'] }
+    ).toString().trim();
+
+    if (pid && !isNaN(pid)) {
+      execSync(`taskkill /PID ${pid} /F`, { stdio: 'ignore' });
+      console.log(chalk.yellow(`Killed process ${pid} that was using port ${port}`));
+    }
+  } catch {
+    // Nothing on the port — no action needed
+  }
+}
 
 // Configuration
 const config = {
@@ -81,6 +99,10 @@ console.log(chalk.cyan('=') + ' '.repeat(26) + chalk.bold('ClinicTrust AI Platfo
 console.log(chalk.cyan('=') + ' '.repeat(22) + 'Development Server Starter' + ' '.repeat(22) + chalk.cyan('='));
 console.log(chalk.cyan('='.repeat(80)));
 console.log('');
+
+// Free ports before starting
+killPort(5000);
+killPort(3000);
 
 // Start both servers
 const serverProcess = startProcess(config.server);

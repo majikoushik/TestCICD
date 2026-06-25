@@ -937,6 +937,395 @@ router.get('/admin/ai-management/aggregate', protect, authorize('admin', 'supera
 });
 
 // ---------------------------------------------------------------------------
+// Prior Authorization routes (synthetic) — provider-facing
+// ---------------------------------------------------------------------------
+
+const syntheticPAs = [
+  {
+    _id: 'pa-001', patientId: 'PT-100001', patientName: 'Alice Johnson',
+    requestingProviderId: 'user-1', requestingProviderName: 'Dr. John Smith',
+    targetProviderName: 'Metro Imaging Center', serviceType: 'MRI Scan', serviceCode: '70553',
+    diagnosisCodes: [{ code: 'G35', description: 'Multiple sclerosis' }, { code: 'R51', description: 'Headache' }],
+    clinicalNotes: 'Patient presents with recurring headaches and vision changes. Neurological symptoms suggest possible demyelinating disease. MRI of brain with contrast required for diagnosis and treatment planning.',
+    urgency: 'Urgent', insurancePlan: 'Blue Cross Blue Shield', memberId: 'BCBS-100001',
+    status: 'Approved', aiRecommendation: 'Approve', aiConfidenceScore: 88,
+    aiReasoning: 'Clinical presentation is consistent with neurological disorder requiring imaging. Documentation supports medical necessity.',
+    aiAnalyzedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: 'Approved based on clinical necessity and AI recommendation.',
+    approvedDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    expiryDate: new Date(Date.now() + 89 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-002', patientId: 'PT-100002', patientName: 'Bob Martinez',
+    requestingProviderId: 'user-1', requestingProviderName: 'Dr. John Smith',
+    targetProviderName: 'City Orthopedic Specialists', serviceType: 'Physical Therapy', serviceCode: '97110',
+    diagnosisCodes: [{ code: 'M54.5', description: 'Low back pain' }, { code: 'M47.816', description: 'Spondylosis with radiculopathy, lumbar region' }],
+    clinicalNotes: 'Patient has chronic low back pain with lumbar radiculopathy confirmed by EMG. Conservative treatment with PT recommended before surgical intervention. 12-week program requested.',
+    urgency: 'Routine', insurancePlan: 'Aetna', memberId: 'AET-200002',
+    status: 'Under Review', aiRecommendation: 'Approve', aiConfidenceScore: 82,
+    aiReasoning: 'Physical therapy for lumbar radiculopathy is well-supported by evidence.',
+    aiAnalyzedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: '',
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-003', patientId: 'PT-100003', patientName: 'Carol White',
+    requestingProviderId: 'user-2', requestingProviderName: 'Dr. Sarah Chen',
+    targetProviderName: 'Regional Cancer Center', serviceType: 'PET Scan', serviceCode: '78816',
+    diagnosisCodes: [{ code: 'C34.10', description: 'Malignant neoplasm of upper lobe, unspecified bronchus or lung' }],
+    clinicalNotes: 'Patient with confirmed Stage II lung cancer. PET scan required for accurate staging and treatment planning.',
+    urgency: 'Urgent', insurancePlan: 'UnitedHealth', memberId: 'UHC-300003',
+    status: 'Pending', aiRecommendation: null, aiConfidenceScore: null, aiReasoning: '', aiAnalyzedAt: null,
+    reviewerNotes: '', createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-004', patientId: 'PT-100004', patientName: 'David Kim',
+    requestingProviderId: 'user-2', requestingProviderName: 'Dr. Sarah Chen',
+    targetProviderName: '', serviceType: 'Cardiac Catheterization', serviceCode: '93460',
+    diagnosisCodes: [{ code: 'I25.10', description: 'Atherosclerotic heart disease of native coronary artery' }, { code: 'I20.9', description: 'Angina pectoris, unspecified' }],
+    clinicalNotes: 'Patient with unstable angina and positive stress test. Cardiac catheterization needed to evaluate coronary anatomy and guide revascularization.',
+    urgency: 'Emergent', insurancePlan: 'Medicare', memberId: 'MCR-400004',
+    status: 'Approved', aiRecommendation: 'Approve', aiConfidenceScore: 95,
+    aiReasoning: 'Emergent cardiac catheterization for unstable angina with positive stress test meets criteria for urgent authorization.',
+    aiAnalyzedAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: 'Emergent case approved immediately.',
+    approvedDate: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+    expiryDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-005', patientId: 'PT-100005', patientName: 'Emma Davis',
+    requestingProviderId: 'user-3', requestingProviderName: 'Dr. Mike Johnson',
+    targetProviderName: 'Behavioral Health Associates', serviceType: 'Mental Health Services', serviceCode: '90837',
+    diagnosisCodes: [{ code: 'F33.1', description: 'Major depressive disorder, recurrent, moderate' }, { code: 'F41.1', description: 'Generalized anxiety disorder' }],
+    clinicalNotes: 'Patient with treatment-resistant depression and comorbid anxiety. Requires intensive outpatient mental health services. Previous treatments with SSRIs insufficient.',
+    urgency: 'Routine', insurancePlan: 'Cigna', memberId: 'CGN-500005',
+    status: 'Denied', aiRecommendation: 'Review', aiConfidenceScore: 58,
+    aiReasoning: 'Documentation does not adequately demonstrate that standard outpatient therapy has been exhausted.',
+    aiAnalyzedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: 'Denied pending additional documentation of prior treatment failure.',
+    deniedDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-006', patientId: 'PT-100006', patientName: 'Frank Wilson',
+    requestingProviderId: 'user-1', requestingProviderName: 'Dr. John Smith',
+    targetProviderName: '', serviceType: 'Surgical Procedure', serviceCode: '27447',
+    diagnosisCodes: [{ code: 'M17.11', description: 'Primary osteoarthritis, right knee' }],
+    clinicalNotes: 'Patient with severe bilateral knee osteoarthritis, failed conservative management including PT and injections. Total knee replacement recommended.',
+    urgency: 'Routine', insurancePlan: 'Humana', memberId: 'HUM-600006',
+    status: 'Appealing', aiRecommendation: 'Review', aiConfidenceScore: 67,
+    aiReasoning: 'Surgical procedure requires additional documentation of failed conservative treatments.',
+    aiAnalyzedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: 'Denied initially due to insufficient documentation of conservative treatment failure.',
+    deniedDate: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+    appealNotes: 'Attaching 18 months of PT records, 3 corticosteroid injections, and 2 orthopaedic consultations.',
+    appealSubmittedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-007', patientId: 'PT-100007', patientName: 'Grace Lee',
+    requestingProviderId: 'user-2', requestingProviderName: 'Dr. Sarah Chen',
+    targetProviderName: 'Advanced Oncology Partners', serviceType: 'Infusion Therapy', serviceCode: '96413',
+    diagnosisCodes: [{ code: 'C50.911', description: 'Malignant neoplasm of unspecified site of right female breast' }],
+    clinicalNotes: 'Patient is a 52-year-old female with Stage III breast cancer on active chemotherapy. Requesting prior auth for 4 cycles of IV infusion therapy. Tumor markers show treatment response.',
+    urgency: 'Urgent', insurancePlan: 'Kaiser Permanente', memberId: 'KP-700007',
+    status: 'Approved', aiRecommendation: 'Approve', aiConfidenceScore: 93,
+    aiReasoning: 'Chemotherapy infusion for active Stage III breast cancer meets all criteria for prior authorization.',
+    aiAnalyzedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: 'Approved. Treatment response documented. Authorize 4 cycles.',
+    approvedDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    expiryDate: new Date(Date.now() + 87 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-008', patientId: 'PT-100008', patientName: 'Henry Thompson',
+    requestingProviderId: 'user-3', requestingProviderName: 'Dr. Mike Johnson',
+    targetProviderName: 'Westside Sleep Disorders Clinic', serviceType: 'Sleep Study', serviceCode: '95810',
+    diagnosisCodes: [{ code: 'G47.33', description: 'Obstructive sleep apnea (adult)' }],
+    clinicalNotes: 'Patient reports excessive daytime sleepiness, loud snoring, and witnessed apneas. ESS score 16/24. BMI 34.2. Overnight polysomnography requested.',
+    urgency: 'Routine', insurancePlan: 'Anthem', memberId: 'ANT-800008',
+    status: 'Approved', aiRecommendation: 'Approve', aiConfidenceScore: 85,
+    aiReasoning: 'Clinical presentation with high Epworth score, BMI, and witnessed apneas strongly supports medical necessity.',
+    aiAnalyzedAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: 'Approved. ESS score and clinical findings meet criteria.',
+    approvedDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    expiryDate: new Date(Date.now() + 85 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-009', patientId: 'PT-100009', patientName: 'Isabella Garcia',
+    requestingProviderId: 'user-1', requestingProviderName: 'Dr. John Smith',
+    targetProviderName: 'Metro Spine Institute', serviceType: 'Epidural Steroid Injection', serviceCode: '62323',
+    diagnosisCodes: [{ code: 'M51.16', description: 'Intervertebral disc degeneration, lumbar region' }, { code: 'M54.4', description: 'Lumbago with sciatica, right side' }],
+    clinicalNotes: 'Patient has refractory lumbar radiculopathy unresponsive to 8 weeks of PT and NSAIDs. MRI confirms L4-L5 disc herniation with nerve root compression.',
+    urgency: 'Routine', insurancePlan: 'Aetna', memberId: 'AET-900009',
+    status: 'Pending', aiRecommendation: null, aiConfidenceScore: null, aiReasoning: '', aiAnalyzedAt: null,
+    reviewerNotes: '', createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-010', patientId: 'PT-100010', patientName: 'James Brown',
+    requestingProviderId: 'user-2', requestingProviderName: 'Dr. Sarah Chen',
+    targetProviderName: 'Pediatric Neurology Associates', serviceType: 'Specialist Consultation', serviceCode: '99244',
+    diagnosisCodes: [{ code: 'G40.909', description: 'Epilepsy, unspecified, not intractable' }],
+    clinicalNotes: '9-year-old male with new-onset seizure activity. Two tonic-clonic episodes in the past month. EEG shows abnormal epileptiform discharges. Referral to pediatric neurologist required.',
+    urgency: 'Urgent', insurancePlan: 'Blue Cross Blue Shield', memberId: 'BCBS-101010',
+    status: 'Under Review', aiRecommendation: 'Approve', aiConfidenceScore: 91,
+    aiReasoning: 'New-onset pediatric epilepsy with confirmed EEG abnormalities requires urgent specialist evaluation.',
+    aiAnalyzedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: '', createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-011', patientId: 'PT-100011', patientName: 'Karen Martinez',
+    requestingProviderId: 'user-3', requestingProviderName: 'Dr. Mike Johnson',
+    targetProviderName: 'Regional Bariatric Center', serviceType: 'Surgical Procedure', serviceCode: '43644',
+    diagnosisCodes: [{ code: 'E66.01', description: 'Morbid (severe) obesity due to excess calories' }, { code: 'E11.9', description: 'Type 2 diabetes mellitus without complications' }],
+    clinicalNotes: '41-year-old female with morbid obesity (BMI 43.8), type 2 diabetes, and hypertension. 6-month supervised weight loss program completed. Laparoscopic gastric bypass requested.',
+    urgency: 'Routine', insurancePlan: 'UnitedHealth', memberId: 'UHC-111011',
+    status: 'Denied', aiRecommendation: 'Review', aiConfidenceScore: 62,
+    aiReasoning: 'While BMI and comorbidities meet surgical criteria, the 6-month supervised program documentation requires verification.',
+    aiAnalyzedAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: 'Denied — supervised diet program documentation is incomplete.',
+    deniedDate: new Date(Date.now() - 11 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 11 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-012', patientId: 'PT-100012', patientName: 'Liam Anderson',
+    requestingProviderId: 'user-1', requestingProviderName: 'Dr. John Smith',
+    targetProviderName: 'City Radiology Center', serviceType: 'CT Scan', serviceCode: '71250',
+    diagnosisCodes: [{ code: 'R04.2', description: 'Haemoptysis' }, { code: 'Z87.891', description: 'Personal history of nicotine dependence' }],
+    clinicalNotes: '58-year-old male with 30 pack-year smoking history, persistent cough and hemoptysis. Chest X-ray shows right upper lobe opacity. Low-dose CT chest required for lung cancer screening.',
+    urgency: 'Urgent', insurancePlan: 'Medicare', memberId: 'MCR-121212',
+    status: 'Approved', aiRecommendation: 'Approve', aiConfidenceScore: 96,
+    aiReasoning: 'Hemoptysis with chest X-ray opacity in a heavy smoker constitutes high clinical suspicion for lung malignancy. CT chest is medically necessary.',
+    aiAnalyzedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: 'Approved immediately. High-priority case.',
+    approvedDate: new Date(Date.now() - 22 * 60 * 60 * 1000).toISOString(),
+    expiryDate: new Date(Date.now() + 89 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 22 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-013', patientId: 'PT-100013', patientName: 'Mia Robinson',
+    requestingProviderId: 'user-2', requestingProviderName: 'Dr. Sarah Chen',
+    targetProviderName: 'Reproductive Endocrinology Associates', serviceType: 'Lab Testing', serviceCode: '89264',
+    diagnosisCodes: [{ code: 'N97.9', description: 'Female infertility, unspecified' }, { code: 'E28.2', description: 'Polycystic ovarian syndrome' }],
+    clinicalNotes: '33-year-old female with PCOS and 18 months of primary infertility. Comprehensive fertility panel requested.',
+    urgency: 'Routine', insurancePlan: 'Cigna', memberId: 'CGN-131313',
+    status: 'Pending', aiRecommendation: null, aiConfidenceScore: null, aiReasoning: '', aiAnalyzedAt: null,
+    reviewerNotes: '', createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-014', patientId: 'PT-100014', patientName: 'Noah Clark',
+    requestingProviderId: 'user-3', requestingProviderName: 'Dr. Mike Johnson',
+    targetProviderName: 'Comprehensive Rehab Center', serviceType: 'Occupational Therapy', serviceCode: '97530',
+    diagnosisCodes: [{ code: 'I63.9', description: 'Cerebral infarction, unspecified' }, { code: 'G81.90', description: 'Hemiplegia, unspecified' }],
+    clinicalNotes: '67-year-old male recovering from ischemic stroke 3 weeks ago with residual left-sided hemiplegia. FIM score 62. Requesting 30 occupational therapy sessions over 10 weeks.',
+    urgency: 'Urgent', insurancePlan: 'Medicare', memberId: 'MCR-141414',
+    status: 'Approved', aiRecommendation: 'Approve', aiConfidenceScore: 94,
+    aiReasoning: 'Post-stroke occupational therapy with documented FIM score and functional deficits clearly meets medical necessity criteria.',
+    aiAnalyzedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: 'Approved. Post-stroke rehab is medically necessary. Authorize 30 sessions.',
+    approvedDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    expiryDate: new Date(Date.now() + 88 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-015', patientId: 'PT-100015', patientName: 'Olivia Harris',
+    requestingProviderId: 'user-1', requestingProviderName: 'Dr. John Smith',
+    targetProviderName: 'Endocrine Specialty Clinic', serviceType: 'Durable Medical Equipment', serviceCode: 'E0784',
+    diagnosisCodes: [{ code: 'E10.649', description: 'Type 1 diabetes mellitus with hypoglycemia without coma' }],
+    clinicalNotes: '28-year-old female with Type 1 diabetes on insulin pump with frequent hypoglycemic episodes (>3/week). Requesting CGM authorization. HbA1c 8.9%.',
+    urgency: 'Routine', insurancePlan: 'Blue Cross Blue Shield', memberId: 'BCBS-151515',
+    status: 'Under Review', aiRecommendation: 'Approve', aiConfidenceScore: 87,
+    aiReasoning: 'CGM for Type 1 diabetes with documented hypoglycemic episodes and elevated HbA1c meets standard criteria.',
+    aiAnalyzedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: '', createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-016', patientId: 'PT-100016', patientName: 'Peter Williams',
+    requestingProviderId: 'user-2', requestingProviderName: 'Dr. Sarah Chen',
+    targetProviderName: 'Gastroenterology Specialists', serviceType: 'Colonoscopy', serviceCode: '45378',
+    diagnosisCodes: [{ code: 'K92.1', description: 'Melaena' }, { code: 'Z80.0', description: 'Family history of malignant neoplasm of digestive organs' }],
+    clinicalNotes: '52-year-old male with 2-week history of melena. Family history of colon cancer. Hemoglobin 10.2 g/dL (down from 13.8). Colonoscopy urgently needed to evaluate GI bleeding.',
+    urgency: 'Urgent', insurancePlan: 'Anthem', memberId: 'ANT-161616',
+    status: 'Approved', aiRecommendation: 'Approve', aiConfidenceScore: 98,
+    aiReasoning: 'Active GI bleeding with anemia and family history of colorectal cancer represents an urgent indication for colonoscopy.',
+    aiAnalyzedAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: 'Approved urgently. Active bleeding requiring immediate evaluation.',
+    approvedDate: new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString(),
+    expiryDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-017', patientId: 'PT-100001', patientName: 'Alice Johnson',
+    requestingProviderId: 'user-1', requestingProviderName: 'Dr. John Smith',
+    targetProviderName: 'NeuroRehab Specialists', serviceType: 'Speech Therapy', serviceCode: '92507',
+    diagnosisCodes: [{ code: 'G35', description: 'Multiple sclerosis' }, { code: 'R47.1', description: 'Dysarthria and anarthria' }],
+    clinicalNotes: 'Patient with confirmed MS presenting with progressive dysarthria. Speech-language pathology evaluation and treatment requested. Weekly sessions for 12 weeks.',
+    urgency: 'Routine', insurancePlan: 'Blue Cross Blue Shield', memberId: 'BCBS-100001',
+    status: 'Expired', aiRecommendation: 'Approve', aiConfidenceScore: 83,
+    aiReasoning: 'Speech therapy for MS-related dysarthria is clinically indicated. Functional communication impact documented.',
+    aiAnalyzedAt: new Date(Date.now() - 95 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: 'Approved. 12 sessions authorized.',
+    approvedDate: new Date(Date.now() - 94 * 24 * 60 * 60 * 1000).toISOString(),
+    expiryDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 97 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString()
+  }
+];
+
+// Provider prior-auth routes
+router.get('/prior-auth', protect, (req, res) => {
+  const { status, page = 0, limit = 20 } = req.query;
+  let results = [...syntheticPAs];
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    results = results.filter(p => p.requestingProviderId === (req.user.id || req.user._id) || p.requestingProviderId === 'user-1');
+  }
+  if (status && status !== 'all') results = results.filter(p => p.status === status);
+  const total = results.length;
+  const paginated = results.slice(parseInt(page) * parseInt(limit), (parseInt(page) + 1) * parseInt(limit));
+  res.json({ success: true, data: { priorAuths: paginated, total } });
+});
+
+router.get('/prior-auth/:id', protect, (req, res) => {
+  const pa = syntheticPAs.find(p => p._id === req.params.id);
+  if (!pa) return res.status(404).json({ success: false, error: 'Not found' });
+  res.json({ success: true, data: pa });
+});
+
+router.post('/prior-auth', protect, (req, res) => {
+  const { analyzePriorAuthorization } = require('../services/azureAIService');
+  const newPA = {
+    _id: 'pa-' + Date.now(), ...req.body,
+    requestingProviderId: req.user.id || req.user._id,
+    requestingProviderName: req.user.name || req.user.email,
+    status: 'Pending', aiRecommendation: null, aiConfidenceScore: null,
+    aiReasoning: '', aiAnalyzedAt: null,
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+  };
+  syntheticPAs.push(newPA);
+  analyzePriorAuthorization(newPA).then(aiResult => {
+    newPA.aiRecommendation = aiResult.recommendation;
+    newPA.aiConfidenceScore = aiResult.confidenceScore;
+    newPA.aiReasoning = aiResult.reasoning;
+    newPA.aiAnalyzedAt = new Date().toISOString();
+    newPA.status = 'Under Review';
+  }).catch(() => {});
+  res.status(201).json({ success: true, data: newPA });
+});
+
+router.post('/prior-auth/:id/appeal', protect, (req, res) => {
+  const pa = syntheticPAs.find(p => p._id === req.params.id);
+  if (!pa) return res.status(404).json({ success: false, error: 'Not found' });
+  pa.status = 'Appealing';
+  pa.appealNotes = req.body.appealNotes || '';
+  pa.appealSubmittedAt = new Date().toISOString();
+  pa.updatedAt = new Date().toISOString();
+  res.json({ success: true, data: pa });
+});
+
+router.post('/prior-auth/:id/analyze', protect, (req, res) => {
+  const { analyzePriorAuthorization } = require('../services/azureAIService');
+  const pa = syntheticPAs.find(p => p._id === req.params.id);
+  if (!pa) return res.status(404).json({ success: false, error: 'Not found' });
+  analyzePriorAuthorization(pa).then(aiResult => {
+    pa.aiRecommendation = aiResult.recommendation;
+    pa.aiConfidenceScore = aiResult.confidenceScore;
+    pa.aiReasoning = aiResult.reasoning;
+    pa.aiAnalyzedAt = new Date().toISOString();
+    pa.updatedAt = new Date().toISOString();
+    res.json({ success: true, data: { ...aiResult, pa } });
+  }).catch(err => res.status(500).json({ success: false, error: err.message }));
+});
+
+// Admin prior-auth routes
+router.get('/admin/prior-auth', protect, (req, res) => {
+  const { status, search = '', page = 0, limit = 20 } = req.query;
+  let results = [...syntheticPAs];
+  if (status && status !== 'all') results = results.filter(p => p.status === status);
+  if (search) {
+    const q = search.toLowerCase();
+    results = results.filter(p =>
+      p.patientName?.toLowerCase().includes(q) ||
+      p.serviceType?.toLowerCase().includes(q) ||
+      p.requestingProviderName?.toLowerCase().includes(q)
+    );
+  }
+  const total = results.length;
+  const paginated = results.slice(parseInt(page) * parseInt(limit), (parseInt(page) + 1) * parseInt(limit));
+  const statMap = { Pending: 0, 'Under Review': 0, Approved: 0, Denied: 0, Appealing: 0, Expired: 0 };
+  syntheticPAs.forEach(p => { if (statMap[p.status] !== undefined) statMap[p.status]++; });
+  res.json({ success: true, data: { priorAuths: paginated, total, stats: statMap } });
+});
+
+router.get('/admin/prior-auth/:id', protect, (req, res) => {
+  const pa = syntheticPAs.find(p => p._id === req.params.id);
+  if (!pa) return res.status(404).json({ success: false, error: 'Not found' });
+  res.json({ success: true, data: pa });
+});
+
+router.put('/admin/prior-auth/:id/review', protect, (req, res) => {
+  const pa = syntheticPAs.find(p => p._id === req.params.id);
+  if (!pa) return res.status(404).json({ success: false, error: 'Not found' });
+  const { decision, reviewerNotes } = req.body;
+  pa.status = decision;
+  pa.reviewerNotes = reviewerNotes || '';
+  pa.reviewedAt = new Date().toISOString();
+  if (decision === 'Approved') {
+    pa.approvedDate = new Date().toISOString();
+    const exp = new Date(); exp.setDate(exp.getDate() + 90);
+    pa.expiryDate = exp.toISOString();
+  } else {
+    pa.deniedDate = new Date().toISOString();
+  }
+  pa.updatedAt = new Date().toISOString();
+  res.json({ success: true, data: pa });
+});
+
+router.put('/admin/prior-auth/:id/appeal-review', protect, (req, res) => {
+  const pa = syntheticPAs.find(p => p._id === req.params.id);
+  if (!pa) return res.status(404).json({ success: false, error: 'Not found' });
+  const { outcome, reviewerNotes } = req.body;
+  pa.status = outcome;
+  pa.appealOutcome = outcome;
+  pa.appealReviewedAt = new Date().toISOString();
+  pa.reviewerNotes = reviewerNotes || pa.reviewerNotes;
+  pa.updatedAt = new Date().toISOString();
+  res.json({ success: true, data: pa });
+});
+
+router.post('/admin/prior-auth/:id/analyze', protect, (req, res) => {
+  const { analyzePriorAuthorization } = require('../services/azureAIService');
+  const pa = syntheticPAs.find(p => p._id === req.params.id);
+  if (!pa) return res.status(404).json({ success: false, error: 'Not found' });
+  analyzePriorAuthorization(pa).then(aiResult => {
+    pa.aiRecommendation = aiResult.recommendation;
+    pa.aiConfidenceScore = aiResult.confidenceScore;
+    pa.aiReasoning = aiResult.reasoning;
+    pa.aiAnalyzedAt = new Date().toISOString();
+    pa.updatedAt = new Date().toISOString();
+    res.json({ success: true, data: { ...aiResult, pa } });
+  }).catch(err => res.status(500).json({ success: false, error: err.message }));
+});
+
+// ---------------------------------------------------------------------------
 // FHIR R4 API routes (synthetic mode — transforms in-memory data)
 // ---------------------------------------------------------------------------
 
@@ -1097,6 +1486,589 @@ router.get('/fhir/ServiceRequest', protect, (req, res) => {
   );
   const resources = referrals.map(toFHIRServiceRequest);
   res.type(FHIR_CT).json(toFHIRBundle('ServiceRequest', resources, getFhirBase(req)));
+});
+
+// (Prior Authorization routes — see earlier in file, after the admin AI management section)
+
+const _legacyRemoved = [
+  {
+    _id: 'placeholder',
+    diagnosisCodes: [{ code: 'G35', description: 'Multiple sclerosis' }, { code: 'R51', description: 'Headache' }],
+    clinicalNotes: 'Patient presents with recurring headaches and vision changes. Neurological symptoms suggest possible demyelinating disease. MRI of brain with contrast required for diagnosis and treatment planning.',
+    urgency: 'Urgent',
+    insurancePlan: 'Blue Cross Blue Shield',
+    memberId: 'BCBS-100001',
+    status: 'Approved',
+    aiRecommendation: 'Approve',
+    aiConfidenceScore: 88,
+    aiReasoning: 'Clinical presentation is consistent with neurological disorder requiring imaging. Documentation supports medical necessity. Proceed with scheduling the authorized service within the approval window.',
+    aiAnalyzedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: 'Approved based on clinical necessity and AI recommendation.',
+    approvedDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    expiryDate: new Date(Date.now() + 89 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-002',
+    patientId: 'PT-100002',
+    patientName: 'Bob Martinez',
+    requestingProviderId: 'user-1',
+    requestingProviderName: 'Dr. John Smith',
+    targetProviderName: 'City Orthopedic Specialists',
+    serviceType: 'Physical Therapy',
+    serviceCode: '97110',
+    diagnosisCodes: [{ code: 'M54.5', description: 'Low back pain' }, { code: 'M47.816', description: 'Spondylosis with radiculopathy, lumbar region' }],
+    clinicalNotes: 'Patient has chronic low back pain with lumbar radiculopathy confirmed by EMG. Conservative treatment with PT recommended before considering surgical intervention. 12-week program requested.',
+    urgency: 'Routine',
+    insurancePlan: 'Aetna',
+    memberId: 'AET-200002',
+    status: 'Under Review',
+    aiRecommendation: 'Approve',
+    aiConfidenceScore: 82,
+    aiReasoning: 'Physical therapy for lumbar radiculopathy is well-supported by evidence. Documentation adequately establishes medical necessity. Routine request aligns with standard treatment protocols.',
+    aiAnalyzedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: '',
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-003',
+    patientId: 'PT-100003',
+    patientName: 'Carol White',
+    requestingProviderId: 'user-2',
+    requestingProviderName: 'Dr. Sarah Chen',
+    targetProviderName: 'Regional Cancer Center',
+    serviceType: 'PET Scan',
+    serviceCode: '78816',
+    diagnosisCodes: [{ code: 'C34.10', description: 'Malignant neoplasm of upper lobe, unspecified bronchus or lung' }],
+    clinicalNotes: 'Patient with confirmed Stage II lung cancer. PET scan required for accurate staging and treatment planning. CT showed suspicious mediastinal lymph nodes requiring characterization.',
+    urgency: 'Urgent',
+    insurancePlan: 'UnitedHealth',
+    memberId: 'UHC-300003',
+    status: 'Pending',
+    aiRecommendation: null,
+    aiConfidenceScore: null,
+    aiReasoning: '',
+    aiAnalyzedAt: null,
+    reviewerNotes: '',
+    createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-004',
+    patientId: 'PT-100004',
+    patientName: 'David Kim',
+    requestingProviderId: 'user-2',
+    requestingProviderName: 'Dr. Sarah Chen',
+    targetProviderName: '',
+    serviceType: 'Cardiac Catheterization',
+    serviceCode: '93460',
+    diagnosisCodes: [{ code: 'I25.10', description: 'Atherosclerotic heart disease of native coronary artery' }, { code: 'I20.9', description: 'Angina pectoris, unspecified' }],
+    clinicalNotes: 'Patient with unstable angina and positive stress test. Cardiac catheterization needed to evaluate coronary anatomy and guide revascularization.',
+    urgency: 'Emergent',
+    insurancePlan: 'Medicare',
+    memberId: 'MCR-400004',
+    status: 'Approved',
+    aiRecommendation: 'Approve',
+    aiConfidenceScore: 95,
+    aiReasoning: 'Emergent cardiac catheterization for unstable angina with positive stress test meets criteria for urgent authorization. Clinical documentation supports medical necessity.',
+    aiAnalyzedAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: 'Emergent case approved immediately.',
+    approvedDate: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+    expiryDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-005',
+    patientId: 'PT-100005',
+    patientName: 'Emma Davis',
+    requestingProviderId: 'user-3',
+    requestingProviderName: 'Dr. Mike Johnson',
+    targetProviderName: 'Behavioral Health Associates',
+    serviceType: 'Mental Health Services',
+    serviceCode: '90837',
+    diagnosisCodes: [{ code: 'F33.1', description: 'Major depressive disorder, recurrent, moderate' }, { code: 'F41.1', description: 'Generalized anxiety disorder' }],
+    clinicalNotes: 'Patient with treatment-resistant depression and comorbid anxiety. Requires intensive outpatient mental health services. Previous treatments with SSRIs insufficient.',
+    urgency: 'Routine',
+    insurancePlan: 'Cigna',
+    memberId: 'CGN-500005',
+    status: 'Denied',
+    aiRecommendation: 'Review',
+    aiConfidenceScore: 58,
+    aiReasoning: 'While mental health services are medically warranted, the documentation does not adequately demonstrate that standard outpatient therapy has been exhausted. Additional clinical documentation is needed.',
+    aiAnalyzedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: 'Denied pending additional documentation of prior treatment failure. Please provide therapy notes from previous providers.',
+    deniedDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-006',
+    patientId: 'PT-100006',
+    patientName: 'Frank Wilson',
+    requestingProviderId: 'user-1',
+    requestingProviderName: 'Dr. John Smith',
+    targetProviderName: '',
+    serviceType: 'Surgical Procedure',
+    serviceCode: '27447',
+    diagnosisCodes: [{ code: 'M17.11', description: 'Primary osteoarthritis, right knee' }],
+    clinicalNotes: 'Patient with severe bilateral knee osteoarthritis, failed conservative management including PT and injections. Total knee replacement recommended for right knee.',
+    urgency: 'Routine',
+    insurancePlan: 'Humana',
+    memberId: 'HUM-600006',
+    status: 'Appealing',
+    aiRecommendation: 'Review',
+    aiConfidenceScore: 67,
+    aiReasoning: 'Surgical procedure requires additional documentation of failed conservative treatments. Submit additional clinical documentation.',
+    aiAnalyzedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: 'Denied initially due to insufficient documentation of conservative treatment failure.',
+    deniedDate: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+    appealNotes: 'Attaching 18 months of PT records, 3 corticosteroid injections, and 2 orthopaedic consultations demonstrating failed conservative management.',
+    appealSubmittedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-007',
+    patientId: 'PT-100007',
+    patientName: 'Grace Lee',
+    requestingProviderId: 'user-2',
+    requestingProviderName: 'Dr. Sarah Chen',
+    targetProviderName: 'Advanced Oncology Partners',
+    serviceType: 'Infusion Therapy',
+    serviceCode: '96413',
+    diagnosisCodes: [
+      { code: 'C50.911', description: 'Malignant neoplasm of unspecified site of right female breast' },
+      { code: 'Z79.899', description: 'Other long-term drug therapy' }
+    ],
+    clinicalNotes: 'Patient is a 52-year-old female with Stage III breast cancer on active chemotherapy regimen (Adriamycin + Cyclophosphamide). Requesting prior auth for 4 cycles of IV infusion therapy at outpatient oncology center. Tumor markers show response to treatment. Continuation of regimen is medically necessary.',
+    urgency: 'Urgent',
+    insurancePlan: 'Kaiser Permanente',
+    memberId: 'KP-700007',
+    status: 'Approved',
+    aiRecommendation: 'Approve',
+    aiConfidenceScore: 93,
+    aiReasoning: 'Chemotherapy infusion for active Stage III breast cancer meets all criteria for prior authorization. Documented treatment response supports continuation. Proceed with scheduling the authorized service.',
+    aiAnalyzedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: 'Approved. Treatment response documented. Authorize 4 cycles.',
+    approvedDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    expiryDate: new Date(Date.now() + 87 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-008',
+    patientId: 'PT-100008',
+    patientName: 'Henry Thompson',
+    requestingProviderId: 'user-3',
+    requestingProviderName: 'Dr. Mike Johnson',
+    targetProviderName: 'Westside Sleep Disorders Clinic',
+    serviceType: 'Sleep Study',
+    serviceCode: '95810',
+    diagnosisCodes: [
+      { code: 'G47.33', description: 'Obstructive sleep apnea (adult)' },
+      { code: 'R06.83', description: 'Snoring' }
+    ],
+    clinicalNotes: 'Patient reports excessive daytime sleepiness, loud snoring, and witnessed apneas per spouse. Epworth Sleepiness Scale score 16/24. BMI 34.2. Overnight polysomnography requested to confirm OSA diagnosis and titrate CPAP therapy.',
+    urgency: 'Routine',
+    insurancePlan: 'Anthem',
+    memberId: 'ANT-800008',
+    status: 'Approved',
+    aiRecommendation: 'Approve',
+    aiConfidenceScore: 85,
+    aiReasoning: 'Clinical presentation with high Epworth score, BMI, and witnessed apneas strongly supports medical necessity for polysomnography. Documentation meets insurance criteria.',
+    aiAnalyzedAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: 'Approved. ESS score and clinical findings meet criteria.',
+    approvedDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    expiryDate: new Date(Date.now() + 85 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-009',
+    patientId: 'PT-100009',
+    patientName: 'Isabella Garcia',
+    requestingProviderId: 'user-1',
+    requestingProviderName: 'Dr. John Smith',
+    targetProviderName: 'Metro Spine Institute',
+    serviceType: 'Epidural Steroid Injection',
+    serviceCode: '62323',
+    diagnosisCodes: [
+      { code: 'M51.16', description: 'Intervertebral disc degeneration, lumbar region' },
+      { code: 'M54.4', description: 'Lumbago with sciatica, right side' }
+    ],
+    clinicalNotes: 'Patient has refractory lumbar radiculopathy with right-sided sciatica unresponsive to 8 weeks of physical therapy and oral NSAIDs. MRI confirms L4-L5 disc herniation with nerve root compression. Epidural steroid injection recommended for pain management and to avoid surgical intervention.',
+    urgency: 'Routine',
+    insurancePlan: 'Aetna',
+    memberId: 'AET-900009',
+    status: 'Pending',
+    aiRecommendation: null,
+    aiConfidenceScore: null,
+    aiReasoning: '',
+    aiAnalyzedAt: null,
+    reviewerNotes: '',
+    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-010',
+    patientId: 'PT-100010',
+    patientName: 'James Brown',
+    requestingProviderId: 'user-2',
+    requestingProviderName: 'Dr. Sarah Chen',
+    targetProviderName: 'Pediatric Neurology Associates',
+    serviceType: 'Specialist Consultation',
+    serviceCode: '99244',
+    diagnosisCodes: [
+      { code: 'G40.909', description: 'Epilepsy, unspecified, not intractable, without status epilepticus' },
+      { code: 'R56.9', description: 'Unspecified convulsions' }
+    ],
+    clinicalNotes: 'Patient is a 9-year-old male presenting with new-onset seizure activity. Two witnessed tonic-clonic episodes in the past month. EEG shows abnormal epileptiform discharges. Referral to pediatric neurologist required for seizure classification and management plan.',
+    urgency: 'Urgent',
+    insurancePlan: 'Blue Cross Blue Shield',
+    memberId: 'BCBS-101010',
+    status: 'Under Review',
+    aiRecommendation: 'Approve',
+    aiConfidenceScore: 91,
+    aiReasoning: 'New-onset pediatric epilepsy with confirmed EEG abnormalities requires urgent specialist evaluation. Clinical documentation clearly establishes medical necessity for neurology consultation.',
+    aiAnalyzedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: '',
+    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-011',
+    patientId: 'PT-100011',
+    patientName: 'Karen Martinez',
+    requestingProviderId: 'user-3',
+    requestingProviderName: 'Dr. Mike Johnson',
+    targetProviderName: 'Regional Bariatric Center',
+    serviceType: 'Surgical Procedure',
+    serviceCode: '43644',
+    diagnosisCodes: [
+      { code: 'E66.01', description: 'Morbid (severe) obesity due to excess calories' },
+      { code: 'E11.9', description: 'Type 2 diabetes mellitus without complications' },
+      { code: 'I10', description: 'Essential (primary) hypertension' }
+    ],
+    clinicalNotes: 'Patient is a 41-year-old female with morbid obesity (BMI 43.8), type 2 diabetes, and hypertension. Has completed 6-month medically supervised weight loss program without sufficient response. Laparoscopic gastric bypass surgery requested. Psychological evaluation and nutritional counseling completed. Patient meets NIH criteria for bariatric surgery.',
+    urgency: 'Routine',
+    insurancePlan: 'UnitedHealth',
+    memberId: 'UHC-111011',
+    status: 'Denied',
+    aiRecommendation: 'Review',
+    aiConfidenceScore: 62,
+    aiReasoning: 'While BMI and comorbidities meet surgical criteria, the documentation of the 6-month supervised weight loss program requires additional verification. Submit additional clinical documentation of supervised program completion.',
+    aiAnalyzedAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: 'Denied — supervised diet program documentation is incomplete. Monthly weigh-in records and provider notes for all 6 months required.',
+    deniedDate: new Date(Date.now() - 11 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 11 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-012',
+    patientId: 'PT-100012',
+    patientName: 'Liam Anderson',
+    requestingProviderId: 'user-1',
+    requestingProviderName: 'Dr. John Smith',
+    targetProviderName: 'City Cardiology Group',
+    serviceType: 'CT Scan',
+    serviceCode: '71250',
+    diagnosisCodes: [
+      { code: 'R05.9', description: 'Cough, unspecified' },
+      { code: 'R04.2', description: 'Haemoptysis' },
+      { code: 'Z87.891', description: 'Personal history of nicotine dependence' }
+    ],
+    clinicalNotes: 'Patient is a 58-year-old male with 30 pack-year smoking history presenting with 6-week history of persistent cough and one episode of hemoptysis. Chest X-ray shows right upper lobe opacity. Low-dose CT chest required for lung cancer screening and characterization of opacity. High clinical suspicion for malignancy.',
+    urgency: 'Urgent',
+    insurancePlan: 'Medicare',
+    memberId: 'MCR-121212',
+    status: 'Approved',
+    aiRecommendation: 'Approve',
+    aiConfidenceScore: 96,
+    aiReasoning: 'Hemoptysis with chest X-ray opacity in a heavy smoker constitutes high clinical suspicion for lung malignancy. CT chest is medically necessary and meets Medicare low-dose CT screening criteria. Proceed with scheduling.',
+    aiAnalyzedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: 'Approved immediately. High-priority case.',
+    approvedDate: new Date(Date.now() - 22 * 60 * 60 * 1000).toISOString(),
+    expiryDate: new Date(Date.now() + 89 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 22 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-013',
+    patientId: 'PT-100013',
+    patientName: 'Mia Robinson',
+    requestingProviderId: 'user-2',
+    requestingProviderName: 'Dr. Sarah Chen',
+    targetProviderName: 'Reproductive Endocrinology Associates',
+    serviceType: 'Lab Testing',
+    serviceCode: '89264',
+    diagnosisCodes: [
+      { code: 'N97.9', description: 'Female infertility, unspecified' },
+      { code: 'E28.2', description: 'Polycystic ovarian syndrome' }
+    ],
+    clinicalNotes: 'Patient is a 33-year-old female with PCOS and 18 months of primary infertility. Requesting comprehensive fertility panel including AMH, FSH, LH, estradiol, antral follicle count, and semen analysis for partner. Baseline evaluation required before initiating IUI or IVF treatment protocol.',
+    urgency: 'Routine',
+    insurancePlan: 'Cigna',
+    memberId: 'CGN-131313',
+    status: 'Pending',
+    aiRecommendation: null,
+    aiConfidenceScore: null,
+    aiReasoning: '',
+    aiAnalyzedAt: null,
+    reviewerNotes: '',
+    createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-014',
+    patientId: 'PT-100014',
+    patientName: 'Noah Clark',
+    requestingProviderId: 'user-3',
+    requestingProviderName: 'Dr. Mike Johnson',
+    targetProviderName: 'Comprehensive Rehab Center',
+    serviceType: 'Occupational Therapy',
+    serviceCode: '97530',
+    diagnosisCodes: [
+      { code: 'I63.9', description: 'Cerebral infarction, unspecified' },
+      { code: 'G81.90', description: 'Hemiplegia, unspecified, affecting unspecified side' }
+    ],
+    clinicalNotes: 'Patient is a 67-year-old male recovering from ischemic stroke 3 weeks ago with residual left-sided hemiplegia and significant ADL deficits. Occupational therapy required for upper extremity retraining, ADL adaptation, and cognitive rehabilitation. FIM score 62. Requesting 30 sessions over 10 weeks.',
+    urgency: 'Urgent',
+    insurancePlan: 'Medicare',
+    memberId: 'MCR-141414',
+    status: 'Approved',
+    aiRecommendation: 'Approve',
+    aiConfidenceScore: 94,
+    aiReasoning: 'Post-stroke occupational therapy with documented FIM score and functional deficits clearly meets medical necessity criteria. Acute recovery phase supports urgent authorization for comprehensive rehabilitation.',
+    aiAnalyzedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: 'Approved. Post-stroke rehab is medically necessary. Authorize 30 sessions.',
+    approvedDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    expiryDate: new Date(Date.now() + 88 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-015',
+    patientId: 'PT-100015',
+    patientName: 'Olivia Harris',
+    requestingProviderId: 'user-1',
+    requestingProviderName: 'Dr. John Smith',
+    targetProviderName: 'Endocrine Specialty Clinic',
+    serviceType: 'Durable Medical Equipment',
+    serviceCode: 'E0784',
+    diagnosisCodes: [
+      { code: 'E10.649', description: 'Type 1 diabetes mellitus with hypoglycemia without coma' },
+      { code: 'Z96.41', description: 'Presence of insulin pump' }
+    ],
+    clinicalNotes: 'Patient is a 28-year-old female with Type 1 diabetes, currently on insulin pump therapy with frequent hypoglycemic episodes (>3/week). Requesting authorization for continuous glucose monitor (CGM) to improve glycemic control and reduce hypoglycemia risk. HbA1c 8.9%. Patient has demonstrated motivation and ability to use CGM technology.',
+    urgency: 'Routine',
+    insurancePlan: 'Blue Cross Blue Shield',
+    memberId: 'BCBS-151515',
+    status: 'Under Review',
+    aiRecommendation: 'Approve',
+    aiConfidenceScore: 87,
+    aiReasoning: 'CGM for Type 1 diabetes with documented hypoglycemic episodes and elevated HbA1c meets standard criteria for authorization. Insulin pump use confirms advanced diabetes management need.',
+    aiAnalyzedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: '',
+    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-016',
+    patientId: 'PT-100016',
+    patientName: 'Peter Williams',
+    requestingProviderId: 'user-2',
+    requestingProviderName: 'Dr. Sarah Chen',
+    targetProviderName: 'Gastroenterology Specialists',
+    serviceType: 'Colonoscopy',
+    serviceCode: '45378',
+    diagnosisCodes: [
+      { code: 'K92.1', description: 'Melaena' },
+      { code: 'Z80.0', description: 'Family history of malignant neoplasm of digestive organs' }
+    ],
+    clinicalNotes: 'Patient is a 52-year-old male presenting with 2-week history of dark stools consistent with melena. Family history of colon cancer (father at age 55). Hemoglobin 10.2 g/dL (down from 13.8 three months ago). Colonoscopy urgently needed to evaluate source of GI bleeding and rule out colorectal malignancy.',
+    urgency: 'Urgent',
+    insurancePlan: 'Anthem',
+    memberId: 'ANT-161616',
+    status: 'Approved',
+    aiRecommendation: 'Approve',
+    aiConfidenceScore: 98,
+    aiReasoning: 'Active GI bleeding with anemia and family history of colorectal cancer represents an urgent indication for colonoscopy. Documentation strongly supports medical necessity. Immediate authorization recommended.',
+    aiAnalyzedAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: 'Approved urgently. Active bleeding requiring immediate evaluation.',
+    approvedDate: new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString(),
+    expiryDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    _id: 'pa-017',
+    patientId: 'PT-100001',
+    patientName: 'Alice Johnson',
+    requestingProviderId: 'user-1',
+    requestingProviderName: 'Dr. John Smith',
+    targetProviderName: 'NeuroRehab Specialists',
+    serviceType: 'Speech Therapy',
+    serviceCode: '92507',
+    diagnosisCodes: [
+      { code: 'G35', description: 'Multiple sclerosis' },
+      { code: 'R47.1', description: 'Dysarthria and anarthria' }
+    ],
+    clinicalNotes: 'Patient with confirmed MS now presenting with progressive dysarthria affecting communication. Speech-language pathology evaluation and treatment requested. Patient currently scores 3/7 on Dysarthria Impact Profile. Weekly sessions for 12 weeks requested for motor speech rehabilitation.',
+    urgency: 'Routine',
+    insurancePlan: 'Blue Cross Blue Shield',
+    memberId: 'BCBS-100001',
+    status: 'Expired',
+    aiRecommendation: 'Approve',
+    aiConfidenceScore: 83,
+    aiReasoning: 'Speech therapy for MS-related dysarthria is clinically indicated. Functional communication impact documented with standardized tool. Approval criteria met.',
+    aiAnalyzedAt: new Date(Date.now() - 95 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewerNotes: 'Approved. 12 sessions authorized.',
+    approvedDate: new Date(Date.now() - 94 * 24 * 60 * 60 * 1000).toISOString(),
+    expiryDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 97 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString()
+  }
+];
+
+router.get('/prior-auth', protect, (req, res) => {
+  const { status, page = 0, limit = 20 } = req.query;
+  let results = [...syntheticPAs];
+  if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+    results = results.filter(p => p.requestingProviderId === req.user.id || p.requestingProviderId === 'user-1');
+  }
+  if (status && status !== 'all') results = results.filter(p => p.status === status);
+  const total = results.length;
+  const paginated = results.slice(parseInt(page) * parseInt(limit), (parseInt(page) + 1) * parseInt(limit));
+  res.json({ success: true, data: { priorAuths: paginated, total } });
+});
+
+router.get('/prior-auth/:id', protect, (req, res) => {
+  const pa = syntheticPAs.find(p => p._id === req.params.id);
+  if (!pa) return res.status(404).json({ success: false, error: 'Not found' });
+  res.json({ success: true, data: pa });
+});
+
+router.post('/prior-auth', protect, (req, res) => {
+  const { analyzePriorAuthorization } = require('../services/azureAIService');
+  const newPA = {
+    _id: 'pa-' + Date.now(),
+    ...req.body,
+    requestingProviderId: req.user.id,
+    requestingProviderName: req.user.name || req.user.email,
+    status: 'Pending',
+    aiRecommendation: null,
+    aiConfidenceScore: null,
+    aiReasoning: '',
+    aiAnalyzedAt: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  syntheticPAs.push(newPA);
+  analyzePriorAuthorization(newPA).then(aiResult => {
+    newPA.aiRecommendation = aiResult.recommendation;
+    newPA.aiConfidenceScore = aiResult.confidenceScore;
+    newPA.aiReasoning = aiResult.reasoning;
+    newPA.aiAnalyzedAt = new Date().toISOString();
+    newPA.status = 'Under Review';
+  }).catch(() => {});
+  res.status(201).json({ success: true, data: newPA });
+});
+
+router.post('/prior-auth/:id/appeal', protect, (req, res) => {
+  const pa = syntheticPAs.find(p => p._id === req.params.id);
+  if (!pa) return res.status(404).json({ success: false, error: 'Not found' });
+  pa.status = 'Appealing';
+  pa.appealNotes = req.body.appealNotes || '';
+  pa.appealSubmittedAt = new Date().toISOString();
+  pa.updatedAt = new Date().toISOString();
+  res.json({ success: true, data: pa });
+});
+
+router.post('/prior-auth/:id/analyze', protect, (req, res) => {
+  const { analyzePriorAuthorization } = require('../services/azureAIService');
+  const pa = syntheticPAs.find(p => p._id === req.params.id);
+  if (!pa) return res.status(404).json({ success: false, error: 'Not found' });
+  analyzePriorAuthorization(pa).then(aiResult => {
+    pa.aiRecommendation = aiResult.recommendation;
+    pa.aiConfidenceScore = aiResult.confidenceScore;
+    pa.aiReasoning = aiResult.reasoning;
+    pa.aiAnalyzedAt = new Date().toISOString();
+    pa.updatedAt = new Date().toISOString();
+    res.json({ success: true, data: { ...aiResult, pa } });
+  }).catch(err => res.status(500).json({ success: false, error: err.message }));
+});
+
+// Admin prior-auth routes (synthetic)
+router.get('/admin/prior-auth', protect, (req, res) => {
+  const { status, search = '', page = 0, limit = 20 } = req.query;
+  let results = [...syntheticPAs];
+  if (status && status !== 'all') results = results.filter(p => p.status === status);
+  if (search) {
+    const q = search.toLowerCase();
+    results = results.filter(p =>
+      p.patientName?.toLowerCase().includes(q) ||
+      p.serviceType?.toLowerCase().includes(q) ||
+      p.requestingProviderName?.toLowerCase().includes(q)
+    );
+  }
+  const total = results.length;
+  const paginated = results.slice(parseInt(page) * parseInt(limit), (parseInt(page) + 1) * parseInt(limit));
+  const statMap = { Pending: 0, 'Under Review': 0, Approved: 0, Denied: 0, Appealing: 0, Expired: 0 };
+  syntheticPAs.forEach(p => { if (statMap[p.status] !== undefined) statMap[p.status]++; });
+  res.json({ success: true, data: { priorAuths: paginated, total, stats: statMap } });
+});
+
+router.get('/admin/prior-auth/:id', protect, (req, res) => {
+  const pa = syntheticPAs.find(p => p._id === req.params.id);
+  if (!pa) return res.status(404).json({ success: false, error: 'Not found' });
+  res.json({ success: true, data: pa });
+});
+
+router.put('/admin/prior-auth/:id/review', protect, (req, res) => {
+  const pa = syntheticPAs.find(p => p._id === req.params.id);
+  if (!pa) return res.status(404).json({ success: false, error: 'Not found' });
+  const { decision, reviewerNotes } = req.body;
+  pa.status = decision;
+  pa.reviewerNotes = reviewerNotes || '';
+  pa.reviewedAt = new Date().toISOString();
+  if (decision === 'Approved') {
+    pa.approvedDate = new Date().toISOString();
+    const exp = new Date(); exp.setDate(exp.getDate() + 90);
+    pa.expiryDate = exp.toISOString();
+  } else {
+    pa.deniedDate = new Date().toISOString();
+  }
+  pa.updatedAt = new Date().toISOString();
+  res.json({ success: true, data: pa });
+});
+
+router.put('/admin/prior-auth/:id/appeal-review', protect, (req, res) => {
+  const pa = syntheticPAs.find(p => p._id === req.params.id);
+  if (!pa) return res.status(404).json({ success: false, error: 'Not found' });
+  const { outcome, reviewerNotes } = req.body;
+  pa.status = outcome;
+  pa.appealOutcome = outcome;
+  pa.appealReviewedAt = new Date().toISOString();
+  pa.reviewerNotes = reviewerNotes || pa.reviewerNotes;
+  pa.updatedAt = new Date().toISOString();
+  res.json({ success: true, data: pa });
+});
+
+router.post('/admin/prior-auth/:id/analyze', protect, (req, res) => {
+  const { analyzePriorAuthorization } = require('../services/azureAIService');
+  const pa = syntheticPAs.find(p => p._id === req.params.id);
+  if (!pa) return res.status(404).json({ success: false, error: 'Not found' });
+  analyzePriorAuthorization(pa).then(aiResult => {
+    pa.aiRecommendation = aiResult.recommendation;
+    pa.aiConfidenceScore = aiResult.confidenceScore;
+    pa.aiReasoning = aiResult.reasoning;
+    pa.aiAnalyzedAt = new Date().toISOString();
+    pa.updatedAt = new Date().toISOString();
+    res.json({ success: true, data: { ...aiResult, pa } });
+  }).catch(err => res.status(500).json({ success: false, error: err.message }));
 });
 
 // ---------------------------------------------------------------------------

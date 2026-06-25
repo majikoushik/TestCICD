@@ -17,41 +17,12 @@ import { authStorage } from '../utils/storageUtils';
  */
 export const adminLogin = async (credentials) => {
   try {
-    // For development with mock data
-    if (process.env.REACT_APP_MOCK_API === 'true') {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Mock successful response
-      const response = {
-        success: true,
-        token: 'mock-jwt-token-admin',
-        user: {
-          id: 'admin-123',
-          name: 'Admin User',
-          email: credentials.email || 'admin@clinictrustai.com',
-          role: 'admin'
-        }
-      };
-      
-      // Store token and user data
-      authStorage.set('token', response.token);
-      authStorage.set('user', response.user);
-      
-      return response;
-    }
     authStorage.clear();
-    const token = authStorage.get('token', false);
-    console.log('Token from storage:', token ? 'Found' : 'Not found');
-    // Real API call
     const response = await post('/admin/auth/login', credentials);
-    console.log(response);
     if (response.success) {
-      // Store token and user data
       authStorage.set('token', response.token);
       authStorage.set('user', response.user);
     }
-    
     return response;
   } catch (error) {
     console.error('Admin login error:', error);

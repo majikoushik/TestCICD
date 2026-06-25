@@ -34,6 +34,7 @@ import {
   ChevronLeft as ChevronLeftIcon,
   AdminPanelSettings as AdminIcon,
   Storage as BlockchainIcon,
+  Assignment as AssignmentIcon,
 } from '@mui/icons-material';
 import { useAuth, useToken, useNotification } from '../contexts';
 import referralService from '../services/referralService';
@@ -126,6 +127,7 @@ export default function MainLayout() {
       { text: 'Analytics', icon: <AnalyticsIcon />, path: '/app/analytics' },
       { text: 'Tokens', icon: <TokenIcon />, path: '/app/tokens', badgeContent: balance, badgeColor: 'secondary' },
       { text: 'Blockchain', icon: <BlockchainIcon />, path: '/app/blockchain/history' },
+      { text: 'Prior Auth', icon: <AssignmentIcon />, path: '/app/prior-auth' },
       { text: 'Settings', icon: <SettingsIcon />, path: '/app/settings' }
     ];
     

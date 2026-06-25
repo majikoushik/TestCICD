@@ -71,9 +71,11 @@ const AdminTokenManagement = lazy(() => import('./pages/admin/AdminTokenManageme
 const AdminMessaging = lazy(() => import('./pages/admin/AdminMessaging'));
 const AdminAuditEHI = lazy(() => import('./pages/admin/AdminAuditEHI'));
 const AdminFHIR = lazy(() => import('./pages/admin/AdminFHIR'));
+const AdminPriorAuth = lazy(() => import('./pages/admin/AdminPriorAuth'));
 
 // FHIR Pages
 const FHIRExplorer = lazy(() => import('./pages/fhir/FHIRExplorer'));
+const PriorAuth = lazy(() => import('./pages/prior-auth/PriorAuth'));
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -296,6 +298,13 @@ function App() {
             <FHIRExplorer />
           </Suspense>
         } />
+
+        {/* Prior Auth */}
+        <Route path="prior-auth" element={
+          <Suspense fallback={<PageLoadingFallback />}>
+            <PriorAuth />
+          </Suspense>
+        } />
       </Route>
       
       {/* Admin Routes */}
@@ -342,6 +351,11 @@ function App() {
         <Route path="fhir" element={
           <Suspense fallback={<PageLoadingFallback />}>
             <AdminFHIR />
+          </Suspense>
+        } />
+        <Route path="prior-auth" element={
+          <Suspense fallback={<PageLoadingFallback />}>
+            <AdminPriorAuth />
           </Suspense>
         } />
         <Route path="patient-records" element={

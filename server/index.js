@@ -33,7 +33,10 @@ const adminReferralRoutes = require('./routes/admin/referrals');
 const adminAIManagementRoutes = require('./routes/admin/aiManagement');
 const graphqlRoutes = require('./routes/graphql');
 const fhirRoutes = require('./routes/fhir');
+const priorAuthRoutes = require('./routes/priorAuth');
+const adminPriorAuthRoutes = require('./routes/adminPriorAuth');
 const syntheticRouter = require('./routes/syntheticRouter');
+const { seedPriorAuths } = require('./seeds/priorAuthSeed');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -100,13 +103,18 @@ function mountLiveRoutes() {
   app.use('/api/notifications', notificationRoutes);
   app.use('/api/dashboard', dashboardRoutes);
 
-  // Protected admin routes — belt-and-suspenders on top of per-route auth
-  app.use('/api/admin', [protect, authorize('admin', 'superadmin'), adminRoutes]);
+  // Protected admin routes — specific sub-paths BEFORE the generic /api/admin
+  // so Express doesn't need to fall through adminRoutes for each sub-router.
   app.use('/api/admin/referrals', [protect, authorize('admin', 'superadmin'), adminReferralRoutes]);
   app.use('/api/admin/ai-management', [protect, authorize('admin', 'superadmin'), adminAIManagementRoutes]);
+  app.use('/api/admin/prior-auth', [protect, authorize('admin', 'superadmin'), adminPriorAuthRoutes]);
+  app.use('/api/admin', [protect, authorize('admin', 'superadmin'), adminRoutes]);
 
   // FHIR R4 API — ONC 21st Century Cures Act / CMS-0057-F compliant
   app.use('/api/fhir', fhirRoutes);
+
+  // Prior Authorization (provider-facing)
+  app.use('/api/prior-auth', priorAuthRoutes);
 
   // GraphQL
   app.use('/graphql', graphqlRoutes);
@@ -146,6 +154,7 @@ async function startServer() {
 
   if (dbConnected) {
     mountLiveRoutes();
+    await seedPriorAuths();
   } else {
     mountSyntheticRoutes();
   }

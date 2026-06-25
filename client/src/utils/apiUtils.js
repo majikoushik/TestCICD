@@ -50,12 +50,9 @@ api.interceptors.response.use(
     if (error.response) {
       if (error.response.status === 401) {
         console.warn('Authentication error detected, redirecting to login');
-        
-        // Clear auth storage
         authStorage.clear();
-        
-        // Redirect to login page
-        window.location.href = '/login';
+        const isAdminPath = window.location.pathname.startsWith('/admin');
+        window.location.href = isAdminPath ? '/admin/login' : '/login';
       } else if (error.response.status === 403) {
         console.warn('Authorization error detected:', error.response.data?.error || 'Access denied');
       }
