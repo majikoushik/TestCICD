@@ -357,6 +357,227 @@ function makeStore(data) {
 // Exports
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// EHI Audit Logs — pre-seeded for demo/admin dashboard
+// Covers all 7 actions, both 200 and 403 responses, 3 ONC exceptions
+// ---------------------------------------------------------------------------
+
+const D = (daysAgo, hoursOffset = 0) =>
+  new Date(Date.now() - daysAgo * 86400000 - hoursOffset * 3600000);
+
+const auditLogs = [
+  // ── Day 1 ──────────────────────────────────────────────────────────────
+  {
+    _id: 'audit-1', id: 'audit-1',
+    timestamp: D(1, 0),
+    userId: null, userEmail: 'admin@clinictrustai.com', userRole: 'admin',
+    action: 'READ', resourceType: 'Patient',
+    resourceId: 'patient-1', patientId: 'patient-1',
+    endpoint: '/api/patients/patient-1', method: 'GET',
+    ipAddress: '192.168.1.10', userAgent: 'Mozilla/5.0 (Windows NT 10.0)',
+    responseStatus: 200, oncException: null,
+  },
+  {
+    _id: 'audit-2', id: 'audit-2',
+    timestamp: D(1, 1),
+    userId: null, userEmail: 'john.smith@clinictrustai.com', userRole: 'doctor',
+    action: 'READ', resourceType: 'Patient',
+    resourceId: 'patient-1', patientId: 'patient-1',
+    endpoint: '/api/patients/patient-1', method: 'GET',
+    ipAddress: '192.168.1.11', userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X)',
+    responseStatus: 200, oncException: null,
+  },
+  {
+    _id: 'audit-3', id: 'audit-3',
+    timestamp: D(1, 2),
+    userId: null, userEmail: 'robert.williams@clinictrustai.com', userRole: 'doctor',
+    action: 'READ', resourceType: 'Patient',
+    resourceId: 'patient-1', patientId: 'patient-1',
+    endpoint: '/api/patients/patient-1', method: 'GET',
+    ipAddress: '192.168.1.15', userAgent: 'Safari/14.1',
+    responseStatus: 403, oncException: 'privacy',
+  },
+  // ── Day 2: EHI Exports ─────────────────────────────────────────────────
+  {
+    _id: 'audit-4', id: 'audit-4',
+    timestamp: D(2, 0),
+    userId: null, userEmail: 'admin@clinictrustai.com', userRole: 'admin',
+    action: 'EXPORT', resourceType: 'Patient',
+    resourceId: 'patient-1', patientId: 'patient-1',
+    endpoint: '/api/patients/patient-1/export', method: 'GET',
+    ipAddress: '192.168.1.10', userAgent: 'Mozilla/5.0 (Windows NT 10.0)',
+    responseStatus: 200, oncException: null,
+  },
+  {
+    _id: 'audit-5', id: 'audit-5',
+    timestamp: D(2, 1),
+    userId: null, userEmail: 'john.smith@clinictrustai.com', userRole: 'doctor',
+    action: 'EXPORT', resourceType: 'Patient',
+    resourceId: 'patient-1', patientId: 'patient-1',
+    endpoint: '/api/patients/patient-1/export', method: 'GET',
+    ipAddress: '192.168.1.11', userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X)',
+    responseStatus: 200, oncException: null,
+  },
+  {
+    _id: 'audit-6', id: 'audit-6',
+    timestamp: D(2, 2),
+    userId: null, userEmail: 'michael.chen@clinictrustai.com', userRole: 'doctor',
+    action: 'EXPORT', resourceType: 'Patient',
+    resourceId: 'patient-1', patientId: 'patient-1',
+    endpoint: '/api/patients/patient-1/export', method: 'GET',
+    ipAddress: '192.168.1.14', userAgent: 'Chrome/114.0',
+    responseStatus: 403, oncException: 'privacy',
+  },
+  // ── Day 3: Referrals ───────────────────────────────────────────────────
+  {
+    _id: 'audit-7', id: 'audit-7',
+    timestamp: D(3, 0),
+    userId: null, userEmail: 'john.smith@clinictrustai.com', userRole: 'doctor',
+    action: 'CREATE', resourceType: 'Referral',
+    resourceId: 'referral-1', patientId: 'patient-1',
+    endpoint: '/api/referrals', method: 'POST',
+    ipAddress: '192.168.1.11', userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X)',
+    responseStatus: 201, oncException: null,
+  },
+  {
+    _id: 'audit-8', id: 'audit-8',
+    timestamp: D(3, 1),
+    userId: null, userEmail: 'michael.chen@clinictrustai.com', userRole: 'doctor',
+    action: 'READ', resourceType: 'Referral',
+    resourceId: 'referral-1', patientId: null,
+    endpoint: '/api/referrals/referral-1', method: 'GET',
+    ipAddress: '192.168.1.14', userAgent: 'Chrome/114.0',
+    responseStatus: 200, oncException: null,
+  },
+  {
+    _id: 'audit-9', id: 'audit-9',
+    timestamp: D(3, 2),
+    userId: null, userEmail: 'sarah.johnson@clinictrustai.com', userRole: 'provider',
+    action: 'READ', resourceType: 'Referral',
+    resourceId: 'referral-1', patientId: null,
+    endpoint: '/api/referrals/referral-1', method: 'GET',
+    ipAddress: '192.168.1.13', userAgent: 'Firefox/115.0',
+    responseStatus: 403, oncException: 'privacy',
+  },
+  // ── Day 4: Analytics ───────────────────────────────────────────────────
+  {
+    _id: 'audit-10', id: 'audit-10',
+    timestamp: D(4, 0),
+    userId: null, userEmail: 'admin@clinictrustai.com', userRole: 'admin',
+    action: 'READ', resourceType: 'Analytics',
+    resourceId: 'patient-1', patientId: 'patient-1',
+    endpoint: '/api/analytics/insights/patient/patient-1', method: 'GET',
+    ipAddress: '192.168.1.10', userAgent: 'Mozilla/5.0 (Windows NT 10.0)',
+    responseStatus: 200, oncException: null,
+  },
+  {
+    _id: 'audit-11', id: 'audit-11',
+    timestamp: D(4, 2),
+    userId: null, userEmail: 'sarah.johnson@clinictrustai.com', userRole: 'provider',
+    action: 'READ', resourceType: 'Analytics',
+    resourceId: 'patient-2', patientId: 'patient-2',
+    endpoint: '/api/analytics/insights/patient/patient-2', method: 'GET',
+    ipAddress: '192.168.1.13', userAgent: 'Firefox/115.0',
+    responseStatus: 403, oncException: 'privacy',
+  },
+  // ── Day 5: Consent & Update ────────────────────────────────────────────
+  {
+    _id: 'audit-12', id: 'audit-12',
+    timestamp: D(5, 0),
+    userId: null, userEmail: 'john.smith@clinictrustai.com', userRole: 'doctor',
+    action: 'CONSENT_GRANT', resourceType: 'Patient',
+    resourceId: 'patient-3', patientId: 'patient-3',
+    endpoint: '/api/patients/patient-3/consent', method: 'POST',
+    ipAddress: '192.168.1.11', userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X)',
+    responseStatus: 201, oncException: null,
+  },
+  {
+    _id: 'audit-13', id: 'audit-13',
+    timestamp: D(5, 3),
+    userId: null, userEmail: 'john.smith@clinictrustai.com', userRole: 'doctor',
+    action: 'UPDATE', resourceType: 'Patient',
+    resourceId: 'patient-2', patientId: 'patient-2',
+    endpoint: '/api/patients/patient-2', method: 'PUT',
+    ipAddress: '192.168.1.11', userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X)',
+    responseStatus: 200, oncException: null,
+  },
+  // ── Day 6: Referral Update + Export ───────────────────────────────────
+  {
+    _id: 'audit-14', id: 'audit-14',
+    timestamp: D(6, 0),
+    userId: null, userEmail: 'michael.chen@clinictrustai.com', userRole: 'doctor',
+    action: 'UPDATE', resourceType: 'Referral',
+    resourceId: 'referral-2', patientId: null,
+    endpoint: '/api/referrals/referral-2/status', method: 'PUT',
+    ipAddress: '192.168.1.14', userAgent: 'Chrome/114.0',
+    responseStatus: 200, oncException: null,
+  },
+  {
+    _id: 'audit-15', id: 'audit-15',
+    timestamp: D(6, 2),
+    userId: null, userEmail: 'michael.chen@clinictrustai.com', userRole: 'doctor',
+    action: 'EXPORT', resourceType: 'Patient',
+    resourceId: 'patient-3', patientId: 'patient-3',
+    endpoint: '/api/patients/patient-3/export', method: 'GET',
+    ipAddress: '192.168.1.14', userAgent: 'Chrome/114.0',
+    responseStatus: 200, oncException: null,
+  },
+  // ── Day 8: Consent Revoke + Patient Create ─────────────────────────────
+  {
+    _id: 'audit-16', id: 'audit-16',
+    timestamp: D(8, 1),
+    userId: null, userEmail: 'admin@clinictrustai.com', userRole: 'admin',
+    action: 'CONSENT_REVOKE', resourceType: 'Patient',
+    resourceId: 'patient-2', patientId: 'patient-2',
+    endpoint: '/api/patients/patient-2/consent/revoke', method: 'POST',
+    ipAddress: '192.168.1.10', userAgent: 'Mozilla/5.0 (Windows NT 10.0)',
+    responseStatus: 200, oncException: null,
+  },
+  {
+    _id: 'audit-17', id: 'audit-17',
+    timestamp: D(8, 4),
+    userId: null, userEmail: 'robert.williams@clinictrustai.com', userRole: 'doctor',
+    action: 'CREATE', resourceType: 'Patient',
+    resourceId: 'patient-5', patientId: 'patient-5',
+    endpoint: '/api/patients', method: 'POST',
+    ipAddress: '192.168.1.15', userAgent: 'Safari/14.1',
+    responseStatus: 201, oncException: null,
+  },
+  // ── Day 10: Blocked analytics (security exception) ─────────────────────
+  {
+    _id: 'audit-18', id: 'audit-18',
+    timestamp: D(10, 0),
+    userId: null, userEmail: 'robert.williams@clinictrustai.com', userRole: 'doctor',
+    action: 'READ', resourceType: 'Analytics',
+    resourceId: 'patient-3', patientId: 'patient-3',
+    endpoint: '/api/analytics/insights/patient/patient-3', method: 'GET',
+    ipAddress: '10.0.0.55', userAgent: 'Edge/114.0',
+    responseStatus: 403, oncException: 'security',
+  },
+  // ── Day 14: Referral list READ ─────────────────────────────────────────
+  {
+    _id: 'audit-19', id: 'audit-19',
+    timestamp: D(14, 0),
+    userId: null, userEmail: 'john.smith@clinictrustai.com', userRole: 'doctor',
+    action: 'READ', resourceType: 'Referral',
+    resourceId: null, patientId: null,
+    endpoint: '/api/referrals', method: 'GET',
+    ipAddress: '192.168.1.11', userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X)',
+    responseStatus: 200, oncException: null,
+  },
+  // ── Day 20: Admin patient read ─────────────────────────────────────────
+  {
+    _id: 'audit-20', id: 'audit-20',
+    timestamp: D(20, 0),
+    userId: null, userEmail: 'admin@clinictrustai.com', userRole: 'admin',
+    action: 'READ', resourceType: 'Patient',
+    resourceId: 'patient-5', patientId: 'patient-5',
+    endpoint: '/api/patients/patient-5', method: 'GET',
+    ipAddress: '192.168.1.10', userAgent: 'Mozilla/5.0 (Windows NT 10.0)',
+    responseStatus: 200, oncException: null,
+  },
+];
+
 const store = {
   users: makeStore(users),
   patients: makeStore(patients),
@@ -366,6 +587,7 @@ const store = {
   notifications: makeStore(notifications),
   activities: makeStore(activities),
   adminSettings: makeStore(adminSettings),
+  auditLogs: makeStore(auditLogs),
 };
 
 module.exports = { store, DEMO_PASSWORD: 'Demo1234!' };

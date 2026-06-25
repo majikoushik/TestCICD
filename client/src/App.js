@@ -69,6 +69,7 @@ const AdminReferrals = lazy(() => import('./pages/admin/AdminReferrals'));
 const AdminAIManagement = lazy(() => import('./pages/admin/AdminAIManagement'));
 const AdminTokenManagement = lazy(() => import('./pages/admin/AdminTokenManagement'));
 const AdminMessaging = lazy(() => import('./pages/admin/AdminMessaging'));
+const AdminAuditEHI = lazy(() => import('./pages/admin/AdminAuditEHI'));
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -320,6 +321,11 @@ function App() {
         <Route path="audit/login" element={
           <Suspense fallback={<PageLoadingFallback />}>
             <AdminLoginAudit />
+          </Suspense>
+        } />
+        <Route path="audit/ehi" element={
+          <Suspense fallback={<PageLoadingFallback />}>
+            <AdminAuditEHI />
           </Suspense>
         } />
         <Route path="patient-records" element={

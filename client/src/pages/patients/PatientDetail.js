@@ -8,7 +8,7 @@ import {
   selectPatientsLoading, 
   selectPatientsError 
 } from '../../redux/slices/patientsSlice';
-import { createConsentRecord } from '../../services/patientService';
+import { createConsentRecord, exportPatientEHI } from '../../services/patientService';
 import { ModernLoadingIndicator } from '../../components/common';
 import {
   Box,
@@ -31,7 +31,9 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField
+  TextField,
+  Snackbar,
+  CircularProgress,
 } from '@mui/material';
 import {
   Person as PersonIcon,
@@ -42,7 +44,8 @@ import {
   Warning as WarningIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
-  ArrowBack as ArrowBackIcon
+  ArrowBack as ArrowBackIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
 
 function TabPanel(props) {
@@ -80,6 +83,8 @@ export default function PatientDetail() {
   const [consentDialogOpen, setConsentDialogOpen] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState('');
   const [accessLevel, setAccessLevel] = useState('limited');
+  const [exportLoading, setExportLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   useEffect(() => {
     // Fetch patient details using Redux thunk
@@ -90,6 +95,28 @@ export default function PatientDetail() {
       dispatch(clearCurrentPatient());
     };
   }, [dispatch, id]);
+
+  const handleExportEHI = async () => {
+    setExportLoading(true);
+    try {
+      const result = await exportPatientEHI(id);
+      const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `ehi-export-${patient.patientId || id}-${Date.now()}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setSnackbar({ open: true, message: 'EHI export downloaded successfully (ONC compliant)', severity: 'success' });
+    } catch (err) {
+      const msg = err?.response?.status === 403
+        ? 'Access denied: only the primary provider or admin can export EHI'
+        : 'Export failed. Please try again.';
+      setSnackbar({ open: true, message: msg, severity: 'error' });
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -234,7 +261,7 @@ export default function PatientDetail() {
       </Box>
       <Paper sx={{ p: 3, mb: 3 }}>
         <Grid container spacing={3}>
-          <Grid item xs={12} md={8}>
+          <Grid item xs={12} md={7}>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <Avatar sx={{ width: 64, height: 64, bgcolor: 'primary.main', mr: 2 }}>
                 <PersonIcon fontSize="large" />
@@ -249,7 +276,7 @@ export default function PatientDetail() {
               </Box>
             </Box>
           </Grid>
-          <Grid item xs={12} md={4} sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'flex-end' }, alignItems: 'center' }}>
+          <Grid item xs={12} md={5} sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'flex-end' }, alignItems: 'center' }}>
             <Box>
               <Button
                 variant="outlined"
@@ -263,8 +290,18 @@ export default function PatientDetail() {
                 variant="outlined"
                 startIcon={<ShareIcon />}
                 onClick={handleOpenConsentDialog}
+                sx={{ mr: 1 }}
               >
                 Grant Access
+              </Button>
+              <Button
+                variant="outlined"                
+                startIcon={exportLoading ? <CircularProgress size={16} color="inherit" /> : <DownloadIcon />}
+                onClick={handleExportEHI}
+                disabled={exportLoading}
+                title="Export full Electronic Health Information (ONC 21st Century Cures Act)"
+              >
+                Export EHI
               </Button>
             </Box>
           </Grid>
@@ -634,6 +671,22 @@ export default function PatientDetail() {
         </TabPanel>
       </Paper>
       
+      {/* EHI Export Feedback */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={5000}
+        onClose={() => setSnackbar(s => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar(s => ({ ...s, open: false }))}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+
       {/* Consent Dialog */}
       <Dialog open={consentDialogOpen} onClose={handleCloseConsentDialog} maxWidth="sm" fullWidth>
         <DialogTitle>Grant Access to Patient Data</DialogTitle>

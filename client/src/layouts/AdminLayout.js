@@ -32,9 +32,11 @@ import {
   Description as PatientRecordsIcon,
   Token as TokenIcon,
   Psychology as AIIcon,
-  Message as MessageIcon
+  Message as MessageIcon,
+  Security as SecurityIcon,
 } from '@mui/icons-material';
 import adminAuthService from '../services/adminAuthService';
+import { isAuthenticated, hasRole } from '../utils/authUtils';
 
 const drawerWidth = 240;
 
@@ -87,6 +89,7 @@ const getMenuItems = () => [
   { text: 'Users', icon: <PeopleIcon />, path: '/admin/users' },
   { text: 'Providers', icon: <ProvidersIcon />, path: '/admin/providers' },
   { text: 'Login Audit', icon: <LoginIcon />, path: '/admin/audit/login' },
+  { text: 'EHI Audit', icon: <SecurityIcon />, path: '/admin/audit/ehi' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/admin/settings' },
   { text: 'Patient Records', icon: <PatientRecordsIcon />, path: '/admin/patient-records' },
   { text: 'Referrals', icon: <ReferralsIcon />, path: '/admin/referrals' },
@@ -101,9 +104,7 @@ const AdminLayout = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [open, setOpen] = useState(!isMobile);
 
-  const adminToken = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
-
-  if (!adminToken) {
+  if (!isAuthenticated() || !hasRole('admin')) {
     return <Navigate to="/admin/login" replace />;
   }
 

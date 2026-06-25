@@ -48,8 +48,8 @@ const AdminLogin = () => {
       });
 
       if (response.success) {
-        // Redirect to admin dashboard
-        navigate('/admin');
+        // Full page reload so AuthContext re-initializes with the stored admin token
+        window.location.href = '/admin';
       } else {
         setError(response.error || 'Login failed');
       }

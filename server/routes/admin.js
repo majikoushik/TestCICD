@@ -3,6 +3,7 @@ const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
 const AdminSetting = require('../models/Admin');
 const User = require('../models/User');
+const AuditLog = require('../models/AuditLog');
 const bcrypt = require('bcryptjs');
 
 /**
@@ -232,46 +233,20 @@ router.post('/users', protect, authorize('admin', 'superadmin'), async (req, res
  */
 router.get('/users', protect, authorize('admin', 'superadmin'), async (req, res) => {
   try {
-    console.log('GET /api/admin/users endpoint called');
-    console.log('User from token:', req.user);
-    
-    // Get query parameters for filtering
     const { role, isActive, search } = req.query;
-    console.log('Query parameters:', { role, isActive, search });
-    
-    // Build query
     const query = {};
-    
-    if (role) {
-      query.role = role;
-    }
-    
-    if (isActive !== undefined) {
-      query.isActive = isActive === 'true';
-    }
-    
+
+    if (role) query.role = role;
+    if (isActive !== undefined) query.isActive = isActive === 'true';
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } }
+        { email: { $regex: search, $options: 'i' } },
       ];
     }
-    
-    console.log('MongoDB query:', JSON.stringify(query));
-    
-    // Find users matching the query
-    const users = await User.find(query)
-      .select('-password')
-      .sort({ createdAt: -1 });
-    
-    console.log(`Found ${users.length} users`);
-    
-    res.json({ 
-      success: true, 
-      count: users.length, 
-      data: users 
-    });
-    console.log('Response sent successfully');
+
+    const users = await User.find(query).select('-password').sort({ createdAt: -1 });
+    res.json({ success: true, count: users.length, data: users });
   } catch (error) {
     console.error('Error fetching users:', error);
     res.status(500).json({ success: false, error: 'Server error' });
@@ -847,70 +822,6 @@ router.get('/audit/login', protect, authorize('admin', 'superadmin'), async (req
 });
 
 /**
- * @route   PUT /api/admin/users/:id/unlock
- * @desc    Unlock a user account
- * @access  Admin only
- */
-router.put('/users/:id/unlock', protect, authorize('admin', 'superadmin'), async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-    
-    if (!user) {
-      return res.status(404).json({ success: false, error: 'User not found' });
-    }
-    
-    // Reset login attempts and remove lock
-    user.loginAttempts = 0;
-    user.lockedUntil = null;
-    await user.save();
-    
-    res.json({ 
-      success: true, 
-      message: 'Account unlocked successfully' 
-    });
-  } catch (error) {
-    console.error('Error unlocking account:', error);
-    res.status(500).json({ success: false, error: 'Server error' });
-  }
-});
-
-/**
- * @route   POST /api/admin/users/:id/reset-password
- * @desc    Reset a user's password
- * @access  Admin only
- */
-router.post('/users/:id/reset-password', protect, authorize('admin', 'superadmin'), async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-    
-    if (!user) {
-      return res.status(404).json({ success: false, error: 'User not found' });
-    }
-    
-    // Generate a random temporary password
-    const tempPassword = Math.random().toString(36).slice(-8);
-    
-    // Hash the new password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(tempPassword, salt);
-    
-    // Update user with new password and flag to require password change
-    user.password = hashedPassword;
-    user.requirePasswordChange = true;
-    await user.save();
-    
-    res.json({ 
-      success: true, 
-      message: 'Password reset successfully',
-      data: { tempPassword }
-    });
-  } catch (error) {
-    console.error('Error resetting password:', error);
-    res.status(500).json({ success: false, error: 'Server error' });
-  }
-});
-
-/**
  * @route   DELETE /api/admin/users/:id
  * @desc    Delete a user
  * @access  Admin only
@@ -948,6 +859,77 @@ router.delete('/users/:id', protect, authorize('admin', 'superadmin'), async (re
     });
   } catch (error) {
     console.error('Error deleting user:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+/**
+ * @route   GET /api/admin/audit/ehi
+ * @desc    Query the EHI access audit log
+ * @access  Admin / Superadmin only
+ *
+ * Supports filtering by: userId, patientId, resourceType, action,
+ * startDate, endDate, responseStatus.  Results are paginated (page/limit).
+ *
+ * 21st Century Cures Act compliance: this endpoint is the primary tool for
+ * demonstrating that EHI access is appropriately logged and auditable.
+ */
+router.get('/audit/ehi', protect, authorize('admin', 'superadmin'), async (req, res) => {
+  try {
+    const {
+      userId,
+      patientId,
+      resourceType,
+      action,
+      startDate,
+      endDate,
+      responseStatus,
+      page = 0,
+      limit = 50,
+    } = req.query;
+
+    const query = {};
+    if (userId)         query.userId       = userId;
+    if (patientId)      query.patientId    = patientId;
+    if (resourceType)   query.resourceType = resourceType;
+    if (action)         query.action       = action;
+    if (responseStatus) query.responseStatus = parseInt(responseStatus);
+
+    if (startDate || endDate) {
+      query.timestamp = {};
+      if (startDate) query.timestamp.$gte = new Date(startDate);
+      if (endDate)   query.timestamp.$lte = new Date(endDate);
+    }
+
+    const pageNum  = parseInt(page);
+    const limitNum = Math.min(parseInt(limit), 200);
+
+    const [logs, total] = await Promise.all([
+      AuditLog.find(query)
+        .sort({ timestamp: -1 })
+        .skip(pageNum * limitNum)
+        .limit(limitNum),
+      AuditLog.countDocuments(query),
+    ]);
+
+    res.json({
+      success: true,
+      count: logs.length,
+      total,
+      pagination: {
+        page:  pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum),
+      },
+      oncCompliance: {
+        standard:    '21st Century Cures Act — Information Blocking Rule',
+        regulation:  '45 CFR Part 171',
+        retentionPolicy: '7 years (HIPAA minimum: 6 years)',
+      },
+      data: logs,
+    });
+  } catch (error) {
+    console.error('Error fetching EHI audit logs:', error);
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });

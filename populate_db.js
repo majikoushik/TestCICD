@@ -26,6 +26,7 @@ db.adminSettings.drop();
 db.referralTransactions.drop();
 db.referralDisputes.drop();
 db.aiReports.drop();
+db.ehi_audit_logs.drop();
 
 // Create users collection
 print("Creating users collection...");
@@ -1946,6 +1947,226 @@ db.tokenTransactions.createIndex({ type: 1 });
 db.tokenTransactions.createIndex({ source: 1 });
 db.tokenTransactions.createIndex({ serviceId: 1 });
 db.tokenTransactions.createIndex({ timestamp: -1 });
+
+// ============================================================
+// EHI Audit Logs — ONC 21st Century Cures Act (45 CFR Part 171)
+// Collection: ehi_audit_logs
+// Retention: 7-year TTL index (HIPAA minimum 6 years)
+// ============================================================
+print("Creating ehi_audit_logs collection...");
+
+const now = new Date();
+const daysAgo = (d, h) => new Date(now - d * 86400000 - (h || 0) * 3600000);
+
+const ehiAuditLogs = [
+  // ── Day 1 ──
+  {
+    timestamp: daysAgo(1, 0),
+    userId: null, userEmail: "admin@clinictrustai.com", userRole: "admin",
+    action: "READ", resourceType: "Patient",
+    resourceId: "patient-1", patientId: "patient-1",
+    endpoint: "/api/patients/patient-1", method: "GET",
+    ipAddress: "192.168.1.10", userAgent: "Mozilla/5.0 (Windows NT 10.0)",
+    responseStatus: 200, oncException: null
+  },
+  {
+    timestamp: daysAgo(1, 1),
+    userId: "user-2", userEmail: "john.smith@clinictrustai.com", userRole: "doctor",
+    action: "READ", resourceType: "Patient",
+    resourceId: "patient-1", patientId: "patient-1",
+    endpoint: "/api/patients/patient-1", method: "GET",
+    ipAddress: "192.168.1.11", userAgent: "Mozilla/5.0 (Macintosh)",
+    responseStatus: 200, oncException: null
+  },
+  {
+    timestamp: daysAgo(1, 2),
+    userId: "user-5", userEmail: "robert.williams@clinictrustai.com", userRole: "doctor",
+    action: "READ", resourceType: "Patient",
+    resourceId: "patient-1", patientId: "patient-1",
+    endpoint: "/api/patients/patient-1", method: "GET",
+    ipAddress: "192.168.1.15", userAgent: "Safari/14.1",
+    responseStatus: 403, oncException: "privacy"
+  },
+  // ── Day 2: EHI Exports ──
+  {
+    timestamp: daysAgo(2, 0),
+    userId: null, userEmail: "admin@clinictrustai.com", userRole: "admin",
+    action: "EXPORT", resourceType: "Patient",
+    resourceId: "patient-1", patientId: "patient-1",
+    endpoint: "/api/patients/patient-1/export", method: "GET",
+    ipAddress: "192.168.1.10", userAgent: "Mozilla/5.0 (Windows NT 10.0)",
+    responseStatus: 200, oncException: null
+  },
+  {
+    timestamp: daysAgo(2, 1),
+    userId: "user-2", userEmail: "john.smith@clinictrustai.com", userRole: "doctor",
+    action: "EXPORT", resourceType: "Patient",
+    resourceId: "patient-1", patientId: "patient-1",
+    endpoint: "/api/patients/patient-1/export", method: "GET",
+    ipAddress: "192.168.1.11", userAgent: "Mozilla/5.0 (Macintosh)",
+    responseStatus: 200, oncException: null
+  },
+  {
+    timestamp: daysAgo(2, 2),
+    userId: "user-4", userEmail: "michael.chen@clinictrustai.com", userRole: "doctor",
+    action: "EXPORT", resourceType: "Patient",
+    resourceId: "patient-1", patientId: "patient-1",
+    endpoint: "/api/patients/patient-1/export", method: "GET",
+    ipAddress: "192.168.1.14", userAgent: "Chrome/114.0",
+    responseStatus: 403, oncException: "privacy"
+  },
+  // ── Day 3: Referrals ──
+  {
+    timestamp: daysAgo(3, 0),
+    userId: "user-2", userEmail: "john.smith@clinictrustai.com", userRole: "doctor",
+    action: "CREATE", resourceType: "Referral",
+    resourceId: "referral-1", patientId: "patient-1",
+    endpoint: "/api/referrals", method: "POST",
+    ipAddress: "192.168.1.11", userAgent: "Mozilla/5.0 (Macintosh)",
+    responseStatus: 201, oncException: null
+  },
+  {
+    timestamp: daysAgo(3, 1),
+    userId: "user-4", userEmail: "michael.chen@clinictrustai.com", userRole: "doctor",
+    action: "READ", resourceType: "Referral",
+    resourceId: "referral-1", patientId: null,
+    endpoint: "/api/referrals/referral-1", method: "GET",
+    ipAddress: "192.168.1.14", userAgent: "Chrome/114.0",
+    responseStatus: 200, oncException: null
+  },
+  {
+    timestamp: daysAgo(3, 2),
+    userId: "user-3", userEmail: "sarah.johnson@clinictrustai.com", userRole: "provider",
+    action: "READ", resourceType: "Referral",
+    resourceId: "referral-1", patientId: null,
+    endpoint: "/api/referrals/referral-1", method: "GET",
+    ipAddress: "192.168.1.13", userAgent: "Firefox/115.0",
+    responseStatus: 403, oncException: "privacy"
+  },
+  // ── Day 4: Analytics ──
+  {
+    timestamp: daysAgo(4, 0),
+    userId: null, userEmail: "admin@clinictrustai.com", userRole: "admin",
+    action: "READ", resourceType: "Analytics",
+    resourceId: "patient-1", patientId: "patient-1",
+    endpoint: "/api/analytics/insights/patient/patient-1", method: "GET",
+    ipAddress: "192.168.1.10", userAgent: "Mozilla/5.0 (Windows NT 10.0)",
+    responseStatus: 200, oncException: null
+  },
+  {
+    timestamp: daysAgo(4, 2),
+    userId: "user-3", userEmail: "sarah.johnson@clinictrustai.com", userRole: "provider",
+    action: "READ", resourceType: "Analytics",
+    resourceId: "patient-2", patientId: "patient-2",
+    endpoint: "/api/analytics/insights/patient/patient-2", method: "GET",
+    ipAddress: "192.168.1.13", userAgent: "Firefox/115.0",
+    responseStatus: 403, oncException: "privacy"
+  },
+  // ── Day 5: Consent ──
+  {
+    timestamp: daysAgo(5, 0),
+    userId: "user-2", userEmail: "john.smith@clinictrustai.com", userRole: "doctor",
+    action: "CONSENT_GRANT", resourceType: "Patient",
+    resourceId: "patient-3", patientId: "patient-3",
+    endpoint: "/api/patients/patient-3/consent", method: "POST",
+    ipAddress: "192.168.1.11", userAgent: "Mozilla/5.0 (Macintosh)",
+    responseStatus: 201, oncException: null
+  },
+  {
+    timestamp: daysAgo(5, 3),
+    userId: "user-2", userEmail: "john.smith@clinictrustai.com", userRole: "doctor",
+    action: "UPDATE", resourceType: "Patient",
+    resourceId: "patient-2", patientId: "patient-2",
+    endpoint: "/api/patients/patient-2", method: "PUT",
+    ipAddress: "192.168.1.11", userAgent: "Mozilla/5.0 (Macintosh)",
+    responseStatus: 200, oncException: null
+  },
+  // ── Day 6: Referral update + export ──
+  {
+    timestamp: daysAgo(6, 0),
+    userId: "user-4", userEmail: "michael.chen@clinictrustai.com", userRole: "doctor",
+    action: "UPDATE", resourceType: "Referral",
+    resourceId: "referral-2", patientId: null,
+    endpoint: "/api/referrals/referral-2/status", method: "PUT",
+    ipAddress: "192.168.1.14", userAgent: "Chrome/114.0",
+    responseStatus: 200, oncException: null
+  },
+  {
+    timestamp: daysAgo(6, 2),
+    userId: "user-4", userEmail: "michael.chen@clinictrustai.com", userRole: "doctor",
+    action: "EXPORT", resourceType: "Patient",
+    resourceId: "patient-3", patientId: "patient-3",
+    endpoint: "/api/patients/patient-3/export", method: "GET",
+    ipAddress: "192.168.1.14", userAgent: "Chrome/114.0",
+    responseStatus: 200, oncException: null
+  },
+  // ── Day 8 ──
+  {
+    timestamp: daysAgo(8, 1),
+    userId: null, userEmail: "admin@clinictrustai.com", userRole: "admin",
+    action: "CONSENT_REVOKE", resourceType: "Patient",
+    resourceId: "patient-2", patientId: "patient-2",
+    endpoint: "/api/patients/patient-2/consent/revoke", method: "POST",
+    ipAddress: "192.168.1.10", userAgent: "Mozilla/5.0 (Windows NT 10.0)",
+    responseStatus: 200, oncException: null
+  },
+  {
+    timestamp: daysAgo(8, 4),
+    userId: "user-5", userEmail: "robert.williams@clinictrustai.com", userRole: "doctor",
+    action: "CREATE", resourceType: "Patient",
+    resourceId: "patient-5", patientId: "patient-5",
+    endpoint: "/api/patients", method: "POST",
+    ipAddress: "192.168.1.15", userAgent: "Safari/14.1",
+    responseStatus: 201, oncException: null
+  },
+  // ── Day 10: Blocked — security exception ──
+  {
+    timestamp: daysAgo(10, 0),
+    userId: "user-5", userEmail: "robert.williams@clinictrustai.com", userRole: "doctor",
+    action: "READ", resourceType: "Analytics",
+    resourceId: "patient-3", patientId: "patient-3",
+    endpoint: "/api/analytics/insights/patient/patient-3", method: "GET",
+    ipAddress: "10.0.0.55", userAgent: "Edge/114.0",
+    responseStatus: 403, oncException: "security"
+  },
+  // ── Day 14 ──
+  {
+    timestamp: daysAgo(14, 0),
+    userId: "user-2", userEmail: "john.smith@clinictrustai.com", userRole: "doctor",
+    action: "READ", resourceType: "Referral",
+    resourceId: null, patientId: null,
+    endpoint: "/api/referrals", method: "GET",
+    ipAddress: "192.168.1.11", userAgent: "Mozilla/5.0 (Macintosh)",
+    responseStatus: 200, oncException: null
+  },
+  // ── Day 20 ──
+  {
+    timestamp: daysAgo(20, 0),
+    userId: null, userEmail: "admin@clinictrustai.com", userRole: "admin",
+    action: "READ", resourceType: "Patient",
+    resourceId: "patient-5", patientId: "patient-5",
+    endpoint: "/api/patients/patient-5", method: "GET",
+    ipAddress: "192.168.1.10", userAgent: "Mozilla/5.0 (Windows NT 10.0)",
+    responseStatus: 200, oncException: null
+  }
+];
+db.ehi_audit_logs.insertMany(ehiAuditLogs);
+
+// EHI audit log indexes
+// TTL index — 7-year retention (HIPAA minimum 6 years, §164.530)
+db.ehi_audit_logs.createIndex(
+  { timestamp: 1 },
+  { expireAfterSeconds: 7 * 365 * 24 * 60 * 60, name: "ttl_7yr_retention" }
+);
+db.ehi_audit_logs.createIndex({ userId: 1 });
+db.ehi_audit_logs.createIndex({ userEmail: 1 });
+db.ehi_audit_logs.createIndex({ action: 1 });
+db.ehi_audit_logs.createIndex({ resourceType: 1 });
+db.ehi_audit_logs.createIndex({ patientId: 1 });
+db.ehi_audit_logs.createIndex({ responseStatus: 1 });
+db.ehi_audit_logs.createIndex({ oncException: 1 });
+// Compound index for the most common admin query pattern
+db.ehi_audit_logs.createIndex({ timestamp: -1, action: 1, resourceType: 1 });
 
 print("Database population complete!");
 print("Created collections:");

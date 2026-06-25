@@ -6,11 +6,13 @@ const User = require('../models/User');
 const { protect, authorize } = require('../middleware/auth');
 const { createReferralContract, updateReferralContract, verifyConsent } = require('../blockchain/contracts');
 const { processTokenTransaction } = require('../blockchain/contracts');
+const { ehiAudit } = require('../middleware/ehiAudit');
+const { oncDeny } = require('../config/oncExceptions');
 
 // @route   POST api/referrals
 // @desc    Create a new referral
 // @access  Private (doctors, clinics, hospitals)
-router.post('/', protect, authorize('doctor', 'clinic', 'hospital'), async (req, res) => {
+router.post('/', protect, authorize('doctor', 'clinic', 'hospital'), ehiAudit('Referral', 'CREATE'), async (req, res) => {
   try {
     const {
       patientId,
@@ -93,7 +95,7 @@ router.post('/', protect, authorize('doctor', 'clinic', 'hospital'), async (req,
 // @route   GET api/referrals
 // @desc    Get all referrals for the provider (sent or received)
 // @access  Private (all healthcare providers)
-router.get('/', protect, authorize('doctor', 'clinic', 'hospital', 'lab'), async (req, res) => {
+router.get('/', protect, authorize('doctor', 'clinic', 'hospital', 'lab'), ehiAudit('Referral', 'READ'), async (req, res) => {
   try {
     const { type, status } = req.query;
     let query = {};
@@ -137,7 +139,7 @@ router.get('/', protect, authorize('doctor', 'clinic', 'hospital', 'lab'), async
 // @route   GET api/referrals/:id
 // @desc    Get a single referral
 // @access  Private (referring or receiving provider only)
-router.get('/:id', protect, async (req, res) => {
+router.get('/:id', protect, ehiAudit('Referral', 'READ'), async (req, res) => {
   try {
     const referral = await Referral.findById(req.params.id)
       .populate('patient', 'patientId name dateOfBirth gender contactInfo')
@@ -153,9 +155,9 @@ router.get('/:id', protect, async (req, res) => {
       referral.referringProvider._id.toString() !== req.user.id &&
       referral.receivingProvider._id.toString() !== req.user.id
     ) {
-      return res.status(403).json({
+      return oncDeny(res, 'GET /api/referrals/:id').status(403).json({
         success: false,
-        error: 'You are not authorized to view this referral'
+        error: 'You are not authorized to view this referral',
       });
     }
 
@@ -172,7 +174,7 @@ router.get('/:id', protect, async (req, res) => {
 // @route   PUT api/referrals/:id/status
 // @desc    Update referral status
 // @access  Private (referring or receiving provider only)
-router.put('/:id/status', protect, async (req, res) => {
+router.put('/:id/status', protect, ehiAudit('Referral', 'UPDATE'), async (req, res) => {
   try {
     const { status, notes, diagnosis, treatment, followUpRecommendations } = req.body;
     

@@ -360,6 +360,27 @@ router.get('/patients/:id/medical-records', protect, (req, res) => {
   });
 });
 
+// EHI audit logging helper for synthetic mode (mirrors ehiAudit middleware)
+function logSyntheticEhi(req, resourceType, action, responseStatus) {
+  const entry = {
+    _id:            `audit-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    timestamp:      new Date(),
+    userId:         req.user?._id || req.user?.id || null,
+    userEmail:      req.user?.email   || null,
+    userRole:       req.user?.role    || null,
+    action,
+    resourceType,
+    resourceId:     req.params?.id || req.params?.patientId || null,
+    patientId:      req.params?.patientId || req.params?.id || null,
+    endpoint:       req.originalUrl,
+    method:         req.method,
+    ipAddress:      req.ip,
+    userAgent:      req.get ? req.get('User-Agent') : null,
+    responseStatus,
+  };
+  store.auditLogs.save(entry);
+}
+
 router.get('/patients/:id/consent-records', protect, (req, res) => {
   const patient = store.patients.findById(req.params.id);
   if (!patient) return res.status(404).json({ success: false, error: 'Patient not found' });
@@ -368,6 +389,83 @@ router.get('/patients/:id/consent-records', protect, (req, res) => {
     status: r.expiryDate && new Date(r.expiryDate) < new Date() ? 'expired' : 'active',
   }));
   res.status(200).json({ success: true, count: records.length, data: { records, pagination: { total: records.length, page: 0, limit: records.length, pages: 1 } } });
+});
+
+// EHI export — full patient record + referrals (ONC Information Blocking compliance)
+router.get('/patients/:id/export', protect, (req, res) => {
+  const patient = store.patients.findById(req.params.id);
+  if (!patient) return res.status(404).json({ success: false, error: 'Patient not found' });
+
+  const isPrimary = patient.primaryProvider === req.user.id;
+  const isAdmin   = ['admin', 'superadmin'].includes(req.user.role);
+  if (!isPrimary && !isAdmin) {
+    logSyntheticEhi(req, 'Patient', 'EXPORT', 403);
+    res.setHeader('X-ONC-Exception',            'privacy');
+    res.setHeader('X-ONC-Exception-Name',       'Privacy Exception');
+    res.setHeader('X-ONC-Exception-Regulation', '45 CFR § 171.202');
+    res.setHeader('X-ONC-Exception-Rationale',  'Full EHI export restricted to primary treating provider and administrators to prevent mass data exposure.');
+    return res.status(403).json({
+      success: false,
+      error: 'EHI export is restricted to the primary treating provider or an administrator.',
+    });
+  }
+
+  const referrals = store.referrals.find({ patient: req.params.id });
+
+  const exportBundle = {
+    exportMetadata: {
+      exportedAt:     new Date().toISOString(),
+      exportedBy:     req.user.email,
+      exportedByRole: req.user.role,
+      platform:       'ClinicTrustAI (Synthetic Data Mode)',
+      version:        '1.0',
+      oncCompliance: {
+        standard:     '21st Century Cures Act — Information Blocking Rule',
+        regulation:   '45 CFR Part 171',
+        exportFormat: 'JSON (FHIR R4 compatible structure)',
+        auditLogged:  true,
+        note:         'Running in synthetic data mode — data is demonstration only.',
+      },
+    },
+    patient: {
+      id:             patient._id,
+      patientId:      patient.patientId,
+      name:           patient.name,
+      dateOfBirth:    patient.dateOfBirth,
+      gender:         patient.gender,
+      contactInfo:    patient.contactInfo,
+      insuranceInfo:  patient.insuranceInfo,
+      medicalHistory: patient.medicalHistory,
+      medications:    patient.medications,
+      allergies:      patient.allergies,
+      riskScore:      patient.riskScore,
+      consentRecords: patient.consentRecords,
+      createdAt:      patient.createdAt,
+      updatedAt:      patient.updatedAt,
+    },
+    referrals: referrals.map((r) => ({
+      id:                      r._id,
+      reason:                  r.reason,
+      urgency:                 r.urgency,
+      status:                  r.status,
+      notes:                   r.notes,
+      appointmentDate:         r.appointmentDate,
+      completionDate:          r.completionDate,
+      referringProvider:       r.referringProvider,
+      receivingProvider:       r.receivingProvider,
+      createdAt:               r.createdAt,
+      updatedAt:               r.updatedAt,
+    })),
+  };
+
+  logSyntheticEhi(req, 'Patient', 'EXPORT', 200);
+
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', `attachment; filename="ehi-export-${patient.patientId}-${Date.now()}.json"`);
+  res.setHeader('X-ONC-Compliant', 'true');
+  res.setHeader('X-ONC-Standard', '21st-century-cures-act-information-blocking-rule');
+
+  res.status(200).json({ success: true, data: exportBundle });
 });
 
 // ---------------------------------------------------------------------------
@@ -758,6 +856,39 @@ router.get('/admin/system-status', protect, authorize('admin', 'superadmin'), (r
 
 router.get('/admin/audit/login', protect, authorize('admin', 'superadmin'), (req, res) => {
   res.status(200).json({ success: true, count: 0, data: [] });
+});
+
+router.get('/admin/audit/ehi', protect, authorize('admin', 'superadmin'), (req, res) => {
+  let logs = store.auditLogs.findAll();
+
+  // Apply optional query filters
+  const { userId, patientId, resourceType, action, startDate, endDate } = req.query;
+  if (userId)       logs = logs.filter((l) => l.userId       === userId);
+  if (patientId)    logs = logs.filter((l) => l.patientId    === patientId);
+  if (resourceType) logs = logs.filter((l) => l.resourceType === resourceType);
+  if (action)       logs = logs.filter((l) => l.action       === action);
+  if (startDate)    logs = logs.filter((l) => new Date(l.timestamp) >= new Date(startDate));
+  if (endDate)      logs = logs.filter((l) => new Date(l.timestamp) <= new Date(endDate));
+
+  logs = logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  const pageNum  = parseInt(req.query.page  || 0);
+  const limitNum = Math.min(parseInt(req.query.limit || 50), 200);
+  const paged    = logs.slice(pageNum * limitNum, pageNum * limitNum + limitNum);
+
+  res.status(200).json({
+    success: true,
+    count: paged.length,
+    total: logs.length,
+    pagination: { page: pageNum, limit: limitNum, pages: Math.ceil(logs.length / limitNum) },
+    oncCompliance: {
+      standard:        '21st Century Cures Act — Information Blocking Rule',
+      regulation:      '45 CFR Part 171',
+      retentionPolicy: '7 years (HIPAA minimum: 6 years)',
+      note:            'Running in synthetic data mode — logs are in-memory only.',
+    },
+    data: paged,
+  });
 });
 
 // Admin referrals

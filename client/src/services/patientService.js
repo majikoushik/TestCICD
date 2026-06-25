@@ -401,8 +401,38 @@ export const createConsentRecord = async (patientId, consentData) => {
 
 
 /**
+ * Export full EHI bundle for a patient (ONC 21st Century Cures Act compliance)
+ *
+ * @param {string} patientId - Patient ID (URL segment, e.g. "patient-1" or MongoDB ObjectId)
+ * @returns {Promise} Promise that resolves with the EHI export bundle
+ */
+export const exportPatientEHI = async (patientId) => {
+  try {
+    if (process.env.REACT_APP_MOCK_API === 'true') {
+      return await mockResponse({
+        success: true,
+        data: {
+          exportMetadata: {
+            standard: '21st-century-cures-act-information-blocking-rule',
+            regulation: '45 CFR Part 171',
+            exportedAt: new Date().toISOString(),
+            patientId,
+          },
+          patient: { patientId, name: 'Demo Patient' },
+          referrals: [],
+        },
+      }, 800);
+    }
+    return await get(`/patients/${patientId}/export`);
+  } catch (error) {
+    console.error('EHI export error:', error);
+    throw error;
+  }
+};
+
+/**
  * Revoke a consent record
- * 
+ *
  * @param {string} patientId - Patient ID
  * @param {string} consentId - Consent record ID
  * @returns {Promise} Promise that resolves with the updated consent record
@@ -441,5 +471,6 @@ export default {
   getPatientMedicalRecords,
   getPatientConsentRecords,
   createConsentRecord,
-  revokeConsentRecord
+  revokeConsentRecord,
+  exportPatientEHI,
 };

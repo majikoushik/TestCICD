@@ -5,6 +5,8 @@ const User = require('../models/User');
 const Patient = require('../models/Patient');
 const { protect, authorize } = require('../middleware/auth');
 const { processTokenTransaction } = require('../blockchain/contracts');
+const { ehiAudit } = require('../middleware/ehiAudit');
+const { oncDeny } = require('../config/oncExceptions');
 
 // @route   POST api/analytics
 // @desc    Create a new analytics job
@@ -165,7 +167,7 @@ router.post('/:id/share', protect, async (req, res) => {
 // @route   GET api/analytics/insights/patient/:patientId
 // @desc    Get AI insights for a specific patient
 // @access  Private (with patient access permission)
-router.get('/insights/patient/:patientId', protect, async (req, res) => {
+router.get('/insights/patient/:patientId', protect, ehiAudit('Analytics', 'READ'), async (req, res) => {
   try {
     const patient = await Patient.findById(req.params.patientId);
     
@@ -188,9 +190,9 @@ router.get('/insights/patient/:patientId', protect, async (req, res) => {
                   (consentRecord.dataElements && consentRecord.dataElements.includes('analytics')));
       
       if (!hasAccess) {
-        return res.status(403).json({
+        return oncDeny(res, 'GET /api/analytics/insights/patient/:patientId').status(403).json({
           success: false,
-          error: 'You do not have permission to access this patient\'s analytics'
+          error: "You do not have permission to access this patient's analytics",
         });
       }
     }
