@@ -73,6 +73,10 @@ const AdminAuditEHI = lazy(() => import('./pages/admin/AdminAuditEHI'));
 const AdminFHIR = lazy(() => import('./pages/admin/AdminFHIR'));
 const AdminPriorAuth = lazy(() => import('./pages/admin/AdminPriorAuth'));
 const AdminPatientEngagement = lazy(() => import('./pages/admin/AdminPatientEngagement'));
+const AdminAmbientSessions = lazy(() => import('./pages/admin/AdminAmbientSessions'));
+
+// Ambient Clinical Intelligence (provider)
+const AmbientRecorder = lazy(() => import('./pages/ambient/AmbientRecorder'));
 
 // FHIR Pages
 const FHIRExplorer = lazy(() => import('./pages/fhir/FHIRExplorer'));
@@ -306,6 +310,13 @@ function App() {
             <PriorAuth />
           </Suspense>
         } />
+
+        {/* Ambient Clinical Intelligence */}
+        <Route path="ambient" element={
+          <Suspense fallback={<PageLoadingFallback />}>
+            <AmbientRecorder />
+          </Suspense>
+        } />
       </Route>
       
       {/* Admin Routes */}
@@ -362,6 +373,11 @@ function App() {
         <Route path="patient-engagement" element={
           <Suspense fallback={<PageLoadingFallback />}>
             <AdminPatientEngagement />
+          </Suspense>
+        } />
+        <Route path="ambient-sessions" element={
+          <Suspense fallback={<PageLoadingFallback />}>
+            <AdminAmbientSessions />
           </Suspense>
         } />
         <Route path="patient-records" element={

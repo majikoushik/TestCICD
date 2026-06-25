@@ -38,8 +38,11 @@ const adminPriorAuthRoutes = require('./routes/adminPriorAuth');
 const syntheticRouter = require('./routes/syntheticRouter');
 const patientEngagementRoutes = require('./routes/patientEngagement');
 const adminPatientEngagementRoutes = require('./routes/admin/patientEngagement');
+const ambientSessionRoutes = require('./routes/ambientSessions');
+const adminAmbientSessionRoutes = require('./routes/admin/ambientSessions');
 const { seedPriorAuths } = require('./seeds/priorAuthSeed');
 const { seedPatientEngagement } = require('./seeds/patientEngagementSeed');
+const { seedAmbientSessions } = require('./seeds/ambientSessionSeed');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -112,8 +115,10 @@ function mountLiveRoutes() {
   app.use('/api/admin/ai-management', [protect, authorize('admin', 'superadmin'), adminAIManagementRoutes]);
   app.use('/api/admin/prior-auth', [protect, authorize('admin', 'superadmin'), adminPriorAuthRoutes]);
   app.use('/api/admin/patient-engagement', [protect, authorize('admin', 'superadmin'), adminPatientEngagementRoutes]);
+  app.use('/api/admin/ambient-sessions', [protect, authorize('admin', 'superadmin'), adminAmbientSessionRoutes]);
   app.use('/api/admin', [protect, authorize('admin', 'superadmin'), adminRoutes]);
   app.use('/api/patient-engagement', protect, patientEngagementRoutes);
+  app.use('/api/ambient-sessions', protect, ambientSessionRoutes);
 
   // FHIR R4 API — ONC 21st Century Cures Act / CMS-0057-F compliant
   app.use('/api/fhir', fhirRoutes);
@@ -161,6 +166,7 @@ async function startServer() {
     mountLiveRoutes();
     await seedPriorAuths();
     await seedPatientEngagement();
+    await seedAmbientSessions();
   } else {
     mountSyntheticRoutes();
   }
