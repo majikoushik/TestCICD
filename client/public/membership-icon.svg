@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="120" height="120" rx="10" fill="#3f51b5" opacity="0.1"/>
+  
+  <!-- Membership Card -->
+  <rect x="20" y="35" width="80" height="50" rx="5" fill="#3f51b5"/>
+  <rect x="25" y="40" width="70" height="40" rx="3" fill="#ffffff"/>
+  
+  <!-- Card Elements -->
+  <g fill="#3f51b5">
+    <!-- Logo -->
+    <circle cx="35" cy="50" r="5"/>
+    <path d="M32,50 L38,50 M35,47 L35,53" stroke="#3f51b5" stroke-width="2"/>
+    
+    <!-- Member Info Lines -->
+    <rect x="45" y="48" width="40" height="3" rx="1" opacity="0.7"/>
+    <rect x="45" y="55" width="30" height="3" rx="1" opacity="0.7"/>
+    
+    <!-- Chip -->
+    <rect x="30" y="65" width="10" height="8" rx="1" opacity="0.8"/>
+    <path d="M32,65 L32,73 M34,65 L34,73 M36,65 L36,73 M38,65 L38,73" stroke="#ffffff" stroke-width="0.5"/>
+    
+    <!-- Network Symbol -->
+    <circle cx="80" cy="65" r="5" opacity="0.8"/>
+    <circle cx="80" cy="65" r="3" fill="#ffffff"/>
+  </g>
+  
+  <!-- Premium Badge -->
+  <g transform="translate(85, 30)">
+    <circle cx="0" cy="0" r="15" fill="#3f51b5"/>
+    <polygon points="0,-10 2.9,-3.1 10,-3.1 4.1,1.2 6.9,8.1 0,4 -6.9,8.1 -4.1,1.2 -10,-3.1 -2.9,-3.1" fill="#ffffff"/>
+  </g>
+  
+  <!-- Network Nodes -->
+  <g fill="#3f51b5">
+    <circle cx="30" cy="95" r="4"/>
+    <circle cx="50" cy="95" r="4"/>
+    <circle cx="70" cy="95" r="4"/>
+    <circle cx="90" cy="95" r="4"/>
+  </g>
+  
+  <!-- Network Connections -->
+  <g stroke="#3f51b5" stroke-width="1.5" stroke-dasharray="2,1">
+    <line x1="30" y1="95" x2="50" y2="95"/>
+    <line x1="50" y1="95" x2="70" y2="95"/>
+    <line x1="70" y1="95" x2="90" y2="95"/>
+    <line x1="60" y1="85" x2="30" y2="95"/>
+    <line x1="60" y1="85" x2="50" y2="95"/>
+    <line x1="60" y1="85" x2="70" y2="95"/>
+    <line x1="60" y1="85" x2="90" y2="95"/>
+  </g>
+</svg>

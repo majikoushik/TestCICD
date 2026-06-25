@@ -1,0 +1,41 @@
+const mongoose = require('mongoose');
+
+const AdminSettingSchema = new mongoose.Schema({
+  key: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true
+  },
+  value: {
+    type: mongoose.Schema.Types.Mixed,
+    required: true
+  },
+  category: {
+    type: String,
+    required: true,
+    enum: ['security', 'ai', 'blockchain', 'notifications', 'general', 'billing']
+  },
+  description: {
+    type: String,
+    required: true
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  lastModifiedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  lastModifiedAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+// Create indexes for faster queries
+AdminSettingSchema.index({ key: 1 });
+AdminSettingSchema.index({ category: 1 });
+
+module.exports = mongoose.model('AdminSetting', AdminSettingSchema);

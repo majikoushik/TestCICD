@@ -1,0 +1,116 @@
+/**
+ * Admin Authentication Service
+ * 
+ * This service handles admin-specific authentication
+ */
+
+import { get, post, put, del } from '../utils/apiUtils';
+import { authStorage } from '../utils/storageUtils';
+
+/**
+ * Admin login
+ * 
+ * @param {Object} credentials - Login credentials
+ * @param {string} credentials.email - Admin email
+ * @param {string} credentials.password - Admin password
+ * @returns {Promise} Promise that resolves with login result
+ */
+export const adminLogin = async (credentials) => {
+  try {
+    // For development with mock data
+    if (process.env.REACT_APP_MOCK_API === 'true') {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // Mock successful response
+      const response = {
+        success: true,
+        token: 'mock-jwt-token-admin',
+        user: {
+          id: 'admin-123',
+          name: 'Admin User',
+          email: credentials.email || 'admin@clinictrustai.com',
+          role: 'admin'
+        }
+      };
+      
+      // Store token and user data
+      authStorage.set('token', response.token);
+      authStorage.set('user', response.user);
+      
+      return response;
+    }
+    authStorage.clear();
+    const token = authStorage.get('token', false);
+    console.log('Token from storage:', token ? 'Found' : 'Not found');
+    // Real API call
+    const response = await post('/admin/auth/login', credentials);
+    console.log(response);
+    if (response.success) {
+      // Store token and user data
+      authStorage.set('token', response.token);
+      authStorage.set('user', response.user);
+    }
+    
+    return response;
+  } catch (error) {
+    console.error('Admin login error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Verify admin token
+ * 
+ * @returns {Promise} Promise that resolves with verification result
+ */
+export const verifyAdminToken = async () => {
+  try {
+    const token = authStorage.get('token');
+    
+    if (!token) {
+      return { success: false, error: 'No token found' };
+    }
+    
+    // For development with mock data
+    if (process.env.REACT_APP_MOCK_API === 'true') {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Get stored user
+      const user = authStorage.get('user');
+      
+      // Check if user is admin
+      if (!user || user.role !== 'admin') {
+        return { success: false, error: 'Not authorized as admin' };
+      }
+      
+      return {
+        success: true,
+        user
+      };
+    }
+    
+    // Real API call
+    const response = get('/admin/auth/verify');
+    
+    return response.data;
+  } catch (error) {
+    console.error('Admin token verification error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Admin logout
+ */
+export const adminLogout = () => {
+  authStorage.clear();
+  window.location.href = '/admin/login';
+};
+
+export default {
+  adminLogin,
+  verifyAdminToken,
+  adminLogout
+};

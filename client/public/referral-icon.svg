@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="120" height="120" rx="10" fill="#3f51b5" opacity="0.1"/>
+  
+  <!-- Referral Flow Diagram -->
+  <g stroke="#3f51b5" stroke-width="2" fill="none">
+    <!-- Connection Lines -->
+    <path d="M35,60 L85,60" stroke-dasharray="4,2"/>
+    <path d="M85,60 L85,40" stroke-dasharray="4,2"/>
+    <path d="M85,60 L85,80" stroke-dasharray="4,2"/>
+    
+    <!-- Arrows -->
+    <polygon points="80,57 85,60 80,63" fill="#3f51b5"/>
+    <polygon points="82,45 85,40 88,45" fill="#3f51b5"/>
+    <polygon points="82,75 85,80 88,75" fill="#3f51b5"/>
+  </g>
+  
+  <!-- Doctor/Patient Icons -->
+  <g fill="#3f51b5">
+    <!-- Source Doctor -->
+    <circle cx="25" cy="60" r="15"/>
+    <circle cx="25" cy="45" r="8"/>
+    <path d="M10,70 Q25,90 40,70"/>
+    
+    <!-- Target Specialists -->
+    <circle cx="95" cy="40" r="10"/>
+    <circle cx="95" cy="33" r="5"/>
+    <path d="M85,47 Q95,60 105,47"/>
+    
+    <circle cx="95" cy="80" r="10"/>
+    <circle cx="95" cy="73" r="5"/>
+    <path d="M85,87 Q95,100 105,87"/>
+  </g>
+  
+  <!-- Medical Cross -->
+  <g fill="#ffffff">
+    <rect x="22.5" y="55" width="5" height="15" rx="1"/>
+    <rect x="17.5" y="60" width="15" height="5" rx="1"/>
+    
+    <rect x="92.5" y="35" width="5" height="10" rx="1"/>
+    <rect x="90" y="37.5" width="10" height="5" rx="1"/>
+    
+    <rect x="92.5" y="75" width="5" height="10" rx="1"/>
+    <rect x="90" y="77.5" width="10" height="5" rx="1"/>
+  </g>
+</svg>

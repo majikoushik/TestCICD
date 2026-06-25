@@ -1,0 +1,253 @@
+/* Base styles */
+body {
+  margin: 0;
+  font-family: 'Inter', 'Roboto', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #F9FAFB;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.slide-in {
+  animation: slideInFromRight 0.3s ease-out;
+}
+
+/* Utility classes */
+.text-ellipsis {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+/* Card hover effect */
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Status indicators */
+.status-indicator {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.status-active {
+  background-color: #10B981;
+}
+
+.status-pending {
+  background-color: #F59E0B;
+}
+
+.status-inactive {
+  background-color: #9CA3AF;
+}
+
+.status-error {
+  background-color: #EF4444;
+}
+
+/* Token badge */
+.token-badge {
+  display: inline-flex;
+  align-items: center;
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  border-radius: 16px;
+  padding: 4px 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.token-badge svg {
+  margin-right: 4px;
+  font-size: 1rem;
+}
+
+/* Risk score indicators */
+.risk-score {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 0.875rem;
+}
+
+.risk-high {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #B91C1C;
+}
+
+.risk-medium {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: #D97706;
+}
+
+.risk-low {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #059669;
+}
+
+/* Chart container */
+.chart-container {
+  position: relative;
+  height: 300px;
+  width: 100%;
+}
+
+/* Data table styles */
+.data-table-container {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th {
+  background-color: #F3F4F6;
+  text-align: left;
+  padding: 12px 16px;
+  font-weight: 600;
+  color: #4B5563;
+}
+
+.data-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table tr:hover {
+  background-color: #F9FAFB;
+}
+
+/* Form styles */
+.form-section {
+  margin-bottom: 24px;
+}
+
+.form-section-title {
+  margin-bottom: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+/* Page transitions */
+.page-transition-enter {
+  opacity: 0;
+}
+
+.page-transition-enter-active {
+  opacity: 1;
+  transition: opacity 300ms;
+}
+
+.page-transition-exit {
+  opacity: 1;
+}
+
+.page-transition-exit-active {
+  opacity: 0;
+  transition: opacity 300ms;
+}
+
+/* Blockchain transaction badge */
+.blockchain-tx {
+  font-family: monospace;
+  background-color: #F3F4F6;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #4B5563;
+}
+
+/* Consent badge */
+.consent-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 16px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.consent-full {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #059669;
+}
+
+.consent-partial {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: #D97706;
+}
+
+.consent-limited {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #B91C1C;
+}

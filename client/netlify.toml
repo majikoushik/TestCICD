@@ -1,0 +1,61 @@
+# Netlify configuration file for ClinicTrust AI Platform frontend
+
+# Build settings
+[build]
+  # Directory to publish (relative to root of your repo)
+  publish = "build"
+  
+  # Default build command
+  command = "npm run build"
+
+# Redirects and rewrites
+[[redirects]]
+  # SPA fallback
+  # Redirect all paths to index.html for React Router
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Headers for security and caching
+[[headers]]
+  # Define headers for all files
+  for = "/*"
+    [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer-when-downgrade"
+    Content-Security-Policy = "default-src 'self'; connect-src 'self' https://api.clinictrust.ai; img-src 'self' data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:;"
+
+# Cache control for static assets
+[[headers]]
+  for = "*.js"
+    [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "*.css"
+    [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "*.svg"
+    [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Environment variables
+[context.production.environment]
+  REACT_APP_API_URL = "https://api.clinictrust.ai"
+  REACT_APP_ENV = "production"
+
+[context.deploy-preview.environment]
+  REACT_APP_API_URL = "https://staging-api.clinictrust.ai"
+  REACT_APP_ENV = "staging"
+
+[context.branch-deploy.environment]
+  REACT_APP_API_URL = "https://dev-api.clinictrust.ai"
+  REACT_APP_ENV = "development"
+
+# Build plugins
+[[plugins]]
+  package = "@netlify/plugin-lighthouse"
