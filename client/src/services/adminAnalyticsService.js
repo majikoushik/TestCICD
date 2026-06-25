@@ -150,15 +150,36 @@ const updateScheduledReport = async (reportId, reportData) => {
 const deleteScheduledReport = async (reportId) => {
   try {
     if (process.env.REACT_APP_MOCK_API === 'true') {
-      return { 
-        success: true, 
+      return {
+        success: true,
         message: `Report ${reportId} deleted successfully`
       };
     }
-    const response = await del(`/admin/reports/schedule/${reportId}`); 
+    const response = await del(`/admin/reports/schedule/${reportId}`);
     return response.data;
   } catch (error) {
     console.error('Error deleting scheduled report:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Get admin emails for report recipient autocomplete
+const getAdminEmails = async () => {
+  try {
+    if (process.env.REACT_APP_MOCK_API === 'true') {
+      return {
+        success: true,
+        data: [
+          'admin@clinictrustai.com',
+          'superadmin@clinictrustai.com',
+          'reports@clinictrustai.com'
+        ]
+      };
+    }
+    const response = await get('/admin/users/emails');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching admin emails:', error);
     return { success: false, error: error.message };
   }
 };
@@ -172,5 +193,6 @@ export default {
   getScheduledReports,
   scheduleReport,
   updateScheduledReport,
-  deleteScheduledReport
+  deleteScheduledReport,
+  getAdminEmails
 };

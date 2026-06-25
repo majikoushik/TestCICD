@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ModernLoadingIndicator } from '../../components/common';
-import axios from 'axios';
+import { get } from '../../utils/apiUtils';
 import {
   Container,
   Typography,
@@ -33,10 +33,6 @@ import {
   Security as SecurityIcon,
 } from '@mui/icons-material';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-
-const getAdminToken = () =>
-  localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken') || '';
 
 const ACTION_COLORS = {
   READ: 'default',
@@ -74,9 +70,7 @@ const AdminAuditEHI = () => {
       if (filterStartDate) params.set('startDate', filterStartDate);
       if (filterEndDate) params.set('endDate', filterEndDate);
 
-      const { data } = await axios.get(`${API_BASE}/admin/audit/ehi?${params}`, {
-        headers: { Authorization: `Bearer ${getAdminToken()}` },
-      });
+      const data = await get('/admin/audit/ehi', Object.fromEntries(params));
 
       setLogs(data.data || []);
       setTotal(data.total || 0);
@@ -92,7 +86,7 @@ const AdminAuditEHI = () => {
         });
       }
     } catch (err) {
-      setError(err?.response?.data?.error || 'Failed to load EHI audit logs.');
+      setError(err?.message || 'Failed to load EHI audit logs.');
     } finally {
       setLoading(false);
     }

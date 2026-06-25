@@ -17,54 +17,17 @@ import { authStorage } from '../utils/storageUtils';
  */
 export const login = async (credentials) => {
   try {
-    // Check if mock API is enabled
-    if (process.env.REACT_APP_MOCK_API === 'true') {
-      // Mock response
-      const mockUser = {
-        id: '123456',
-        firstName: 'John',
-        lastName: 'Doe',
-        email: credentials.email,
-        role: 'Doctor',
-        specialty: 'Cardiology',
-        profileImage: 'https://i.pravatar.cc/150?u=123456',
-        tokenBalance: 1250,
-        blockchainId: '0x1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t',
-        verificationStatus: 'verified'
-      };
-      
-      const mockResponseObj = {
-        user: mockUser,
-        token: 'mock-jwt-token',
-        refreshToken: 'mock-refresh-token'
-      };
-      
-      const response = await mockResponse(mockResponseObj);
-      
-      // Store tokens in local storage
-      authStorage.set('token', response.data.token);
-      authStorage.set('refreshToken', response.data.refreshToken);
-      authStorage.set('user', response.data.user);
-      
-      return response.data;
-    }
-    
-    // Real API call
     const response = await post('/auth/login', credentials);
 
-    // Ensure we have a valid response with token
     if (!response || !response.token) {
       console.error('Invalid login response:', response);
       throw new Error('Invalid login response: No token received');
     }
 
-    // Store tokens in local storage
     authStorage.set('token', response.token);
-
     if (response.refreshToken) {
       authStorage.set('refreshToken', response.refreshToken);
     }
-
     authStorage.set('user', response.user);
 
     return response;
