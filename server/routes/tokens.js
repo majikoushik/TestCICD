@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const User = require('../models/User');
-const { Token, TokenTransaction } = require('../models/Token');
+const { Token } = require('../models/Token');
 const { protect } = require('../middleware/auth');
-const { processTokenTransaction, getTransaction } = require('../blockchain/contracts');
+const { processTokenTransaction } = require('../blockchain/contracts');
 
 // @route   GET api/tokens/balance
 // @desc    Get user token balance
@@ -94,7 +95,7 @@ router.post('/transfer', protect, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Recipient not found' });
     }
 
-    // Process token transaction on blockchain
+    // Process token transaction on blockchain (outside DB session — cannot roll back blockchain)
     const blockchainTransaction = await processTokenTransaction(
       sender._id.toString(),
       recipient._id.toString(),
@@ -103,77 +104,62 @@ router.post('/transfer', protect, async (req, res) => {
       { transferType: 'user-to-user' }
     );
 
-    // Update sender balance
-    sender.tokenBalance -= amount;
-    await sender.save();
+    // Wrap all DB writes in a single transaction so a mid-flight failure cannot
+    // leave balances inconsistent (sender debited, recipient not credited).
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        sender.tokenBalance -= amount;
+        await sender.save({ session });
 
-    // Update recipient balance
-    recipient.tokenBalance += amount;
-    await recipient.save();
+        recipient.tokenBalance += amount;
+        await recipient.save({ session });
 
-    // Get token info
-    let token = await Token.findOne();
-    
-    if (!token) {
-      // Create token if it doesn't exist
-      token = new Token({
-        contractAddress: `0x${require('crypto').randomBytes(20).toString('hex')}`
+        let token = await Token.findOne().session(session);
+        if (!token) {
+          token = new Token({
+            contractAddress: `0x${require('crypto').randomBytes(20).toString('hex')}`,
+          });
+        }
+
+        token.transactions.push(
+          {
+            user: sender._id,
+            type: 'transfer',
+            amount: -amount,
+            reason: reason || 'Token transfer',
+            relatedEntity: { entityType: 'user', entityId: recipient._id },
+            blockchainTransactionId: blockchainTransaction.transactionId,
+            status: 'completed',
+            balanceAfter: sender.tokenBalance,
+            metadata: { recipientName: recipient.name, recipientOrganization: recipient.organization },
+          },
+          {
+            user: recipient._id,
+            type: 'earn',
+            amount,
+            reason: reason || 'Token transfer',
+            relatedEntity: { entityType: 'user', entityId: sender._id },
+            blockchainTransactionId: blockchainTransaction.transactionId,
+            status: 'completed',
+            balanceAfter: recipient.tokenBalance,
+            metadata: { senderName: sender.name, senderOrganization: sender.organization },
+          }
+        );
+        await token.save({ session });
       });
+    } finally {
+      await session.endSession();
     }
-
-    // Record sender transaction
-    const senderTransaction = {
-      user: sender._id,
-      type: 'transfer',
-      amount: -amount,
-      reason: reason || 'Token transfer',
-      relatedEntity: {
-        entityType: 'user',
-        entityId: recipient._id
-      },
-      blockchainTransactionId: blockchainTransaction.transactionId,
-      status: 'completed',
-      balanceAfter: sender.tokenBalance,
-      metadata: {
-        recipientName: recipient.name,
-        recipientOrganization: recipient.organization
-      }
-    };
-    
-    // Record recipient transaction
-    const recipientTransaction = {
-      user: recipient._id,
-      type: 'earn',
-      amount: amount,
-      reason: reason || 'Token transfer',
-      relatedEntity: {
-        entityType: 'user',
-        entityId: sender._id
-      },
-      blockchainTransactionId: blockchainTransaction.transactionId,
-      status: 'completed',
-      balanceAfter: recipient.tokenBalance,
-      metadata: {
-        senderName: sender.name,
-        senderOrganization: sender.organization
-      }
-    };
-
-    token.transactions.push(senderTransaction, recipientTransaction);
-    await token.save();
 
     res.status(200).json({
       success: true,
       data: {
         amount,
-        recipient: {
-          id: recipient._id,
-          name: recipient.name,
-          organization: recipient.organization
-        },
+        recipient: { id: recipient._id, name: recipient.name, organization: recipient.organization },
         transaction: blockchainTransaction,
-        newBalance: sender.tokenBalance
-      }
+        newBalance: sender.tokenBalance,
+      },
     });
   } catch (error) {
     console.error('Token transfer error:', error);

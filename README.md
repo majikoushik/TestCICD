@@ -13,6 +13,8 @@
 - [Project Structure](#project-structure)
 - [API Reference](#api-reference)
 - [Running Locally](#running-locally)
+- [Synthetic Data Mode](#synthetic-data-mode)
+- [Demo Accounts](#demo-accounts)
 - [Deploying to Azure](#deploying-to-azure)
 - [Environment Variables](#environment-variables)
 - [Data Models](#data-models)
@@ -314,30 +316,45 @@ This executes:
 
 ---
 
-### Step 3 — Configure environment variables (optional)
+### Step 3 — Configure environment variables
 
-The application has sensible defaults pointing to the MongoDB Atlas cluster. To use your own database or customise behaviour, create a `.env` file in the project root:
+Copy the example file and fill in your values:
+
+```bash
+cp .env.example .env
+```
 
 ```dotenv
 # .env
 NODE_ENV=development
 PORT=5000
+
+# MongoDB Atlas connection string
 MONGO_URI=your_mongodb_connection_string_here
-JWT_SECRET=your_jwt_secret_here
-JWT_EXPIRE=30d
+
+# Generate with: node -e "require('crypto').randomBytes(64).toString('hex')"
+JWT_SECRET=your_strong_random_secret
+JWT_REFRESH_SECRET=your_strong_random_refresh_secret
+JWT_RESET_SECRET=your_strong_random_reset_secret
+
+# Allowed CORS origin (comma-separated for multiple)
+CORS_ORIGIN=http://localhost:3000
 ```
 
-> If you skip this step, the app will connect to the default Atlas cluster.
+> **No database? No problem.** If `MONGO_URI` is unreachable, the server automatically falls back to [Synthetic Data Mode](#synthetic-data-mode) and starts with pre-seeded demo data. See [Demo Accounts](#demo-accounts) for login credentials.
 
 ---
 
 ### Step 4 — (Optional) Seed the database
 
-Populate MongoDB with realistic mock data for users, patients, referrals, tokens, and analytics:
+If you have a live MongoDB connection and want to populate it with realistic mock data, run:
 
 ```bash
-node populate_db.js
+# Requires mongosh or the legacy mongo shell
+mongo populate_db.js
 ```
+
+Alternatively, use the application in [Synthetic Data Mode](#synthetic-data-mode) — no seeding required.
 
 ---
 
@@ -388,6 +405,106 @@ npm run client
 | `npm run build` | `cd client && npm run build` | Build React for production |
 | `npm run blockchain:start` | `cd blockchain && ./startFabric.sh` | Start Hyperledger Fabric network |
 | `npm run blockchain:stop` | `cd blockchain && ./stopFabric.sh` | Stop Hyperledger Fabric network |
+
+---
+
+## Synthetic Data Mode
+
+When the server starts, it attempts to connect to MongoDB Atlas within **8 seconds**.  
+If the connection fails — due to no network, a wrong URI, a paused Atlas cluster, or any other reason — the server automatically switches to **Synthetic Data Mode** and continues running without any manual intervention.
+
+### How it works
+
+```
+Server starts
+    │
+    ├── Attempt MongoDB connection (8 s timeout)
+    │       │
+    │       ├── SUCCESS → Live Database Mode  ✅
+    │       │            All data reads/writes go to MongoDB Atlas.
+    │       │
+    │       └── TIMEOUT / ERROR → Synthetic Data Mode  🔄
+    │                            All data is served from an in-memory
+    │                            store seeded from populate_db.js.
+    │                            No database required.
+    │
+    └── Server listens on PORT (default 5000)
+```
+
+### What synthetic mode provides
+
+- Full JWT authentication (same secrets, identical token format)
+- All REST API endpoints respond with realistic pre-seeded data
+- In-memory CRUD — creates, updates, and deletes persist for the duration of the running process
+- Role-based access control enforced identically to live mode
+- Token transfers and redemptions update in-memory balances
+- Referral status changes (including token rewards) work end-to-end
+
+### Console output
+
+**Live database:**
+```
+✅  MongoDB connected — running in live database mode
+🚀  Server running on port 5000 [LIVE DB]
+```
+
+**Synthetic mode:**
+```
+⚠️  MongoDB unavailable (Connection timeout after 8 s)
+🔄  Starting in SYNTHETIC DATA mode — all data is in-memory.
+    Demo accounts: admin@clinictrustai.com / john.smith@clinictrustai.com / etc.
+    Demo password for all accounts: Demo1234!
+🚀  Server running on port 5000 [SYNTHETIC DATA]
+```
+
+### Limitations of synthetic mode
+
+| Feature | Synthetic mode |
+|---|---|
+| Data persistence across restarts | Not supported — resets on every server restart |
+| GraphQL endpoint | Returns a 503 with a helpful message |
+| Blockchain file writes | Skipped (no file I/O needed) |
+| MongoDB transactions | Not applicable |
+
+> **Synthetic mode is intended for local development and demos only.**  
+> Production deployments must have a valid `MONGO_URI` configured.
+
+---
+
+## Demo Accounts
+
+The following accounts are available in both **Synthetic Data Mode** and after running `node populate_db.js` against a live database.
+
+**All accounts share the same password: `Demo1234!`**
+
+### Provider accounts
+
+| Name | Email | Role | Organization | Token Balance |
+|---|---|---|---|---|
+| Dr. John Smith | `john.smith@clinictrustai.com` | doctor | Metro Heart Institute | 350 |
+| Dr. Michael Chen | `michael.chen@clinictrustai.com` | doctor | Neuroscience Medical Center | 420 |
+| Dr. Robert Williams | `robert.williams@clinictrustai.com` | doctor | Westside Family Medicine | 290 |
+| Nurse Sarah Johnson | `sarah.johnson@clinictrustai.com` | provider | Community Care Hospital | 175 |
+
+### Admin account
+
+| Name | Email | Role | Password |
+|---|---|---|---|
+| Admin User | `admin@clinictrustai.com` | admin | `Demo1234!` |
+
+> The admin account logs in via the **Admin Portal** at `/admin/login` (uses `/api/admin/auth/login`).  
+> Provider accounts log in via the standard login page (uses `/api/auth/login`).
+
+### Pre-seeded data (synthetic mode)
+
+| Collection | Records |
+|---|---|
+| Users | 5 (1 admin, 4 providers) |
+| Patients | 5 (James Wilson, Emily Rodriguez, Thomas Brown, Maria Garcia, David Lee) |
+| Referrals | 3 (completed, pending, accepted) |
+| Analytics reports | 3 (completed, completed, processing) |
+| Token transactions | 6 |
+| Notifications | 3 |
 
 ---
 

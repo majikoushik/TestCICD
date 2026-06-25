@@ -1,17 +1,25 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 
-// Load environment variables
 dotenv.config();
 
-// Import middleware
+// Fail fast if required secrets are missing
+const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET', 'JWT_REFRESH_SECRET', 'JWT_RESET_SECRET'];
+const missingEnvVars = requiredEnvVars.filter((v) => !process.env[v]);
+if (missingEnvVars.length > 0) {
+  console.error(`FATAL: Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  console.error('Copy .env.example to .env and populate all values before starting the server.');
+  process.exit(1);
+}
+
 const { protect, authorize } = require('./middleware/auth');
 
-// Import routes
 const authRoutes = require('./routes/auth');
 const patientRoutes = require('./routes/patients');
 const referralRoutes = require('./routes/referrals');
@@ -24,86 +32,128 @@ const adminAuthRoutes = require('./routes/adminAuth');
 const adminReferralRoutes = require('./routes/admin/referrals');
 const adminAIManagementRoutes = require('./routes/admin/aiManagement');
 const graphqlRoutes = require('./routes/graphql');
+const syntheticRouter = require('./routes/syntheticRouter');
 
-// Initialize express app
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(morgan('dev'));
+// ── Security & common middleware ──────────────────────────────────────────────
+app.use(helmet());
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://test:GTZdy5hZvLmHrML9@clinictrustai.591yw7n.mongodb.net/clinictrustai?retryWrites=true&w=majority&appName=ClinicTrustAI', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
-.then(() => {
-  console.log('MongoDB connected');
-})
-.catch(err => {
-  console.error('MongoDB connection error:', err.message);
-  process.exit(1); // Exit with failure
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+  .split(',')
+  .map((o) => o.trim());
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+      callback(new Error(`CORS: origin ${origin} not allowed`));
+    },
+    credentials: true,
+  })
+);
+
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use(express.json({ limit: '1mb' }));
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many requests, please try again later.' },
 });
 
-// API Routes
-app.use('/api/auth', authRoutes);
-
-// Admin auth routes
-app.use('/api/admin/auth', adminAuthRoutes);
-
-// Protected routes with auth middleware
-const protectedRouteHandler = (req, res, next) => {
-  // Log auth headers for debugging
-  console.log('Auth headers:', req.headers.authorization ? 
-    `${req.headers.authorization.substring(0, 15)}...` : 'No authorization header');
-  
-  // Apply auth middleware first, then route to the appropriate handler
-  return protect(req, res, next);
+// ── Centralised error handler (must be defined before startServer so the
+//    reference is valid when Express registers it later) ─────────────────────
+const errorHandler = (err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ success: false, error: 'Server Error' });
 };
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/patients', patientRoutes);
-app.use('/api/referrals', referralRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/tokens', tokenRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/admin/auth', adminAuthRoutes);
-app.use('/api/admin/referrals', adminReferralRoutes);
-app.use('/api/admin/ai-management', adminAIManagementRoutes);
-
-// Admin routes
-app.use('/api/admin', [protect, authorize('admin'), adminRoutes]);
-
-// Admin referral routes
-app.use('/api/admin/referrals', [protect, authorize('admin', 'superadmin'), adminReferralRoutes]);
-
-// GraphQL API endpoint
-app.use('/graphql', graphqlRoutes);
-
-// Serve static assets in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../client/build')));
-  
-  app.get('*', (req, res) => {
-    res.sendFile(path.resolve(__dirname, '../client/build', 'index.html'));
-  });
+// ── Static files (production only) ──────────────────────────────────────────
+function mountStaticFiles() {
+  if (process.env.NODE_ENV === 'production') {
+    app.use(express.static(path.join(__dirname, '../client/build')));
+    app.get('*', (req, res) => {
+      res.sendFile(path.resolve(__dirname, '../client/build', 'index.html'));
+    });
+  }
 }
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
-    success: false,
-    error: err.message || 'Server Error'
-  });
-});
+// ── Mount real (live DB) routes ──────────────────────────────────────────────
+function mountLiveRoutes() {
+  // Public auth endpoints — rate-limited
+  app.use('/api/auth', authLimiter, authRoutes);
 
-// Start server
-app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
+  // Admin auth must come before the protected /api/admin block so the public
+  // login endpoint is reachable without a token.
+  app.use('/api/admin/auth', authLimiter, adminAuthRoutes);
+
+  // User-facing routes (each route file applies protect internally)
+  app.use('/api/patients', patientRoutes);
+  app.use('/api/referrals', referralRoutes);
+  app.use('/api/analytics', analyticsRoutes);
+  app.use('/api/tokens', tokenRoutes);
+  app.use('/api/notifications', notificationRoutes);
+  app.use('/api/dashboard', dashboardRoutes);
+
+  // Protected admin routes — belt-and-suspenders on top of per-route auth
+  app.use('/api/admin', [protect, authorize('admin', 'superadmin'), adminRoutes]);
+  app.use('/api/admin/referrals', [protect, authorize('admin', 'superadmin'), adminReferralRoutes]);
+  app.use('/api/admin/ai-management', [protect, authorize('admin', 'superadmin'), adminAIManagementRoutes]);
+
+  // GraphQL
+  app.use('/graphql', graphqlRoutes);
+}
+
+// ── Mount synthetic (in-memory) routes ──────────────────────────────────────
+function mountSyntheticRoutes() {
+  // Rate-limit the auth paths even in synthetic mode
+  app.use('/api/auth', authLimiter);
+  app.use('/api/admin/auth', authLimiter);
+
+  // Single router covers every /api/* path
+  app.use('/api', syntheticRouter);
+}
+
+// ── Bootstrap ────────────────────────────────────────────────────────────────
+async function startServer() {
+  let dbConnected = false;
+
+  try {
+    // Give MongoDB 8 seconds to connect; fall back to synthetic data if it
+    // times out (e.g. no network, wrong URI, Atlas paused).
+    await Promise.race([
+      mongoose.connect(process.env.MONGO_URI),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Connection timeout after 8 s')), 8000)
+      ),
+    ]);
+    dbConnected = true;
+    console.log('✅  MongoDB connected — running in live database mode');
+  } catch (err) {
+    console.warn(`⚠️  MongoDB unavailable (${err.message})`);
+    console.warn('🔄  Starting in SYNTHETIC DATA mode — all data is in-memory.');
+    console.warn('    Demo accounts: admin@clinictrustai.com / john.smith@clinictrustai.com / etc.');
+    console.warn('    Demo password for all accounts: Demo1234!');
+  }
+
+  if (dbConnected) {
+    mountLiveRoutes();
+  } else {
+    mountSyntheticRoutes();
+  }
+
+  mountStaticFiles();
+  app.use(errorHandler);
+
+  app.listen(PORT, '0.0.0.0', () =>
+    console.log(`🚀  Server running on port ${PORT} [${dbConnected ? 'LIVE DB' : 'SYNTHETIC DATA'}]`)
+  );
+}
+
+startServer();
 
 module.exports = app;
