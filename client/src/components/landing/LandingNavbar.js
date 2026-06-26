@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useTransition } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   AppBar,
@@ -35,33 +35,19 @@ export default function LandingNavbar({ transparent = false }) {
   const { mode, toggleMode } = useAppTheme();
   const location = useLocation();
   const navigate = useNavigate();
-  const [isPending, startTransition] = useTransition();
   
   const handleNavigation = (path) => {
     closeMobileMenu();
-    startTransition(() => {
-      navigate(path);
-    });
+    navigate(path);
   };
   
   // Handle scrolling to sections on the landing page
   const scrollToSection = (sectionId) => {
     closeMobileMenu();
-    
-    // If we're not on the landing page, navigate there first
     if (!isLandingPage) {
-      startTransition(() => {
-        navigate('/');
-        // Need to wait for navigation to complete before scrolling
-        setTimeout(() => {
-          const element = document.getElementById(sectionId);
-          if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-        }, 500); // Give time for the page to load
-      });
+      // Navigate to landing page and pass the target section via state
+      navigate('/', { state: { scrollTo: sectionId } });
     } else {
-      // We're already on the landing page, just scroll
       const element = document.getElementById(sectionId);
       if (element) {
         element.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -74,11 +60,11 @@ export default function LandingNavbar({ transparent = false }) {
   
   // Navigation links
   const navLinks = [
-    { name: 'Features', path: '#features' },
+    { name: 'Features',     path: '#capabilities' },
+    { name: 'Blockchain',   path: '#blockchain' },
     { name: 'How It Works', path: '#how-it-works' },
-    { name: 'Benefits', path: '#benefits' },
-    { name: 'Testimonials', path: '#testimonials' },
-    { name: 'Contact', path: '/contact', isPage: true }
+    { name: 'Benefits',     path: '#benefits' },
+    { name: 'Contact',      path: '/contact', isPage: true },
   ];
   
   // Handle scroll events
@@ -153,35 +139,30 @@ export default function LandingNavbar({ transparent = false }) {
   
   // Desktop navigation
   const DesktopNav = () => (
-    <Stack 
-      direction="row" 
-      spacing={1} 
-      sx={{ 
-        display: { xs: 'none', md: 'flex' } 
-      }}
-    >
-      {navLinks.map((link) => (
-        <Button
-          key={link.name}
-          color={(transparent && isLandingPage && !isScrolled) ? 'inherit' : 'primary'}
-          sx={{ 
-            fontWeight: 500,
-            textTransform: 'none',
-            fontSize: '1rem'
-          }}
-          onClick={() => {
-            if (link.isPage) {
-              handleNavigation(link.path);
-            } else {
-              // Extract section ID from the path (remove the # symbol)
-              const sectionId = link.path.substring(1);
-              scrollToSection(sectionId);
-            }
-          }}
-        >
-          {link.name}
-        </Button>
-      ))}
+    <Stack direction="row" spacing={1} sx={{ display: { xs: 'none', md: 'flex' } }}>
+      {navLinks.map((link) =>
+        link.isPage ? (
+          <Button
+            key={link.name}
+            component={RouterLink}
+            to={link.path}
+            color={(transparent && isLandingPage && !isScrolled) ? 'inherit' : 'primary'}
+            sx={{ fontWeight: 500, textTransform: 'none', fontSize: '1rem' }}
+            onClick={closeMobileMenu}
+          >
+            {link.name}
+          </Button>
+        ) : (
+          <Button
+            key={link.name}
+            color={(transparent && isLandingPage && !isScrolled) ? 'inherit' : 'primary'}
+            sx={{ fontWeight: 500, textTransform: 'none', fontSize: '1rem' }}
+            onClick={() => scrollToSection(link.path.substring(1))}
+          >
+            {link.name}
+          </Button>
+        )
+      )}
     </Stack>
   );
   
@@ -211,22 +192,18 @@ export default function LandingNavbar({ transparent = false }) {
         {navLinks.map((link) => (
           <ListItem key={link.name} disablePadding>
             <ListItemButton
+              {...(link.isPage ? { component: RouterLink, to: link.path } : {})}
               onClick={() => {
                 if (link.isPage) {
-                  handleNavigation(link.path);
+                  closeMobileMenu();
                 } else {
-                  // Extract section ID from the path (remove the # symbol)
-                  const sectionId = link.path.substring(1);
-                  scrollToSection(sectionId);
+                  scrollToSection(link.path.substring(1));
                 }
               }}
             >
-              <ListItemText 
-                primary={link.name} 
-                primaryTypographyProps={{ 
-                  fontWeight: 500,
-                  fontSize: '1.1rem'
-                }} 
+              <ListItemText
+                primary={link.name}
+                primaryTypographyProps={{ fontWeight: 500, fontSize: '1.1rem' }}
               />
             </ListItemButton>
           </ListItem>
@@ -243,7 +220,7 @@ export default function LandingNavbar({ transparent = false }) {
           sx={{ mb: 1 }}
           onClick={() => handleNavigation('/login')}
         >
-          {isPending ? 'Loading...' : 'Sign In'}
+          Sign In
         </Button>
         <Button
           variant="outlined"
@@ -251,7 +228,7 @@ export default function LandingNavbar({ transparent = false }) {
           fullWidth
           onClick={() => handleNavigation('/register')}
         >
-          {isPending ? 'Loading...' : 'Get Started'}
+          Get Started
         </Button>
       </Box>
     </Drawer>
@@ -293,7 +270,7 @@ export default function LandingNavbar({ transparent = false }) {
                   fontSize: '1rem'
                 }}
               >
-                {isPending ? 'Loading...' : 'Sign In'}
+                Sign In
               </Button>
               
               <Button
@@ -306,7 +283,7 @@ export default function LandingNavbar({ transparent = false }) {
                   fontSize: '1rem'
                 }}
               >
-                {isPending ? 'Loading...' : 'Get Started'}
+                Get Started
               </Button>
             </Box>
             

@@ -38,6 +38,7 @@ import {
   NotificationsActive as NotificationsActiveIcon,
   Mic as MicIcon,
   Storefront as StorefrontIcon,
+  ContactMail as ContactMailIcon,
 } from '@mui/icons-material';
 import adminAuthService from '../services/adminAuthService';
 import { isAuthenticated, hasRole } from '../utils/authUtils';
@@ -107,6 +108,7 @@ const getMenuItems = () => [
   { text: 'AI Management', icon: <AIIcon />, path: '/admin/ai-management' },
   { text: 'Token Management', icon: <TokenIcon />, path: '/admin/token-management' },
   { text: 'Messaging', icon: <MessageIcon />, path: '/admin/messaging' },
+  { text: 'Contact Inquiries', icon: <ContactMailIcon />, path: '/admin/contacts' },
 ];
 
 const AdminLayout = () => {

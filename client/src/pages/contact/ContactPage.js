@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import {
   Box,
   Button,
@@ -13,6 +14,8 @@ import {
   useTheme
 } from '@mui/material';
 import { Send as SendIcon } from '@mui/icons-material';
+
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 /**
  * Contact Page Component
@@ -78,32 +81,15 @@ export default function ContactPage() {
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     if (!validateForm()) return;
-    
     setIsSubmitting(true);
-    
     try {
-      // In a real application, you would send this data to your backend API
-      // For now, we'll simulate a successful submission with a timeout
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Show success message
+      const { data } = await axios.post(`${API_BASE}/api/contact`, formData);
+      if (!data.success) throw new Error(data.error || 'Submission failed');
       setSubmitSuccess(true);
-      
-      // Reset form
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        organization: '',
-        subject: '',
-        message: '',
-        inquiryType: 'general'
-      });
-      
+      setFormData({ name: '', email: '', phone: '', organization: '', subject: '', message: '', inquiryType: 'general' });
     } catch (error) {
-      console.error('Error submitting form:', error);
+      console.error('Contact form error:', error);
       setSubmitError(true);
     } finally {
       setIsSubmitting(false);

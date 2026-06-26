@@ -3537,4 +3537,55 @@ router.get('/messages/admin/threads', protect, authorize('admin', 'superadmin'),
   res.json({ success: true, data: enriched });
 });
 
+// ── Contact form (public) ─────────────────────────────────────────────────────
+const syntheticContacts = [];
+
+router.post('/contact', (req, res) => {
+  const { name, email, phone, organization, inquiryType, subject, message } = req.body;
+  if (!name?.trim() || !email?.trim() || !subject?.trim() || !message?.trim()) {
+    return res.status(400).json({ success: false, error: 'Name, email, subject, and message are required.' });
+  }
+  const entry = {
+    _id: `contact-${Date.now()}`,
+    name: name.trim(),
+    email: email.trim().toLowerCase(),
+    phone: phone?.trim() || '',
+    organization: organization?.trim() || '',
+    inquiryType: inquiryType || 'general',
+    subject: subject.trim(),
+    message: message.trim(),
+    status: 'new',
+    createdAt: new Date().toISOString(),
+  };
+  syntheticContacts.unshift(entry);
+  res.status(201).json({
+    success: true,
+    data: { id: entry._id, message: "Your message has been received. We'll be in touch within 1 business day." },
+  });
+});
+
+router.get('/contact', (req, res) => {
+  const { status } = req.query;
+  const data = status && status !== 'all'
+    ? syntheticContacts.filter(c => c.status === status)
+    : syntheticContacts;
+  const newCount = syntheticContacts.filter(c => c.status === 'new').length;
+  const respondedCount = syntheticContacts.filter(c => c.status === 'responded').length;
+  const demoCount = syntheticContacts.filter(c => c.inquiryType === 'demo').length;
+  res.json({ success: true, data, meta: { total: syntheticContacts.length, newCount, respondedCount, demoCount } });
+});
+
+router.patch('/contact/:id/status', (req, res) => {
+  const idx = syntheticContacts.findIndex(c => c._id === req.params.id);
+  if (idx === -1) return res.status(404).json({ success: false, error: 'Not found.' });
+  syntheticContacts[idx].status = req.body.status;
+  res.json({ success: true, data: syntheticContacts[idx] });
+});
+
+router.delete('/contact/:id', (req, res) => {
+  const idx = syntheticContacts.findIndex(c => c._id === req.params.id);
+  if (idx !== -1) syntheticContacts.splice(idx, 1);
+  res.json({ success: true, data: {} });
+});
+
 module.exports = router;

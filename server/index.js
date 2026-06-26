@@ -48,6 +48,7 @@ const adminAnalyticsRoutes = require('./routes/admin/analytics');
 const dtxRoutes = require('./routes/dtx');
 const adminDtxRoutes = require('./routes/adminDtx');
 const messageRoutes = require('./routes/messages');
+const contactRoutes = require('./routes/contact');
 const { seedPriorAuths } = require('./seeds/priorAuthSeed');
 const { seedPatientEngagement } = require('./seeds/patientEngagementSeed');
 const { seedAmbientSessions } = require('./seeds/ambientSessionSeed');
@@ -136,6 +137,9 @@ function mountLiveRoutes() {
   app.use('/api/patient-engagement', protect, patientEngagementRoutes);
   app.use('/api/ambient-sessions', protect, ambientSessionRoutes);
   app.use('/api/dtx', dtxRoutes);
+
+  // Contact form — POST is public, GET is admin-only
+  app.use('/api/contact', contactRoutes);
 
   // Provider-to-provider secure messaging (tied to referral threads)
   app.use('/api/messages', protect, messageRoutes);

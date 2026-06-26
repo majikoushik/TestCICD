@@ -91,6 +91,7 @@ const ProviderInbox = lazy(() => import('./pages/app/ProviderInbox'));
 const DtxMarketplace = lazy(() => import('./pages/dtx/DtxMarketplace'));
 const DtxPrescriptions = lazy(() => import('./pages/dtx/DtxPrescriptions'));
 const AdminDtxManagement = lazy(() => import('./pages/admin/AdminDtxManagement'));
+const AdminContacts = lazy(() => import('./pages/admin/AdminContacts'));
 
 // Ambient Clinical Intelligence (provider)
 const AmbientRecorder = lazy(() => import('./pages/ambient/AmbientRecorder'));
@@ -473,6 +474,11 @@ function App() {
         <Route path="dtx" element={
           <Suspense fallback={<PageLoadingFallback />}>
             <AdminDtxManagement />
+          </Suspense>
+        } />
+        <Route path="contacts" element={
+          <Suspense fallback={<PageLoadingFallback />}>
+            <AdminContacts />
           </Suspense>
         } />
       </Route>

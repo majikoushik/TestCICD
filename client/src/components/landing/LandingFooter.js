@@ -33,7 +33,7 @@ export default function LandingFooter() {
     {
       title: 'Platform',
       links: [
-        { name: 'Features', path: '#features' },
+        { name: 'Features', path: '#capabilities' },
         { name: 'How It Works', path: '#how-it-works' },
         { name: 'Security', path: '/security' },
         { name: 'Pricing', path: '/pricing' },
