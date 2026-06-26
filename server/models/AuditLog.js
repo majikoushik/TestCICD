@@ -15,7 +15,7 @@ const mongoose = require('mongoose');
 const AuditLogSchema = new mongoose.Schema(
   {
     timestamp:    { type: Date, default: Date.now, index: true },
-    userId:       { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true, default: null },
+    userId:       { type: String, ref: 'User', index: true, default: null },
     userEmail:    { type: String, default: null },
     userRole:     { type: String, default: null },
     action: {

@@ -12,7 +12,7 @@ const AnalyticsSchema = new mongoose.Schema({
   },
   description: String,
   creator: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'User',
     required: true
   },
@@ -70,7 +70,7 @@ const AnalyticsSchema = new mongoose.Schema({
   },
   sharedWith: [{
     user: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: 'User'
     },
     sharedAt: {

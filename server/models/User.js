@@ -33,7 +33,7 @@ const UserSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'doctor', 'lab', 'clinic', 'hospital', 'provider', 'reviewer', 'superadmin'],
+    enum: ['admin', 'doctor', 'lab', 'clinic', 'hospital', 'provider', 'reviewer', 'superadmin', 'nurse'],
     default: 'doctor'
   },
   organization: {
@@ -80,7 +80,7 @@ const UserSchema = new mongoose.Schema({
     verificationDocuments: [String], // Array of document URLs
     verifiedAt: Date,
     verifiedBy: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: 'User'
     }
   },
@@ -98,7 +98,20 @@ const UserSchema = new mongoose.Schema({
     ipAddress: String,
     userAgent: String,
     successful: Boolean
-  }]
+  }],
+
+  // Email verification
+  emailVerified: { type: Boolean, default: false },
+  emailVerificationToken: { type: String, select: false },
+  emailVerificationExpiry: { type: Date, select: false },
+
+  // Onboarding / KYC status
+  onboardingStatus: {
+    type: String,
+    enum: ['pending_email', 'pending_docs', 'under_review', 'verified', 'rejected'],
+    default: 'pending_email',
+  },
+  kycRejectionReason: { type: String, default: '' },
 });
 
 // Encrypt password using bcrypt

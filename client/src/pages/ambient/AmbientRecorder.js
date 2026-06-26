@@ -45,6 +45,7 @@ import {
   Send as SendIcon
 } from '@mui/icons-material';
 import ambientSessionService from '../../services/ambientSessionService';
+import PatientSearchAutocomplete from '../../components/common/PatientSearchAutocomplete';
 
 const STEPS = ['Patient & Setup', 'Record & Transcribe', 'Review & Approve'];
 
@@ -82,6 +83,7 @@ export default function AmbientRecorder() {
   const [activeStep, setActiveStep] = useState(0);
 
   // Form state (Step 0)
+  const [selectedPatient, setSelectedPatient] = useState(null);
   const [form, setForm] = useState({
     patientId: '',
     patientName: '',
@@ -282,6 +284,7 @@ export default function AmbientRecorder() {
   const resetAll = () => {
     stopRecording();
     setActiveStep(0);
+    setSelectedPatient(null);
     setForm({ patientId: '', patientName: '', patientDOB: '', patientInsurance: '', chiefComplaint: '' });
     setTranscript('');
     setInterimTranscript('');
@@ -296,26 +299,35 @@ export default function AmbientRecorder() {
     setSuccess(null);
   };
 
+  const handlePatientSelect = (_, patient) => {
+    if (patient) {
+      const name = patient.name || `${patient.firstName || ''} ${patient.lastName || ''}`.trim();
+      const dob = patient.dateOfBirth || patient.birthDate || '';
+      const insurance = patient.insuranceInfo?.provider || '';
+      setSelectedPatient(patient);
+      setForm(prev => ({
+        ...prev,
+        patientId: patient.patientId || patient._id || '',
+        patientName: name,
+        patientDOB: dob ? new Date(dob).toISOString().split('T')[0] : '',
+        patientInsurance: prev.patientInsurance || insurance
+      }));
+    } else {
+      setSelectedPatient(null);
+      setForm(prev => ({ ...prev, patientId: '', patientName: '', patientDOB: '', patientInsurance: '' }));
+    }
+  };
+
   // ---- Step 0 ----
   const renderStep0 = () => (
     <Box>
       <Typography variant="h6" gutterBottom>Patient & Setup</Typography>
       <Grid container spacing={2}>
-        <Grid item xs={12} sm={6}>
-          <TextField
-            fullWidth
-            label="Patient ID"
-            value={form.patientId}
-            onChange={handleFormChange('patientId')}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6}>
-          <TextField
-            fullWidth
-            label="Patient Name"
-            value={form.patientName}
-            onChange={handleFormChange('patientName')}
+        <Grid item xs={12}>
+          <PatientSearchAutocomplete
             required
+            value={selectedPatient}
+            onChange={handlePatientSelect}
           />
         </Grid>
         <Grid item xs={12}>
@@ -352,7 +364,7 @@ export default function AmbientRecorder() {
         <Button
           variant="contained"
           startIcon={<MicIcon />}
-          disabled={!form.chiefComplaint.trim() || !form.patientName.trim()}
+          disabled={!form.chiefComplaint.trim() || !selectedPatient}
           onClick={() => setActiveStep(1)}
           size="large"
         >

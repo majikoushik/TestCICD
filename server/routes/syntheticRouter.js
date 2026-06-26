@@ -52,6 +52,8 @@ function userPayload(user) {
     tokenBalance: user.tokenBalance,
     lastLogin: user.lastLogin,
     profileImage: user.profileImage || null,
+    emailVerified: user.emailVerified !== undefined ? user.emailVerified : true,
+    onboardingStatus: user.onboardingStatus || 'verified',
   };
 }
 
@@ -3193,6 +3195,91 @@ router.use('/graphql', (req, res) => {
   res.status(503).json({
     errors: [{ message: 'GraphQL is unavailable in synthetic data mode. The REST API is fully functional.' }],
   });
+});
+
+// ── NPI lookup (synthetic) ──────────────────────────────────────────────────
+const SYNTHETIC_NPIS = {
+  '1234567890': {
+    npi: '1234567890', enumerationType: 'NPI-1',
+    firstName: 'James', lastName: 'Wilson', name: 'James Wilson',
+    credential: 'MD', gender: 'M', organizationName: '',
+    specialty: 'Internal Medicine', taxonomyCode: '207R00000X',
+    licenseNumber: 'MD123456', licenseState: 'NY',
+    address: { line1: '123 Medical Plaza', line2: 'Suite 400', city: 'New York', state: 'NY', zip: '10001', phone: '212-555-0101', fax: '' },
+  },
+  '9876543210': {
+    npi: '9876543210', enumerationType: 'NPI-1',
+    firstName: 'Emily', lastName: 'Chen', name: 'Emily Chen',
+    credential: 'MD', gender: 'F', organizationName: '',
+    specialty: 'Cardiology', taxonomyCode: '207RC0000X',
+    licenseNumber: 'MD654321', licenseState: 'CA',
+    address: { line1: '456 Heart Center Blvd', line2: '', city: 'Los Angeles', state: 'CA', zip: '90001', phone: '310-555-0202', fax: '' },
+  },
+  '1111111111': {
+    npi: '1111111111', enumerationType: 'NPI-1',
+    firstName: 'Michael', lastName: 'Patel', name: 'Michael Patel',
+    credential: 'DO', gender: 'M', organizationName: '',
+    specialty: 'Neurology', taxonomyCode: '2084N0400X',
+    licenseNumber: 'DO111111', licenseState: 'TX',
+    address: { line1: '789 Neuro Way', line2: '', city: 'Houston', state: 'TX', zip: '77001', phone: '713-555-0303', fax: '' },
+  },
+};
+
+router.get('/npi/lookup/:npi', (req, res) => {
+  const { npi } = req.params;
+  if (!/^\d{10}$/.test(npi)) {
+    return res.status(400).json({ success: false, error: 'NPI must be a 10-digit number' });
+  }
+  const data = SYNTHETIC_NPIS[npi];
+  if (!data) {
+    return res.status(404).json({ success: false, error: 'NPI not found in the NPPES registry' });
+  }
+  res.json({ success: true, alreadyRegistered: false, data });
+});
+
+// ── Onboarding (synthetic) ──────────────────────────────────────────────────
+const syntheticProfiles = {};
+
+router.get('/onboarding/status', protect, (req, res) => {
+  const profile = syntheticProfiles[req.user.id] || {
+    onboardingStatus: req.user.onboardingStatus || 'pending_email',
+    emailVerified: req.user.emailVerified || false,
+    steps: { profile_created: true, email_verified: false, profile_reviewed: false, docs_uploaded: false, first_patient: false, first_referral: false, colleague_invited: false },
+    kycStatus: 'pending_email', npi: null, hasDoc: false,
+  };
+  res.json({ success: true, data: profile });
+});
+
+router.get('/auth/verify-email', (req, res) => {
+  res.json({ success: true, message: 'Email verified successfully.' });
+});
+
+router.post('/auth/resend-verification', protect, (req, res) => {
+  console.log(`[SYNTHETIC] Resend verification email to ${req.user.email}`);
+  res.json({ success: true, message: 'Verification email sent.' });
+});
+
+router.patch('/onboarding/profile', protect, (req, res) => {
+  if (!syntheticProfiles[req.user.id]) syntheticProfiles[req.user.id] = { steps: { profile_created: true } };
+  syntheticProfiles[req.user.id].steps.profile_reviewed = true;
+  res.json({ success: true, data: syntheticProfiles[req.user.id] });
+});
+
+router.post('/onboarding/documents', protect, (req, res) => {
+  if (!syntheticProfiles[req.user.id]) syntheticProfiles[req.user.id] = { steps: { profile_created: true } };
+  syntheticProfiles[req.user.id].steps.docs_uploaded = true;
+  syntheticProfiles[req.user.id].kycStatus = 'under_review';
+  res.json({ success: true, message: 'Documents submitted.' });
+});
+
+router.patch('/onboarding/steps/:step', protect, (req, res) => {
+  if (!syntheticProfiles[req.user.id]) syntheticProfiles[req.user.id] = { steps: { profile_created: true } };
+  syntheticProfiles[req.user.id].steps[req.params.step] = true;
+  res.json({ success: true, data: syntheticProfiles[req.user.id] });
+});
+
+router.post('/onboarding/invite', protect, (req, res) => {
+  res.json({ success: true, message: `Invite sent to ${req.body.email}` });
 });
 
 // ---------------------------------------------------------------------------

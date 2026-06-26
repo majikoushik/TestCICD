@@ -87,7 +87,7 @@ const patientNotificationSchema = new mongoose.Schema({
     ref: 'NotificationCampaign'
   },
   sentBy: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'User'
   },
   sentByName: {

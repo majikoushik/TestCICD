@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { ModernLoadingIndicator } from '../../components/common';
-import { 
-  fetchPatients, 
+import {
+  fetchPatients,
   setFilters as setPatientsFilters, 
   setPagination, 
   selectAllPatients, 
@@ -37,7 +36,8 @@ import {
   ListItemIcon,
   ListItemText,
   Divider,
-  Grid
+  Grid,
+  Skeleton,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -257,14 +257,6 @@ function Patients() {
       return { level: 'Low', color: 'success' };
     }
   }, []);
-
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
-        <ModernLoadingIndicator variant="pulse" message="Loading patients data..." />
-      </Box>
-    );
-  }
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -544,61 +536,78 @@ function Patients() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredPatients
-                .slice(currentPage * rowsPerPage, currentPage * rowsPerPage + rowsPerPage)
-                .map((patient) => {
-                  const riskInfo = getRiskLevel(patient.riskScore);
-                  const name = patient.name? patient.name : patient.firstName + " " + patient.lastName;
-                  const email = patient.email ? patient.email : patient.contactInfo.email;
-                  return (
-                    <TableRow
-                      key={patient.patientId}
-                      hover
-                      onClick={() => handlePatientClick(patient.patientId)}
-                      sx={{ cursor: 'pointer' }}
-                    >
-                      <TableCell>{patient.patientId}</TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <Avatar sx={{ mr: 1, bgcolor: 'primary.light' }}>
-                            <PersonIcon />
-                          </Avatar>
-                          {name}
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        {calculateAge(patient.birthDate)} / {patient.gender.charAt(0).toUpperCase() + patient.gender.slice(1)}
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">{email}</Typography>
-                        <Typography variant="body2" color="text.secondary">{patient.contactInfo.phone}</Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={riskInfo.level}
-                          color={riskInfo.color}
-                          size="small"
-                          icon={riskInfo.level === 'High' ? <WarningIcon /> : undefined}
-                        />
-                      </TableCell>
-                      {/* <TableCell>{formatDate(patient.lastVisit)}</TableCell> */}
-                      <TableCell align="right">
-                        <IconButton
-                          size="small"
-                          onClick={(e) => handleActionClick(e, patient)}
-                        >
-                          <MoreVertIcon />
-                        </IconButton>
+              {loading ? (
+                [...Array(5)].map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton variant="text" width={80} /></TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Skeleton variant="circular" width={40} height={40} sx={{ mr: 1 }} />
+                        <Skeleton variant="text" width={120} />
+                      </Box>
+                    </TableCell>
+                    <TableCell><Skeleton variant="text" width={80} /></TableCell>
+                    <TableCell><Skeleton variant="text" width={140} /></TableCell>
+                    <TableCell><Skeleton variant="rounded" width={60} height={24} /></TableCell>
+                    <TableCell align="right"><Skeleton variant="circular" width={30} height={30} /></TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <>
+                  {filteredPatients.map((patient) => {
+                    const riskInfo = getRiskLevel(patient.riskScore);
+                    const name = patient.name || `${patient.firstName || ''} ${patient.lastName || ''}`.trim();
+                    const email = patient.contactInfo?.email || patient.email || '';
+                    return (
+                      <TableRow
+                        key={patient.patientId}
+                        hover
+                        onClick={() => handlePatientClick(patient.patientId)}
+                        sx={{ cursor: 'pointer' }}
+                      >
+                        <TableCell>{patient.patientId}</TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Avatar sx={{ mr: 1, bgcolor: 'primary.light' }}>
+                              <PersonIcon />
+                            </Avatar>
+                            {name}
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          {calculateAge(patient.dateOfBirth || patient.birthDate)} / {patient.gender ? patient.gender.charAt(0).toUpperCase() + patient.gender.slice(1) : '—'}
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">{email}</Typography>
+                          <Typography variant="body2" color="text.secondary">{patient.contactInfo?.phone}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={riskInfo.level}
+                            color={riskInfo.color}
+                            size="small"
+                            icon={riskInfo.level === 'High' ? <WarningIcon /> : undefined}
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => handleActionClick(e, patient)}
+                          >
+                            <MoreVertIcon />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {filteredPatients.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
+                        No patients found
                       </TableCell>
                     </TableRow>
-                  );
-                })}
-              {filteredPatients.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 3 }}>
-                    No patients found
-                  </TableCell>
-                </TableRow>
+                  )}
+                </>
               )}
             </TableBody>
           </Table>

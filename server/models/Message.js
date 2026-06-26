@@ -3,13 +3,13 @@ const mongoose = require('mongoose');
 const MessageSchema = new mongoose.Schema(
   {
     referralId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: 'Referral',
       required: true,
       index: true,
     },
     senderId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: 'User',
       required: true,
     },
@@ -17,7 +17,7 @@ const MessageSchema = new mongoose.Schema(
     senderName: { type: String, required: true },
     senderRole: { type: String },
     receiverId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: 'User',
       required: true,
     },

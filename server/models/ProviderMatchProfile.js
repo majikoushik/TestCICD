@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 
 const providerMatchProfileSchema = new mongoose.Schema({
   providerId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'User',
     required: true,
     unique: true,

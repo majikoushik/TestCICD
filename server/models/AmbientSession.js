@@ -27,7 +27,7 @@ const ambientSessionSchema = new mongoose.Schema({
     index: true,
   },
   providerId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'User',
   },
   providerName: {
@@ -85,7 +85,7 @@ const ambientSessionSchema = new mongoose.Schema({
     default: 'draft',
   },
   reviewedBy: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'User',
   },
   reviewedAt: {

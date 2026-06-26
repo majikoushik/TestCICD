@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 
 const PatientSchema = new mongoose.Schema({
+  _id: {
+    type: String,
+  },
   patientId: {
     type: String,
     required: true,
@@ -25,7 +28,7 @@ const PatientSchema = new mongoose.Schema({
     address: String
   },
   primaryProvider: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'User',
     required: true
   },
@@ -51,11 +54,19 @@ const PatientSchema = new mongoose.Schema({
     reaction: String,
     severity: String
   }],
+  recentVisits: [{
+    date: Date,
+    provider: String,
+    reason: String,
+    notes: String
+  }],
   consentRecords: [{
     providerId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: 'User'
     },
+    providerName: String,
+    organization: String,
     accessLevel: {
       type: String,
       enum: ['full', 'partial', 'limited'],

@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const waitlistEntrySchema = new mongoose.Schema({
   patientId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'Patient',
     required: true
   },
@@ -17,7 +17,7 @@ const waitlistEntrySchema = new mongoose.Schema({
     type: String
   },
   providerId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'User',
     required: true
   },

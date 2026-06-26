@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Patient = require('../models/Patient');
 const Referral = require('../models/Referral');
+const User = require('../models/User');
 const { protect, authorize } = require('../middleware/auth');
 const { createConsentRecord, verifyConsent } = require('../blockchain/contracts');
 const { ehiAudit } = require('../middleware/ehiAudit');
@@ -97,12 +98,16 @@ router.get(
 
       if (search) {
         const searchRegex = new RegExp(search, 'i');
-        patients = patients.filter(
-          (p) =>
-            searchRegex.test(p.name) ||
+        patients = patients.filter((p) => {
+          const fullName = p.name || `${p.firstName || ''} ${p.lastName || ''}`.trim();
+          return (
+            searchRegex.test(fullName) ||
+            searchRegex.test(p.firstName) ||
+            searchRegex.test(p.lastName) ||
             searchRegex.test(p.patientId) ||
             (p.contactInfo && searchRegex.test(p.contactInfo.email))
-        );
+          );
+        });
       }
 
       const totalPatients = patients.length;
@@ -130,7 +135,7 @@ router.get(
 // @access  Private (with consent verification)
 router.get('/:id', protect, ehiAudit('Patient', 'READ'), async (req, res) => {
   try {
-    const patient = await Patient.findById(req.params.id);
+    const patient = await Patient.findOne({ patientId: req.params.id });
     if (!patient) {
       return res.status(404).json({ success: false, error: 'Patient not found' });
     }
@@ -149,6 +154,13 @@ router.get('/:id', protect, ehiAudit('Patient', 'READ'), async (req, res) => {
       }
     }
 
+    // Resolve primaryProvider ID to a display name
+    let primaryProviderName = patient.primaryProvider;
+    if (patient.primaryProvider) {
+      const provider = await User.findById(patient.primaryProvider).select('name').lean();
+      if (provider) primaryProviderName = provider.name;
+    }
+
     if (!isPrimaryProvider && hasConsent) {
       const consentRecord = patient.consentRecords.find(
         (r) => r.providerId.toString() === req.user.id
@@ -156,7 +168,7 @@ router.get('/:id', protect, ehiAudit('Patient', 'READ'), async (req, res) => {
 
       if (consentRecord && consentRecord.accessLevel !== 'full') {
         const allowedFields = consentRecord.dataElements || [];
-        const filteredPatient = { _id: patient._id, patientId: patient.patientId, name: patient.name };
+        const filteredPatient = { _id: patient._id, patientId: patient.patientId, name: patient.name, primaryProviderName };
         allowedFields.forEach((field) => {
           if (patient[field]) filteredPatient[field] = patient[field];
         });
@@ -168,9 +180,12 @@ router.get('/:id', protect, ehiAudit('Patient', 'READ'), async (req, res) => {
       }
     }
 
+    const patientData = patient.toObject();
+    patientData.primaryProviderName = primaryProviderName;
+
     res.status(200).json({
       success: true,
-      data: patient,
+      data: patientData,
       consentLevel: isPrimaryProvider ? 'primary' : 'full',
     });
   } catch (error) {
@@ -411,13 +426,17 @@ router.get('/:id/consent-records', protect, ehiAudit('Patient', 'READ'), async (
 // the Privacy Exception (45 CFR § 171.202).
 router.get('/:id/export', protect, ehiAudit('Patient', 'EXPORT'), async (req, res) => {
   try {
-    const patient = await Patient.findById(req.params.id);
+    console.log('[EHI] export request for', req.params.id, 'by user', req.user?.id);
+
+    const patient = await Patient.findOne({ patientId: req.params.id });
     if (!patient) {
       return res.status(404).json({ success: false, error: 'Patient not found' });
     }
+    console.log('[EHI] patient found:', patient.patientId, '| primaryProvider:', patient.primaryProvider);
 
-    const isPrimaryProvider = patient.primaryProvider.toString() === req.user.id;
+    const isPrimaryProvider = patient.primaryProvider && patient.primaryProvider.toString() === req.user.id;
     const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
+    console.log('[EHI] isPrimaryProvider:', isPrimaryProvider, '| isAdmin:', isAdmin);
 
     if (!isPrimaryProvider && !isAdmin) {
       return oncDeny(res, 'GET /api/patients/:id/export').status(403).json({
@@ -427,9 +446,17 @@ router.get('/:id/export', protect, ehiAudit('Patient', 'EXPORT'), async (req, re
       });
     }
 
-    const referrals = await Referral.find({ patient: req.params.id })
+    const patientInternalId = patient._id?.toString();
+    console.log('[EHI] querying referrals for internal id:', patientInternalId);
+    const referrals = await Referral.find({
+      $or: [
+        { patient: patientInternalId },
+        { patientId: patientInternalId },
+      ],
+    })
       .populate('referringProvider', 'name email specialty organization')
       .populate('receivingProvider', 'name email specialty organization');
+    console.log('[EHI] referrals found:', referrals.length);
 
     const exportBundle = {
       exportMetadata: {
@@ -489,8 +516,9 @@ router.get('/:id/export', protect, ehiAudit('Patient', 'EXPORT'), async (req, re
 
     res.status(200).json({ success: true, data: exportBundle });
   } catch (error) {
-    console.error('EHI export error:', error);
-    res.status(500).json({ success: false, error: 'Server error during EHI export' });
+    console.error('[EHI] export error:', error.message);
+    console.error('[EHI] stack:', error.stack);
+    res.status(500).json({ success: false, error: 'Server error during EHI export', detail: error.message });
   }
 });
 

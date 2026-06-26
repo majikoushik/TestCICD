@@ -60,7 +60,7 @@ const notificationTemplateSchema = new mongoose.Schema({
     default: 0
   },
   createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'User'
   },
   createdAt: {

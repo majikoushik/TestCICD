@@ -1,7 +1,8 @@
 import React from 'react';
 import { Outlet, Navigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../contexts';
-import { LoadingSpinner, ThemeToggle } from '../components/common';
+import { LoadingSpinner } from '../components/common';
+import ThemeToggle from '../components/common/ThemeToggle';
 import { 
   Box,
   Container,
@@ -22,7 +23,7 @@ export default function AuthLayout() {
   
   // If user is already authenticated, redirect to dashboard
   if (currentUser) {
-    return <Navigate to="/dashboard" />;
+    return <Navigate to="/app/dashboard" />;
   }
 
   return (

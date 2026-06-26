@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const TokenTransactionSchema = new mongoose.Schema({
   user: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'User',
     required: true
   },
@@ -24,7 +24,7 @@ const TokenTransactionSchema = new mongoose.Schema({
       type: String,
       enum: ['patient', 'referral', 'analytics', 'service']
     },
-    entityId: mongoose.Schema.Types.ObjectId
+    entityId: String
   },
   blockchainTransactionId: String,
   status: {

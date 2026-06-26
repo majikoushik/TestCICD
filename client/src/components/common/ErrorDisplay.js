@@ -94,7 +94,7 @@ export default function ErrorDisplay({
           <Button 
             variant="outlined"
             component={RouterLink}
-            to="/dashboard"
+            to="/app/dashboard"
             startIcon={<HomeIcon />}
           >
             Go to Dashboard

@@ -6,6 +6,7 @@ import {
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { createPriorAuth } from '../../services/priorAuthService';
+import PatientSearchAutocomplete from '../../components/common/PatientSearchAutocomplete';
 
 const STEPS = ['Patient & Service', 'Clinical Details', 'Review & Submit'];
 
@@ -26,6 +27,7 @@ export default function CreatePriorAuth({ open, onClose, onCreated, prefillRefer
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedPatient, setSelectedPatient] = useState(prefillPatient || null);
   const [form, setForm] = useState({
     patientId: prefillPatient?.patientId || '',
     patientName: prefillPatient?.name || '',
@@ -34,8 +36,8 @@ export default function CreatePriorAuth({ open, onClose, onCreated, prefillRefer
     serviceType: '',
     serviceCode: '',
     urgency: 'Routine',
-    insurancePlan: '',
-    memberId: '',
+    insurancePlan: prefillPatient?.insuranceInfo?.provider || '',
+    memberId: prefillPatient?.insuranceInfo?.policyNumber || '',
     clinicalNotes: '',
     diagnosisCodes: []
   });
@@ -44,17 +46,38 @@ export default function CreatePriorAuth({ open, onClose, onCreated, prefillRefer
 
   const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }));
 
+  const handlePatientChange = (_, patient) => {
+    if (patient) {
+      const name = patient.name || `${patient.firstName || ''} ${patient.lastName || ''}`.trim();
+      setSelectedPatient(patient);
+      setForm(f => ({
+        ...f,
+        patientId: patient.patientId || patient._id || '',
+        patientName: name,
+        insurancePlan: f.insurancePlan || patient.insuranceInfo?.provider || '',
+        memberId: f.memberId || patient.insuranceInfo?.policyNumber || ''
+      }));
+    } else {
+      setSelectedPatient(null);
+      setForm(f => ({ ...f, patientId: '', patientName: '' }));
+    }
+  };
+
   const addDiagnosis = () => {
     if (!newDxCode.trim()) return;
-    setForm(f => ({ ...f, diagnosisCodes: [...f.diagnosisCodes, { code: newDxCode.trim(), description: newDxDesc.trim() }] }));
+    setForm(f => ({
+      ...f,
+      diagnosisCodes: [...f.diagnosisCodes, { code: newDxCode.trim(), description: newDxDesc.trim() }]
+    }));
     setNewDxCode('');
     setNewDxDesc('');
   };
 
-  const removeDiagnosis = (i) => setForm(f => ({ ...f, diagnosisCodes: f.diagnosisCodes.filter((_, idx) => idx !== i) }));
+  const removeDiagnosis = (i) =>
+    setForm(f => ({ ...f, diagnosisCodes: f.diagnosisCodes.filter((_, idx) => idx !== i) }));
 
   const canNext = () => {
-    if (step === 0) return form.patientId && form.patientName && form.serviceType;
+    if (step === 0) return !!selectedPatient && !!form.serviceType;
     if (step === 1) return form.clinicalNotes.trim().length >= 20;
     return true;
   };
@@ -64,7 +87,12 @@ export default function CreatePriorAuth({ open, onClose, onCreated, prefillRefer
       setLoading(true);
       setError(null);
       await createPriorAuth(form);
-      setForm({ patientId: '', patientName: '', referralId: '', targetProviderName: '', serviceType: '', serviceCode: '', urgency: 'Routine', insurancePlan: '', memberId: '', clinicalNotes: '', diagnosisCodes: [] });
+      setForm({
+        patientId: '', patientName: '', referralId: '', targetProviderName: '',
+        serviceType: '', serviceCode: '', urgency: 'Routine',
+        insurancePlan: '', memberId: '', clinicalNotes: '', diagnosisCodes: []
+      });
+      setSelectedPatient(null);
       setStep(0);
       onCreated();
     } catch (err) {
@@ -78,22 +106,24 @@ export default function CreatePriorAuth({ open, onClose, onCreated, prefillRefer
 
   return (
     <Dialog open={open} onClose={handleClose} fullWidth maxWidth="md">
-      <DialogTitle>
+      <DialogTitle component="div">
         <Typography variant="h6">New Prior Authorization Request</Typography>
         <Stepper activeStep={step} sx={{ mt: 2 }}>
           {STEPS.map(label => <Step key={label}><StepLabel>{label}</StepLabel></Step>)}
         </Stepper>
       </DialogTitle>
+
       <DialogContent dividers>
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
         {step === 0 && (
           <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <TextField fullWidth required label="Patient ID" value={form.patientId} onChange={set('patientId')} placeholder="e.g. PT-100001" />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField fullWidth required label="Patient Name" value={form.patientName} onChange={set('patientName')} />
+            <Grid item xs={12}>
+              <PatientSearchAutocomplete
+                required
+                value={selectedPatient}
+                onChange={handlePatientChange}
+              />
             </Grid>
             <Grid item xs={12} md={6}>
               <FormControl fullWidth required>
@@ -104,7 +134,8 @@ export default function CreatePriorAuth({ open, onClose, onCreated, prefillRefer
               </FormControl>
             </Grid>
             <Grid item xs={12} md={6}>
-              <TextField fullWidth label="CPT Code (optional)" value={form.serviceCode} onChange={set('serviceCode')} placeholder="e.g. 71046" />
+              <TextField fullWidth label="CPT Code (optional)" value={form.serviceCode}
+                onChange={set('serviceCode')} placeholder="e.g. 71046" />
             </Grid>
             <Grid item xs={12} md={6}>
               <FormControl fullWidth required>
@@ -117,7 +148,8 @@ export default function CreatePriorAuth({ open, onClose, onCreated, prefillRefer
               </FormControl>
             </Grid>
             <Grid item xs={12} md={6}>
-              <TextField fullWidth label="Target Provider (optional)" value={form.targetProviderName} onChange={set('targetProviderName')} />
+              <TextField fullWidth label="Target Provider (optional)" value={form.targetProviderName}
+                onChange={set('targetProviderName')} />
             </Grid>
             <Grid item xs={12} md={6}>
               <FormControl fullWidth>
@@ -129,7 +161,8 @@ export default function CreatePriorAuth({ open, onClose, onCreated, prefillRefer
               </FormControl>
             </Grid>
             <Grid item xs={12} md={6}>
-              <TextField fullWidth label="Member ID (optional)" value={form.memberId} onChange={set('memberId')} />
+              <TextField fullWidth label="Member ID (optional)" value={form.memberId}
+                onChange={set('memberId')} />
             </Grid>
             {form.referralId && (
               <Grid item xs={12}>
@@ -147,28 +180,33 @@ export default function CreatePriorAuth({ open, onClose, onCreated, prefillRefer
                 label="Clinical Notes (min 20 characters)"
                 value={form.clinicalNotes}
                 onChange={set('clinicalNotes')}
-                placeholder="Describe the medical necessity, patient history, and clinical justification for this service..."
-                helperText={form.clinicalNotes.length < 20 ? `${20 - form.clinicalNotes.length} more characters required` : 'Clinical notes look good'}
+                placeholder="Describe the medical necessity, patient history, and clinical justification..."
+                helperText={
+                  form.clinicalNotes.length < 20
+                    ? `${20 - form.clinicalNotes.length} more characters required`
+                    : 'Clinical notes look good'
+                }
               />
             </Grid>
             <Grid item xs={12}>
               <Divider sx={{ my: 1 }} />
               <Typography variant="subtitle2" gutterBottom>Diagnosis Codes (ICD-10)</Typography>
               <Box sx={{ display: 'flex', gap: 1, mb: 1, flexWrap: 'wrap' }}>
-                <TextField size="small" label="ICD-10 Code" value={newDxCode} onChange={e => setNewDxCode(e.target.value)} placeholder="e.g. M54.5" sx={{ width: 150 }} />
-                <TextField size="small" label="Description" value={newDxDesc} onChange={e => setNewDxDesc(e.target.value)} placeholder="e.g. Low back pain" sx={{ flexGrow: 1 }} />
-                <Button variant="outlined" size="small" startIcon={<AddIcon />} onClick={addDiagnosis} disabled={!newDxCode.trim()}>Add</Button>
+                <TextField size="small" label="ICD-10 Code" value={newDxCode}
+                  onChange={e => setNewDxCode(e.target.value)} placeholder="e.g. M54.5"
+                  sx={{ width: 150 }} />
+                <TextField size="small" label="Description" value={newDxDesc}
+                  onChange={e => setNewDxDesc(e.target.value)} placeholder="e.g. Low back pain"
+                  sx={{ flexGrow: 1 }} />
+                <Button variant="outlined" size="small" startIcon={<AddIcon />}
+                  onClick={addDiagnosis} disabled={!newDxCode.trim()}>Add</Button>
               </Box>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                 {form.diagnosisCodes.map((d, i) => (
-                  <Chip
-                    key={i}
+                  <Chip key={i}
                     label={`${d.code}${d.description ? ': ' + d.description : ''}`}
-                    onDelete={() => removeDiagnosis(i)}
-                    deleteIcon={<DeleteIcon />}
-                    size="small"
-                    variant="outlined"
-                  />
+                    onDelete={() => removeDiagnosis(i)} deleteIcon={<DeleteIcon />}
+                    size="small" variant="outlined" />
                 ))}
               </Box>
             </Grid>
@@ -177,16 +215,34 @@ export default function CreatePriorAuth({ open, onClose, onCreated, prefillRefer
 
         {step === 2 && (
           <Grid container spacing={2}>
-            <Grid item xs={12}><Typography variant="h6" gutterBottom>Review Your Request</Typography></Grid>
-            <Grid item xs={6}><Typography variant="subtitle2" color="text.secondary">Patient</Typography><Typography>{form.patientName} ({form.patientId})</Typography></Grid>
-            <Grid item xs={6}><Typography variant="subtitle2" color="text.secondary">Service</Typography><Typography>{form.serviceType} {form.serviceCode ? `(CPT: ${form.serviceCode})` : ''}</Typography></Grid>
-            <Grid item xs={6}><Typography variant="subtitle2" color="text.secondary">Urgency</Typography><Chip label={form.urgency} size="small" color={form.urgency === 'Emergent' ? 'error' : form.urgency === 'Urgent' ? 'warning' : 'default'} /></Grid>
-            <Grid item xs={6}><Typography variant="subtitle2" color="text.secondary">Insurance</Typography><Typography>{form.insurancePlan || 'Not specified'}</Typography></Grid>
+            <Grid item xs={12}>
+              <Typography variant="h6" gutterBottom>Review Your Request</Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="subtitle2" color="text.secondary">Patient</Typography>
+              <Typography>{form.patientName}</Typography>
+              <Typography variant="caption" color="text.secondary">{form.patientId}</Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="subtitle2" color="text.secondary">Service</Typography>
+              <Typography>{form.serviceType} {form.serviceCode ? `(CPT: ${form.serviceCode})` : ''}</Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="subtitle2" color="text.secondary">Urgency</Typography>
+              <Chip label={form.urgency} size="small"
+                color={form.urgency === 'Emergent' ? 'error' : form.urgency === 'Urgent' ? 'warning' : 'default'} />
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="subtitle2" color="text.secondary">Insurance</Typography>
+              <Typography>{form.insurancePlan || 'Not specified'}{form.memberId ? ` · ${form.memberId}` : ''}</Typography>
+            </Grid>
             {form.diagnosisCodes.length > 0 && (
               <Grid item xs={12}>
                 <Typography variant="subtitle2" color="text.secondary">Diagnosis Codes</Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
-                  {form.diagnosisCodes.map((d, i) => <Chip key={i} label={`${d.code}: ${d.description}`} size="small" variant="outlined" />)}
+                  {form.diagnosisCodes.map((d, i) => (
+                    <Chip key={i} label={`${d.code}: ${d.description}`} size="small" variant="outlined" />
+                  ))}
                 </Box>
               </Grid>
             )}
@@ -195,11 +251,15 @@ export default function CreatePriorAuth({ open, onClose, onCreated, prefillRefer
               <Typography variant="body2" sx={{ mt: 0.5 }}>{form.clinicalNotes}</Typography>
             </Grid>
             <Grid item xs={12}>
-              <Alert severity="info">After submission, our AI system will automatically analyze this request and provide a recommendation. You will be notified of the final decision.</Alert>
+              <Alert severity="info">
+                After submission, our AI system will automatically analyze this request and provide
+                a recommendation. You will be notified of the final decision.
+              </Alert>
             </Grid>
           </Grid>
         )}
       </DialogContent>
+
       <DialogActions>
         <Button onClick={handleClose}>Cancel</Button>
         {step > 0 && <Button onClick={() => setStep(s => s - 1)}>Back</Button>}

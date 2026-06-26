@@ -2,12 +2,12 @@ const mongoose = require('mongoose');
 
 const ReferralDisputeSchema = new mongoose.Schema({
   referralId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'Referral',
     required: true
   },
   initiatedBy: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'User',
     required: true
   },
@@ -34,7 +34,7 @@ const ReferralDisputeSchema = new mongoose.Schema({
   },
   resolvedAt: Date,
   resolvedBy: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'User'
   },
   resolution: String,

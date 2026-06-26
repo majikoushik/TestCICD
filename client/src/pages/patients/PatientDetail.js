@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { 
-  fetchPatientById, 
+import {
+  fetchPatientById,
   clearCurrentPatient,
-  selectCurrentPatient, 
-  selectPatientsLoading, 
-  selectPatientsError 
+  selectCurrentPatient,
+  selectPatientDetailLoading,
+  selectPatientsError
 } from '../../redux/slices/patientsSlice';
 import { createConsentRecord, exportPatientEHI } from '../../services/patientService';
 import fhirService from '../../services/fhirService';
@@ -79,7 +79,7 @@ export default function PatientDetail() {
   
   // Get state from Redux store using selectors
   const patient = useSelector(selectCurrentPatient);
-  const loading = useSelector(selectPatientsLoading);
+  const loading = useSelector(selectPatientDetailLoading);
   const error = useSelector(selectPatientsError);
   
   // Local UI state
@@ -303,7 +303,7 @@ export default function PatientDetail() {
                   {patient.name}
                 </Typography>
                 <Typography variant="subtitle1" color="text.secondary">
-                  ID: {patient.patientId} | {calculateAge(patient.birthDate)} years | {gender}
+                  ID: {patient.patientId} | {calculateAge(patient.dateOfBirth || patient.birthDate)} years | {gender}
                 </Typography>
               </Box>
             </Box>
@@ -346,7 +346,7 @@ export default function PatientDetail() {
                 Primary Provider
               </Typography>
               <Typography variant="body1">
-                {patient.primaryProvider}
+                {patient.primaryProviderName || patient.primaryProvider}
               </Typography>
             </Box>
           </Grid>
@@ -356,7 +356,7 @@ export default function PatientDetail() {
                 Date of Birth
               </Typography>
               <Typography variant="body1">
-                {formatDate(patient.birthDate)}
+                {formatDate(patient.dateOfBirth || patient.birthDate)}
               </Typography>
             </Box>
           </Grid>

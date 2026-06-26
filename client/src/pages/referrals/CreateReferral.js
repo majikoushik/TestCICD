@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as referralService from '../../services/referralService';
 import { ModernLoadingIndicator } from '../../components/common';
+import PatientSearchAutocomplete from '../../components/common/PatientSearchAutocomplete';
 import AIProviderSuggestions from '../../components/referral/AIProviderSuggestions';
 import {
   Box,
@@ -58,41 +59,19 @@ export default function CreateReferral() {
   const [referralSpecialty, setReferralSpecialty] = useState('');
 
   // Data for dropdowns
-  const [patients, setPatients] = useState([]);
   const [providers, setProviders] = useState([]);
   const [patientRecords, setPatientRecords] = useState([]);
   const [loading, setLoading] = useState({
-    patients: true,
     providers: true,
     records: false
   });
 
   useEffect(() => {
-    // Fetch patients
-    const fetchPatients = async () => {
-      try {
-        setLoading(prev => ({ ...prev, patients: true }));
-        
-        // Use the referralService to get patients
-        const response = await referralService.getPatients();
-        // Handle the response structure correctly - it may be wrapped in a data property
-        setPatients(response.data ? response.data : response);
-      } catch (err) {
-        console.error('Error fetching patients:', err);
-        setError('Failed to load patients. Please try again later.');
-      } finally {
-        setLoading(prev => ({ ...prev, patients: false }));
-      }
-    };
-    
     // Fetch providers
     const fetchProviders = async () => {
       try {
         setLoading(prev => ({ ...prev, providers: true }));
-        
-        // Use the referralService to get providers
         const response = await referralService.getProviders();
-        // Handle the response structure correctly - it may be wrapped in a data property
         setProviders(response.data ? response.data : response);
       } catch (err) {
         console.error('Error fetching providers:', err);
@@ -102,7 +81,6 @@ export default function CreateReferral() {
       }
     };
 
-    fetchPatients();
     fetchProviders();
   }, []);
 
@@ -254,38 +232,10 @@ export default function CreateReferral() {
             <Typography variant="h6" gutterBottom>
               Select Patient
             </Typography>
-            <Autocomplete
-              options={patients}
-              loading={loading.patients}
-              getOptionLabel={(option) => `${option.name} (${option.patientId})`}
+            <PatientSearchAutocomplete
+              required
               value={referralData.patient}
               onChange={handlePatientChange}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Patient"
-                  required
-                  InputProps={{
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {loading.patients ? <CircularProgress variant="button" color="inherit" size={20} /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
-                  }}
-                />
-              )}
-              renderOption={(props, option) => (
-                <li {...props}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                    <Typography variant="body1">{option.name}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {option.patientId} | DOB: {new Date(option.dateOfBirth).toLocaleDateString()}
-                    </Typography>
-                  </Box>
-                </li>
-              )}
               sx={{ mb: 3 }}
             />
             
@@ -316,7 +266,7 @@ export default function CreateReferral() {
                       Date of Birth
                     </Typography>
                     <Typography variant="body1">
-                      {new Date(referralData.patient.dateOfBirth).toLocaleDateString()}
+                      {new Date(referralData.patient.dateOfBirth || referralData.patient.birthDate).toLocaleDateString()}
                     </Typography>
                   </Grid>
                   <Grid item xs={12} sm={6}>
@@ -324,7 +274,9 @@ export default function CreateReferral() {
                       Gender
                     </Typography>
                     <Typography variant="body1">
-                      {referralData.patient.gender.charAt(0).toUpperCase() + referralData.patient.gender.slice(1)}
+                      {referralData.patient.gender
+                        ? referralData.patient.gender.charAt(0).toUpperCase() + referralData.patient.gender.slice(1)
+                        : '—'}
                     </Typography>
                   </Grid>
                 </Grid>

@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const ReferralTransactionSchema = new mongoose.Schema({
   referralId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'Referral',
     required: true
   },

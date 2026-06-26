@@ -42,7 +42,8 @@ const initialState = {
     pageSize: 10,
     totalItems: 0,
   },
-  loading: false,
+  listLoading: true,    // true so Patients page shows spinner immediately (no empty-state flash)
+  detailLoading: false,
   error: null,
 };
 
@@ -65,63 +66,39 @@ const patientsSlice = createSlice({
     builder
       // Handle fetchPatients
       .addCase(fetchPatients.pending, (state) => {
-        state.loading = true;
+        state.listLoading = true;
         state.error = null;
       })
       .addCase(fetchPatients.fulfilled, (state, action) => {
-        state.loading = false;
-        console.log('fetchPatients.fulfilled payload:', action.payload);
-        
-        // Handle nested response structure from mock API
-        if (action.payload && action.payload.data) {
-          console.log('Found nested data structure:', action.payload.data);
-          if (action.payload.data.patients) {
-            console.log('Found patients in nested data:', action.payload.data.patients.length);
-            state.patients = action.payload.data.patients;
-            state.pagination = {
-              ...state.pagination,
-              totalItems: action.payload.data.pagination?.total || 0,
-              currentPage: action.payload.data.pagination?.page || 0,
-              pageSize: action.payload.data.pagination?.limit || 10,
-              totalPages: action.payload.data.pagination?.pages || 0
-            };
-          }
-        } else if (action.payload && action.payload.patients) {
-          // Handle direct response structure
-          console.log('Found direct response structure with patients:', action.payload.patients.length);
-          state.patients = action.payload.patients;
-          state.pagination.totalItems = action.payload.totalCount || action.payload.patients.length;
-          state.pagination.totalPages = Math.ceil(state.pagination.totalItems / state.pagination.pageSize);
-        } else {
-          // Try to handle any other structure
-          console.log('No recognized structure, raw payload:', action.payload);
-          if (Array.isArray(action.payload)) {
-            console.log('Payload is an array, treating as patients array');
-            state.patients = action.payload;
-            state.pagination.totalItems = action.payload.length;
-            state.pagination.totalPages = Math.ceil(action.payload.length / state.pagination.pageSize);
-          } else {
-            // Fallback to empty array if no patients are found
-            console.warn('Could not extract patients from payload, using empty array');
-            state.patients = [];
-          }
-        }
+        state.listLoading = false;
+        // API returns { success, patients, pagination } directly
+        const payload = action.payload;
+        const patients = payload?.patients ?? (Array.isArray(payload) ? payload : []);
+        const pag = payload?.pagination;
+        state.patients = patients;
+        state.pagination = {
+          ...state.pagination,
+          totalItems: pag?.total ?? patients.length,
+          pageSize: pag?.limit ?? state.pagination.pageSize,
+          totalPages: pag?.pages ?? Math.ceil((pag?.total ?? patients.length) / state.pagination.pageSize),
+        };
       })
       .addCase(fetchPatients.rejected, (state, action) => {
-        state.loading = false;
+        state.listLoading = false;
         state.error = action.payload || 'Failed to fetch patients';
       })
       // Handle fetchPatientById
       .addCase(fetchPatientById.pending, (state) => {
-        state.loading = true;
+        state.detailLoading = true;
         state.error = null;
       })
       .addCase(fetchPatientById.fulfilled, (state, action) => {
-        state.loading = false;
-        state.currentPatient = action.payload;
+        state.detailLoading = false;
+        // API returns { success, data: patient } — unwrap the patient object
+        state.currentPatient = action.payload?.data || action.payload;
       })
       .addCase(fetchPatientById.rejected, (state, action) => {
-        state.loading = false;
+        state.detailLoading = false;
         state.error = action.payload || 'Failed to fetch patient details';
       });
   },
@@ -133,7 +110,8 @@ export const { setFilters, setPagination, clearCurrentPatient } = patientsSlice.
 // Export selectors
 export const selectAllPatients = (state) => state.patients.patients;
 export const selectCurrentPatient = (state) => state.patients.currentPatient;
-export const selectPatientsLoading = (state) => state.patients.loading;
+export const selectPatientsLoading = (state) => state.patients.listLoading;
+export const selectPatientDetailLoading = (state) => state.patients.detailLoading;
 export const selectPatientsError = (state) => state.patients.error;
 export const selectPatientsFilters = (state) => state.patients.filters;
 export const selectPatientsPagination = (state) => state.patients.pagination;

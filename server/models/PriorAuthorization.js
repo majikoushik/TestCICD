@@ -1,10 +1,10 @@
 const mongoose = require('mongoose');
 
 const priorAuthSchema = new mongoose.Schema({
-  referralId: { type: mongoose.Schema.Types.ObjectId, ref: 'Referral', default: null },
+  referralId: { type: String, ref: 'Referral', default: null },
   patientId: { type: String, required: true },
   patientName: { type: String, required: true },
-  requestingProviderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  requestingProviderId: { type: String, ref: 'User', required: true },
   requestingProviderName: { type: String, required: true },
   targetProviderName: { type: String, default: '' },
   serviceType: { type: String, required: true },
@@ -24,7 +24,7 @@ const priorAuthSchema = new mongoose.Schema({
   aiReasoning: { type: String, default: '' },
   aiAnalyzedAt: { type: Date, default: null },
   reviewerNotes: { type: String, default: '' },
-  reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  reviewedBy: { type: String, ref: 'User', default: null },
   reviewedAt: { type: Date, default: null },
   approvedDate: { type: Date, default: null },
   deniedDate: { type: Date, default: null },

@@ -1,60 +1,124 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 const { registerBlockchainIdentity } = require('../blockchain/identity');
+const ProviderProfile = require('../models/ProviderProfile');
+const { sendEmail, verificationEmailHtml } = require('../services/emailService');
 
 const MIN_PASSWORD_LENGTH = 8;
+
+const PROVIDER_ROLES = ['doctor', 'clinic', 'hospital', 'lab', 'provider'];
 
 // @route   POST api/auth/register
 // @access  Public
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, role, organization, specialty, firstName, lastName } = req.body;
+    const { name, email, password, role, organization, specialty, firstName, lastName,
+            npi, npiData, credential, phone, address } = req.body;
 
     if (!name || !email || !password || !role || !organization) {
+      console.log('[REGISTER] 400: missing fields', { name: !!name, email: !!email, password: !!password, role, organization: !!organization });
       return res.status(400).json({ success: false, error: 'Please provide name, email, password, role, and organization' });
     }
-
     if (password.length < MIN_PASSWORD_LENGTH) {
+      console.log('[REGISTER] 400: password too short');
       return res.status(400).json({ success: false, error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` });
     }
-
-    // Block self-registration as privileged roles
     const privilegedRoles = ['admin', 'superadmin'];
     if (privilegedRoles.includes(role)) {
       return res.status(403).json({ success: false, error: 'Cannot self-register with this role' });
     }
 
+    // NPI dedup check for provider roles
+    if (PROVIDER_ROLES.includes(role) && npi) {
+      const existingProfile = await ProviderProfile.findOne({ npi });
+      if (existingProfile) {
+        console.log('[REGISTER] 400: NPI already registered', npi);
+        const statusMsg = {
+          verified: 'This NPI is already registered and verified. Please sign in.',
+          under_review: 'This NPI is already registered and under review.',
+          pending_docs: 'This NPI is already registered. Please sign in to complete onboarding.',
+          pending_email: 'This NPI is already registered. Please check your email to verify.',
+          rejected: 'This NPI registration was rejected. Please contact support.',
+        };
+        return res.status(400).json({
+          success: false,
+          error: statusMsg[existingProfile.kycStatus] || 'This NPI is already registered.',
+          npiStatus: existingProfile.kycStatus,
+        });
+      }
+    }
+
     const existing = await User.findOne({ email });
     if (existing) {
-      return res.status(400).json({ success: false, error: 'User already exists' });
+      console.log('[REGISTER] 400: email already registered', email);
+      return res.status(400).json({ success: false, error: 'Email already registered' });
     }
 
-    const user = new User({ name, firstName, lastName, email, password, role, organization, specialty });
+    // Email verification token
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
 
-    // Register blockchain identity before first save so all data is persisted together
-    let blockchainId = null;
-    let walletAddress = null;
+    const user = new User({
+      _id: `user-${crypto.randomBytes(12).toString('hex')}`,
+      name, firstName: firstName || name.split(' ')[0],
+      lastName: lastName || name.split(' ').slice(1).join(' ') || name,
+      email, password, role, organization, specialty: specialty || '',
+      emailVerified: false,
+      emailVerificationToken: hashedToken,
+      emailVerificationExpiry: expiry,
+      onboardingStatus: 'pending_email',
+    });
+
+    // Blockchain identity (non-fatal)
     try {
-      const identity = await registerBlockchainIdentity(
-        // Use a temporary placeholder — will be updated after save gives us _id
-        'temp',
-        role,
-        organization
-      );
-      blockchainId = identity.blockchainId;
-      walletAddress = identity.walletAddress;
-    } catch (blockchainError) {
-      console.error('Blockchain registration error (non-fatal):', blockchainError.message);
+      const { registerBlockchainIdentity } = require('../blockchain/identity');
+      const identity = await registerBlockchainIdentity('temp', role, organization);
+      user.blockchainId = identity.blockchainId;
+      user.walletAddress = identity.walletAddress;
+    } catch (e) {
+      console.error('Blockchain registration error (non-fatal):', e.message);
     }
 
-    user.blockchainId = blockchainId;
-    user.walletAddress = walletAddress;
     user.lastLogin = new Date();
-
     await user.save();
+
+    // Create ProviderProfile for provider-type roles
+    if (PROVIDER_ROLES.includes(role)) {
+      try {
+        const profile = new ProviderProfile({
+          userId: user._id,
+          npi: npi || null,
+          npiData: npiData || {},
+          credential: credential || '',
+          specialty: specialty || (npiData?.specialty) || '',
+          phone: phone || (npiData?.address?.phone) || '',
+          address: address || npiData?.address || {},
+          onboardingSteps: { profile_created: true },
+          kycStatus: 'pending_email',
+        });
+        await profile.save();
+      } catch (profileErr) {
+        console.error('ProviderProfile creation error (non-fatal):', profileErr.message);
+      }
+    }
+
+    // Send verification email
+    let emailSent = true;
+    try {
+      await sendEmail({
+        to: email,
+        subject: 'Verify your ClinicTrust AI account',
+        html: verificationEmailHtml(user.firstName || user.name, rawToken),
+      });
+    } catch (emailErr) {
+      emailSent = false;
+      console.error('[AUTH] Verification email failed:', emailErr.message);
+    }
 
     const token = jwt.sign(
       { id: user._id, role: user.role, organization: user.organization },
@@ -66,6 +130,9 @@ router.post('/register', async (req, res) => {
       success: true,
       token,
       user: buildUserPayload(user),
+      message: emailSent
+        ? 'Registration successful. Please check your email to verify your account.'
+        : 'Registration successful. Verification email could not be sent — check server logs or use Resend Verification.',
     });
   } catch (error) {
     console.error('Registration error:', error.message);
@@ -269,8 +336,75 @@ router.post('/change-password', protect, async (req, res) => {
   }
 });
 
+// @route   GET api/auth/verify-email?token=xxx
+// @access  Public
+router.get('/verify-email', async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) {
+      return res.status(400).json({ success: false, error: 'Verification token is required' });
+    }
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await User.findOne({
+      emailVerificationToken: hashedToken,
+      emailVerificationExpiry: { $gt: new Date() },
+    }).select('+emailVerificationToken +emailVerificationExpiry');
+
+    if (!user) {
+      return res.status(400).json({ success: false, error: 'Invalid or expired verification link. Please request a new one.' });
+    }
+
+    user.emailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpiry = undefined;
+    user.onboardingStatus = 'pending_docs';
+    await user.save();
+
+    // Update provider profile
+    await ProviderProfile.findOneAndUpdate(
+      { userId: user._id },
+      { 'onboardingSteps.email_verified': true, kycStatus: 'pending_docs' }
+    );
+
+    res.json({ success: true, message: 'Email verified successfully.' });
+  } catch (err) {
+    console.error('Email verification error:', err.message);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// @route   POST api/auth/resend-verification
+// @access  Private
+router.post('/resend-verification', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('+emailVerificationToken +emailVerificationExpiry');
+    if (!user) return res.status(404).json({ success: false, error: 'User not found' });
+    if (user.emailVerified) return res.status(400).json({ success: false, error: 'Email already verified' });
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+    user.emailVerificationToken = hashedToken;
+    user.emailVerificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await user.save();
+
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: 'Verify your ClinicTrust AI account',
+        html: verificationEmailHtml(user.firstName || user.name, rawToken),
+      });
+      res.json({ success: true, message: 'Verification email sent.' });
+    } catch (emailErr) {
+      console.error('[AUTH] Resend verification email failed:', emailErr.message);
+      res.json({ success: true, message: 'Email delivery failed — check server logs for the verification link.' });
+    }
+  } catch (err) {
+    console.error('Resend verification error:', err.message);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
 // Build a consistent, safe user payload for API responses.
-// profileImage is intentionally omitted — it is not stored in the User model.
 function buildUserPayload(user) {
   return {
     id: user._id,
@@ -286,6 +420,8 @@ function buildUserPayload(user) {
     tokenBalance: user.tokenBalance,
     lastLogin: user.lastLogin,
     profileImage: user.profileImage || null,
+    emailVerified: user.emailVerified,
+    onboardingStatus: user.onboardingStatus,
   };
 }
 

@@ -46,7 +46,7 @@ const AIReportSchema = new mongoose.Schema({
     },
     comment: String,
     submittedBy: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: 'User',
       required: true
     },
@@ -62,7 +62,7 @@ const AIReportSchema = new mongoose.Schema({
       required: true
     },
     reviewer: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: 'User'
     },
     comments: String,
@@ -73,7 +73,7 @@ const AIReportSchema = new mongoose.Schema({
   }],
   scheduledReports: [{
     recipientId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: String,
       ref: 'User',
       required: true
     },
@@ -93,7 +93,7 @@ const AIReportSchema = new mongoose.Schema({
     }
   }],
   createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'User',
     required: true
   },

@@ -6,16 +6,16 @@ import { ModernLoadingIndicator } from './components/common';
 // Layouts - Keep these as regular imports since they're critical for the app structure
 import { MainLayout, AuthLayout, LandingLayout, AdminLayout } from './layouts';
 
-// Direct imports for all page components
+// Auth pages are eagerly imported — they're the entry point for every user and
+// lazy-loading them triggers the React Suspense "synchronous input" warning.
+import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import AdminLogin from './pages/admin/AdminLogin';
+
 // Landing Page
 const LandingPage = lazy(() => import('./pages/landing/LandingPage'));
 const ContactPage = lazy(() => import('./pages/contact/ContactPage'));
-
-// Auth Pages
-const Login = lazy(() => import('./pages/auth/Login'));
-const Register = lazy(() => import('./pages/auth/Register'));
-const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
-const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
 
 // Dashboard Pages
 const Dashboard = lazy(() => import('./pages/dashboard/Dashboard'));
@@ -92,9 +92,14 @@ const DtxMarketplace = lazy(() => import('./pages/dtx/DtxMarketplace'));
 const DtxPrescriptions = lazy(() => import('./pages/dtx/DtxPrescriptions'));
 const AdminDtxManagement = lazy(() => import('./pages/admin/AdminDtxManagement'));
 const AdminContacts = lazy(() => import('./pages/admin/AdminContacts'));
+const AdminKYC = lazy(() => import('./pages/admin/AdminKYC'));
 
 // Ambient Clinical Intelligence (provider)
 const AmbientRecorder = lazy(() => import('./pages/ambient/AmbientRecorder'));
+
+// Onboarding Pages
+const VerifyEmail = lazy(() => import('./pages/auth/VerifyEmail'));
+const OnboardingWall = lazy(() => import('./pages/onboarding/OnboardingWall'));
 
 // FHIR Pages
 const FHIRExplorer = lazy(() => import('./pages/fhir/FHIRExplorer'));
@@ -103,17 +108,18 @@ const PriorAuth = lazy(() => import('./pages/prior-auth/PriorAuth'));
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const { currentUser, loading, error } = useAuth();
-  
+
   if (loading) {
     return <ModernLoadingIndicator fullPage message="Loading your profile..." variant="pulse" color="primary" />;
   }
-  
-  if (error) {
+  if (error || !currentUser) {
     return <Navigate to="/login" />;
   }
 
-  if (!currentUser) {
-    return <Navigate to="/login" />;
+  // Admin/superadmin bypass onboarding
+  const skipOnboarding = ['admin', 'superadmin'].includes(currentUser.role);
+  if (!skipOnboarding && currentUser.onboardingStatus !== 'verified') {
+    return <Navigate to="/onboarding" />;
   }
 
   return children;
@@ -165,30 +171,24 @@ function App() {
             <ContactPage />
           </Suspense>
         } />
+        <Route path="verify-email" element={
+          <Suspense fallback={<PageLoadingFallback />}>
+            <VerifyEmail />
+          </Suspense>
+        } />
+        <Route path="onboarding" element={
+          <Suspense fallback={<PageLoadingFallback />}>
+            <OnboardingWall />
+          </Suspense>
+        } />
       </Route>
       
       {/* Auth Routes */}
       <Route element={<AuthLayout />}>
-        <Route path="/login" element={
-          <Suspense fallback={<PageLoadingFallback />}>
-            <Login />
-          </Suspense>
-        } />
-        <Route path="/register" element={
-          <Suspense fallback={<PageLoadingFallback />}>
-            <Register />
-          </Suspense>
-        } />
-        <Route path="/forgot-password" element={
-          <Suspense fallback={<PageLoadingFallback />}>
-            <ForgotPassword />
-          </Suspense>
-        } />
-        <Route path="/admin/login" element={
-          <Suspense fallback={<PageLoadingFallback />}>
-            <AdminLogin />
-          </Suspense>
-        } />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
       </Route>
       
       {/* Protected Routes - Use specific path instead of empty string */}
@@ -479,6 +479,11 @@ function App() {
         <Route path="contacts" element={
           <Suspense fallback={<PageLoadingFallback />}>
             <AdminContacts />
+          </Suspense>
+        } />
+        <Route path="kyc" element={
+          <Suspense fallback={<PageLoadingFallback />}>
+            <AdminKYC />
           </Suspense>
         } />
       </Route>

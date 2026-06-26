@@ -1,35 +1,59 @@
-// MongoDB script to populate database with mock data
-// Save this as populate_db.js and run with: mongo populate_db.js
+﻿// Database populate script — run with: npm run populate_db
+// Drops and recreates all collections with fresh sample data.
+require('dotenv').config();
+const mongoose = require('mongoose');
+const { ObjectId } = mongoose.Types;
 
-// Connect to database (update with your connection details)
-// If you're using MongoDB Atlas, you'll need to use a connection string instead
-const dbName = "clinictrustai";
-db = db.getSiblingDB(dbName);
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/clinictrustai';
 
-// Clear existing collections to avoid duplicates
-db.users.drop();
-db.patients.drop();
-db.referrals.drop();
-db.analytics.drop();
-db.tokenTransactions.drop();
-db.tokenServices.drop();
-db.tokenEarnSources.drop();
-db.medicalRecords.drop();
-db.consentRecords.drop();
-db.systemStatus.drop();
-db.settings.drop();
-db.activities.drop();
-db.broadcastMessages.drop();
-db.targetedAlerts.drop();
-db.escalationWorkflows.drop();
-db.adminSettings.drop();
-db.referralTransactions.drop();
-db.referralDisputes.drop();
-db.aiReports.drop();
-db.ehi_audit_logs.drop();
+async function main() {
+  console.log('Connecting to MongoDB...');
+  await mongoose.connect(MONGO_URI);
+  const db = mongoose.connection.db;
+  console.log('Connected. Dropping and recreating all collections...\n');
+
+// ── Drop ALL collections for a clean slate ───────────────────────────────
+await db.collection('users').drop().catch(() => {});
+await db.collection('patients').drop().catch(() => {});
+await db.collection('referrals').drop().catch(() => {});
+await db.collection('analytics').drop().catch(() => {});
+await db.collection('tokenTransactions').drop().catch(() => {});
+await db.collection('tokenServices').drop().catch(() => {});
+await db.collection('tokenEarnSources').drop().catch(() => {});
+await db.collection('medicalRecords').drop().catch(() => {});
+await db.collection('consentRecords').drop().catch(() => {});
+await db.collection('systemStatus').drop().catch(() => {});
+await db.collection('settings').drop().catch(() => {});
+await db.collection('activities').drop().catch(() => {});
+await db.collection('broadcastMessages').drop().catch(() => {});
+await db.collection('targetedAlerts').drop().catch(() => {});
+await db.collection('escalationWorkflows').drop().catch(() => {});
+await db.collection('adminSettings').drop().catch(() => {});
+await db.collection('referralTransactions').drop().catch(() => {});
+await db.collection('referralDisputes').drop().catch(() => {});
+await db.collection('aiReports').drop().catch(() => {});
+await db.collection('ehi_audit_logs').drop().catch(() => {});
+await db.collection('providerprofiles').drop().catch(() => {});
+await db.collection('priorauthorizations').drop().catch(() => {});
+await db.collection('appointments').drop().catch(() => {});
+await db.collection('appointmenttypes').drop().catch(() => {});
+await db.collection('providerschedules').drop().catch(() => {});
+await db.collection('scheduleexceptions').drop().catch(() => {});
+await db.collection('waitlistentries').drop().catch(() => {});
+await db.collection('dtxprescriptions').drop().catch(() => {});
+await db.collection('dtxprograms').drop().catch(() => {});
+await db.collection('contacts').drop().catch(() => {});
+await db.collection('ambientSessions').drop().catch(() => {});
+await db.collection('providerMatchProfiles').drop().catch(() => {});
+await db.collection('notificationtemplates').drop().catch(() => {});
+await db.collection('patientnotifications').drop().catch(() => {});
+await db.collection('notificationcampaigns').drop().catch(() => {});
 
 // Create users collection
-print("Creating users collection...");
+// Password hash for "Demo1234!" with bcrypt cost 10
+const DEMO_PASSWORD_HASH = "$2a$10$tt2ByN.Kwh8N117aBIDNs.uF6q8wIcYlRzK1LWcwyrpR85iMNNoli";
+
+console.log("Creating users collection...");
 const users = [
   {
     _id: "user-1",
@@ -37,14 +61,20 @@ const users = [
     firstName: "Admin",
     lastName: "User",
     email: "admin@clinictrustai.com",
+    password: DEMO_PASSWORD_HASH,
     role: "admin",
     organization: "ClinicTrust Health Network",
     specialty: "Healthcare Administration",
     walletAddress: "0xAB23F890CD45E67A8B901C2D3E456F78D9A0B1C2",
     isActive: true,
+    accountStatus: "approved",
+    kycVerified: true,
+    emailVerified: true,
+    onboardingStatus: "verified",
+    loginAttempts: 0,
     createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
     lastLogin: new Date(),
-    profileImage: "https://i.pravatar.cc/150?u=user-1",
+    profileImage: null,
     status: "active",
     blockchainId: "0x1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t",
     verificationStatus: "verified",
@@ -56,14 +86,20 @@ const users = [
     firstName: "John",
     lastName: "Smith",
     email: "john.smith@clinictrustai.com",
+    password: DEMO_PASSWORD_HASH,
     role: "doctor",
     organization: "Metro Heart Institute",
     specialty: "Cardiology",
     walletAddress: "0xBC34D567EF89A01B2C3D4E5F67890A1B2C3D4E5F",
     isActive: true,
+    accountStatus: "approved",
+    kycVerified: true,
+    emailVerified: true,
+    onboardingStatus: "verified",
+    loginAttempts: 0,
     createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000),
     lastLogin: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-    profileImage: "https://i.pravatar.cc/150?u=user-2",
+    profileImage: null,
     status: "active",
     blockchainId: "0x2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u",
     verificationStatus: "verified",
@@ -75,14 +111,20 @@ const users = [
     firstName: "Sarah",
     lastName: "Johnson",
     email: "sarah.johnson@clinictrustai.com",
-    role: "nurse",
+    password: DEMO_PASSWORD_HASH,
+    role: "provider",
     organization: "Community Care Hospital",
     specialty: "Pediatric Nursing",
     walletAddress: "0xDE45F678AB90C12D3E4F56789A0B1C2D3E4F5678",
     isActive: true,
+    accountStatus: "approved",
+    kycVerified: true,
+    emailVerified: true,
+    onboardingStatus: "verified",
+    loginAttempts: 0,
     createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
     lastLogin: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-    profileImage: "https://i.pravatar.cc/150?u=user-3",
+    profileImage: null,
     status: "active",
     blockchainId: "0x3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v",
     verificationStatus: "verified",
@@ -94,14 +136,20 @@ const users = [
     firstName: "Michael",
     lastName: "Chen",
     email: "michael.chen@clinictrustai.com",
+    password: DEMO_PASSWORD_HASH,
     role: "doctor",
     organization: "Neuroscience Medical Center",
     specialty: "Neurology",
     walletAddress: "0xEF56789AB01C2D3E4F56789A0B1C2D3E4F56789A",
     isActive: true,
+    accountStatus: "approved",
+    kycVerified: true,
+    emailVerified: true,
+    onboardingStatus: "verified",
+    loginAttempts: 0,
     createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
     lastLogin: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-    profileImage: "https://i.pravatar.cc/150?u=user-4",
+    profileImage: null,
     status: "active",
     blockchainId: "0x4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w",
     verificationStatus: "verified",
@@ -113,96 +161,438 @@ const users = [
     firstName: "Robert",
     lastName: "Williams",
     email: "robert.williams@clinictrustai.com",
+    password: DEMO_PASSWORD_HASH,
     role: "doctor",
     organization: "Westside Family Medicine",
     specialty: "General Practice",
     walletAddress: "0xF6789AB01C2D3E4F56789A0B1C2D3E4F56789AB0",
     isActive: true,
+    accountStatus: "approved",
+    kycVerified: true,
+    emailVerified: true,
+    onboardingStatus: "verified",
+    loginAttempts: 0,
     createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
     lastLogin: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-    profileImage: "https://i.pravatar.cc/150?u=user-5",
+    profileImage: null,
     status: "active",
     blockchainId: "0x5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x",
     verificationStatus: "verified",
     tokenBalance: 290
   }
 ];
-db.users.insertMany(users);
+await db.collection('users').insertMany(users);
 
 // Create patients collection
-print("Creating patients collection...");
+console.log("Creating patients collection...");
 const patients = [
   {
     _id: "patient-1",
     patientId: "PT-100001",
+    name: "James Wilson",
     firstName: "James",
     lastName: "Wilson",
-    email: "james.wilson@example.com",
-    gender: "Male",
-    birthDate: new Date(1975, 3, 12).toISOString(),
+    dateOfBirth: new Date(1975, 3, 12),
+    gender: "male",
     contactInfo: {
+      email: "james.wilson@example.com",
       phone: "(555) 123-4567",
-      address: "123 Main St, Anytown, USA"
+      address: "123 Main St, Anytown, NY 10001"
     },
     insuranceInfo: {
       provider: "HealthPlus Insurance",
       policyNumber: "HP-987654321",
       groupNumber: "G-12345"
     },
-    primaryProvider: "Dr. John Smith",
+    primaryProvider: "user-2",
     riskScore: 75,
+    medicalHistory: [
+      { condition: "Hypertension", diagnosedDate: new Date(2018, 2, 10), notes: "Stage 1 hypertension; managed with lifestyle changes and medication." },
+      { condition: "Type 2 Diabetes", diagnosedDate: new Date(2020, 8, 15), notes: "HbA1c 7.2%; on Metformin 500mg twice daily." }
+    ],
+    medications: [
+      { name: "Lisinopril", dosage: "10mg", frequency: "Once daily", startDate: new Date(2018, 3, 1) },
+      { name: "Metformin", dosage: "500mg", frequency: "Twice daily with meals", startDate: new Date(2020, 9, 1) },
+      { name: "Aspirin", dosage: "81mg", frequency: "Once daily", startDate: new Date(2019, 0, 15) }
+    ],
+    allergies: [
+      { allergen: "Penicillin", reaction: "Rash and hives", severity: "Moderate" },
+      { allergen: "Shellfish", reaction: "Anaphylaxis", severity: "Severe" }
+    ],
+    recentVisits: [
+      { date: new Date(2026, 4, 15), provider: "Dr. John Smith", reason: "Diabetes follow-up", notes: "HbA1c improved to 7.0%. Continue current regimen." },
+      { date: new Date(2026, 2, 3), provider: "Dr. John Smith", reason: "Annual physical", notes: "BP 138/88. Adjusted Lisinopril dosage." },
+      { date: new Date(2025, 11, 10), provider: "Dr. John Smith", reason: "Hypertension check", notes: "BP trending down. Good medication adherence." }
+    ],
     createdAt: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000),
     updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
   },
   {
     _id: "patient-2",
     patientId: "PT-100002",
+    name: "Emily Rodriguez",
     firstName: "Emily",
     lastName: "Rodriguez",
-    email: "emily.rodriguez@example.com",
-    gender: "Female",
-    birthDate: new Date(1988, 7, 23).toISOString(),
+    dateOfBirth: new Date(1988, 7, 23),
+    gender: "female",
     contactInfo: {
+      email: "emily.rodriguez@example.com",
       phone: "(555) 234-5678",
-      address: "456 Oak Ave, Somewhere, USA"
+      address: "456 Oak Ave, Miami, FL 33101"
     },
     insuranceInfo: {
       provider: "MediCare Plus",
       policyNumber: "MC-123456789",
       groupNumber: "G-67890"
     },
-    primaryProvider: "Dr. Sarah Johnson",
+    primaryProvider: "user-2",
     riskScore: 45,
+    medicalHistory: [
+      { condition: "Asthma", diagnosedDate: new Date(2005, 6, 20), notes: "Mild persistent asthma; well-controlled with inhaler." },
+      { condition: "Iron Deficiency Anemia", diagnosedDate: new Date(2022, 1, 14), notes: "Hemoglobin 10.2 g/dL. On iron supplementation." }
+    ],
+    medications: [
+      { name: "Albuterol", dosage: "90mcg", frequency: "As needed for asthma symptoms", startDate: new Date(2005, 7, 1) },
+      { name: "Fluticasone", dosage: "100mcg", frequency: "Twice daily", startDate: new Date(2010, 0, 1) },
+      { name: "Ferrous Sulfate", dosage: "325mg", frequency: "Once daily with orange juice", startDate: new Date(2022, 2, 1) }
+    ],
+    allergies: [
+      { allergen: "NSAIDs (Ibuprofen)", reaction: "Bronchospasm", severity: "Severe" }
+    ],
+    recentVisits: [
+      { date: new Date(2026, 5, 1), provider: "Dr. John Smith", reason: "Asthma management review", notes: "Peak flow improved. Reducing inhaler frequency." },
+      { date: new Date(2026, 2, 20), provider: "Dr. John Smith", reason: "Anemia follow-up", notes: "Hemoglobin 11.8 g/dL. Good response to iron therapy." }
+    ],
     createdAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
     updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
   },
   {
     _id: "patient-3",
     patientId: "PT-100003",
+    name: "Thomas Brown",
     firstName: "Thomas",
     lastName: "Brown",
-    email: "thomas.brown@example.com",
-    gender: "Male",
-    birthDate: new Date(1965, 11, 5).toISOString(),
+    dateOfBirth: new Date(1965, 11, 5),
+    gender: "male",
     contactInfo: {
+      email: "thomas.brown@example.com",
       phone: "(555) 345-6789",
-      address: "789 Pine St, Elsewhere, USA"
+      address: "789 Pine St, Chicago, IL 60601"
     },
     insuranceInfo: {
       provider: "Blue Shield",
       policyNumber: "BS-567891234",
       groupNumber: "G-24680"
     },
-    primaryProvider: "Dr. Michael Chen",
+    primaryProvider: "user-2",
     riskScore: 85,
+    medicalHistory: [
+      { condition: "Coronary Artery Disease", diagnosedDate: new Date(2015, 4, 10), notes: "Stent placed in LAD 2015. On dual antiplatelet therapy." },
+      { condition: "Hyperlipidemia", diagnosedDate: new Date(2012, 9, 8), notes: "LDL 110 mg/dL on statin therapy." },
+      { condition: "COPD", diagnosedDate: new Date(2019, 1, 28), notes: "Gold Stage II. Former smoker, quit 2018." }
+    ],
+    medications: [
+      { name: "Atorvastatin", dosage: "40mg", frequency: "Once daily at bedtime", startDate: new Date(2012, 10, 1) },
+      { name: "Clopidogrel", dosage: "75mg", frequency: "Once daily", startDate: new Date(2015, 5, 1) },
+      { name: "Tiotropium", dosage: "18mcg", frequency: "Once daily via inhaler", startDate: new Date(2019, 2, 1) },
+      { name: "Metoprolol", dosage: "25mg", frequency: "Twice daily", startDate: new Date(2015, 5, 1) }
+    ],
+    allergies: [
+      { allergen: "ACE Inhibitors", reaction: "Angioedema", severity: "Severe" },
+      { allergen: "Latex", reaction: "Contact dermatitis", severity: "Mild" }
+    ],
+    recentVisits: [
+      { date: new Date(2026, 5, 10), provider: "Dr. John Smith", reason: "Cardiology follow-up", notes: "EKG unchanged. Ejection fraction 55%. Stable." },
+      { date: new Date(2026, 3, 5), provider: "Dr. John Smith", reason: "COPD exacerbation", notes: "Prescribed short-course prednisone. Spirometry scheduled." },
+      { date: new Date(2026, 0, 18), provider: "Dr. John Smith", reason: "Annual cardiac review", notes: "Stress test normal. Continue current regimen." }
+    ],
     createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
     updatedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000)
+  },
+  {
+    _id: "patient-4",
+    patientId: "PT-100004",
+    name: "Maria Garcia",
+    firstName: "Maria",
+    lastName: "Garcia",
+    dateOfBirth: new Date(1980, 5, 18),
+    gender: "female",
+    contactInfo: {
+      email: "maria.garcia@example.com",
+      phone: "(555) 456-7890",
+      address: "321 Elm St, Houston, TX 77001"
+    },
+    insuranceInfo: {
+      provider: "Aetna Health",
+      policyNumber: "AH-112233445",
+      groupNumber: "G-55500"
+    },
+    primaryProvider: "user-2",
+    riskScore: 60,
+    medicalHistory: [
+      { condition: "Hypothyroidism", diagnosedDate: new Date(2016, 3, 22), notes: "TSH 6.8 at diagnosis. Now TSH 2.1 on Levothyroxine." },
+      { condition: "Migraine", diagnosedDate: new Date(2010, 7, 5), notes: "Chronic migraines 3–4x/month. Triggers: stress, hormonal changes." }
+    ],
+    medications: [
+      { name: "Levothyroxine", dosage: "75mcg", frequency: "Once daily on empty stomach", startDate: new Date(2016, 4, 1) },
+      { name: "Sumatriptan", dosage: "50mg", frequency: "As needed for migraines (max 2/day)", startDate: new Date(2011, 0, 15) },
+      { name: "Propranolol", dosage: "40mg", frequency: "Twice daily for migraine prevention", startDate: new Date(2018, 6, 1) }
+    ],
+    allergies: [
+      { allergen: "Sulfa drugs", reaction: "Rash", severity: "Moderate" }
+    ],
+    recentVisits: [
+      { date: new Date(2026, 4, 28), provider: "Dr. John Smith", reason: "Thyroid management", notes: "TSH 2.4 — well controlled. Continue current dose." },
+      { date: new Date(2026, 1, 14), provider: "Dr. John Smith", reason: "Migraine frequency review", notes: "Frequency reduced to 1–2x/month on propranolol. Good response." }
+    ],
+    createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+  },
+  {
+    _id: "patient-5",
+    patientId: "PT-100005",
+    name: "David Lee",
+    firstName: "David",
+    lastName: "Lee",
+    dateOfBirth: new Date(1955, 9, 30),
+    gender: "male",
+    contactInfo: {
+      email: "david.lee@example.com",
+      phone: "(555) 567-8901",
+      address: "654 Maple Ave, Seattle, WA 98101"
+    },
+    insuranceInfo: {
+      provider: "Medicare",
+      policyNumber: "MC-998877665",
+      groupNumber: "G-77700"
+    },
+    primaryProvider: "user-2",
+    riskScore: 90,
+    medicalHistory: [
+      { condition: "Chronic Kidney Disease Stage 3", diagnosedDate: new Date(2017, 8, 12), notes: "eGFR 42 mL/min. Dietary protein restriction advised." },
+      { condition: "Atrial Fibrillation", diagnosedDate: new Date(2019, 11, 3), notes: "Paroxysmal AFib. On anticoagulation." },
+      { condition: "Osteoarthritis", diagnosedDate: new Date(2014, 5, 20), notes: "Bilateral knee involvement. Managed conservatively." }
+    ],
+    medications: [
+      { name: "Rivaroxaban", dosage: "20mg", frequency: "Once daily with evening meal", startDate: new Date(2020, 0, 10) },
+      { name: "Furosemide", dosage: "20mg", frequency: "Once daily", startDate: new Date(2018, 2, 1) },
+      { name: "Calcium Carbonate", dosage: "500mg", frequency: "Three times daily with meals", startDate: new Date(2017, 9, 1) },
+      { name: "Acetaminophen", dosage: "500mg", frequency: "Every 6 hours as needed for pain", startDate: new Date(2015, 0, 1) }
+    ],
+    allergies: [
+      { allergen: "NSAIDs", reaction: "Acute kidney injury", severity: "Severe" },
+      { allergen: "Contrast dye", reaction: "Nephrotoxicity", severity: "Severe" }
+    ],
+    recentVisits: [
+      { date: new Date(2026, 5, 15), provider: "Dr. John Smith", reason: "CKD monitoring", notes: "eGFR stable at 40. Creatinine 1.8. Continue current management." },
+      { date: new Date(2026, 3, 2), provider: "Dr. John Smith", reason: "AFib follow-up", notes: "Rate controlled. INR therapeutic. No new episodes reported." },
+      { date: new Date(2026, 1, 20), provider: "Dr. John Smith", reason: "Knee pain assessment", notes: "Referred to orthopedics for evaluation of knee replacement." }
+    ],
+    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
+  },
+  {
+    _id: "patient-6",
+    patientId: "PT-100006",
+    name: "Aisha Patel",
+    firstName: "Aisha",
+    lastName: "Patel",
+    dateOfBirth: new Date(1992, 2, 8),
+    gender: "female",
+    contactInfo: {
+      email: "aisha.patel@example.com",
+      phone: "(555) 678-9012",
+      address: "88 Lotus Lane, San Jose, CA 95101"
+    },
+    insuranceInfo: {
+      provider: "Cigna Health",
+      policyNumber: "CG-334455667",
+      groupNumber: "G-88800"
+    },
+    primaryProvider: "user-2",
+    riskScore: 30,
+    medicalHistory: [
+      { condition: "Polycystic Ovary Syndrome (PCOS)", diagnosedDate: new Date(2014, 9, 12), notes: "Managed with lifestyle modification and oral contraceptives." },
+      { condition: "Anxiety Disorder", diagnosedDate: new Date(2018, 4, 3), notes: "Generalized anxiety; on SSRI with good response." }
+    ],
+    medications: [
+      { name: "Sertraline", dosage: "50mg", frequency: "Once daily in the morning", startDate: new Date(2018, 5, 1) },
+      { name: "Metformin", dosage: "500mg", frequency: "Once daily with dinner", startDate: new Date(2016, 1, 1) }
+    ],
+    allergies: [
+      { allergen: "Amoxicillin", reaction: "Urticaria", severity: "Mild" }
+    ],
+    recentVisits: [
+      { date: new Date(2026, 5, 5), provider: "Dr. John Smith", reason: "Annual wellness visit", notes: "All labs within normal limits. Anxiety well-managed." },
+      { date: new Date(2026, 2, 12), provider: "Dr. John Smith", reason: "PCOS review", notes: "Regular cycles. Weight stable. Continue current plan." }
+    ],
+    createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+  },
+  {
+    _id: "patient-7",
+    patientId: "PT-100007",
+    name: "Robert Johnson",
+    firstName: "Robert",
+    lastName: "Johnson",
+    dateOfBirth: new Date(1948, 6, 4),
+    gender: "male",
+    contactInfo: {
+      email: "robert.johnson@example.com",
+      phone: "(555) 789-0123",
+      address: "200 Freedom Dr, Atlanta, GA 30301"
+    },
+    insuranceInfo: {
+      provider: "Humana Gold",
+      policyNumber: "HG-776655443",
+      groupNumber: "G-33300"
+    },
+    primaryProvider: "user-2",
+    riskScore: 88,
+    medicalHistory: [
+      { condition: "Congestive Heart Failure", diagnosedDate: new Date(2016, 7, 22), notes: "HFrEF, EF 35%. Compensated on medical therapy." },
+      { condition: "Type 2 Diabetes", diagnosedDate: new Date(2008, 3, 14), notes: "HbA1c 8.1%. On insulin." },
+      { condition: "Hypertension", diagnosedDate: new Date(2005, 10, 30), notes: "BP 145/90 on combination therapy." }
+    ],
+    medications: [
+      { name: "Carvedilol", dosage: "12.5mg", frequency: "Twice daily with food", startDate: new Date(2016, 8, 1) },
+      { name: "Sacubitril/Valsartan", dosage: "49/51mg", frequency: "Twice daily", startDate: new Date(2018, 3, 1) },
+      { name: "Insulin Glargine", dosage: "20 units", frequency: "Once nightly", startDate: new Date(2015, 0, 1) },
+      { name: "Spironolactone", dosage: "25mg", frequency: "Once daily", startDate: new Date(2017, 1, 1) }
+    ],
+    allergies: [
+      { allergen: "Aspirin", reaction: "GI bleeding history", severity: "Moderate" }
+    ],
+    recentVisits: [
+      { date: new Date(2026, 5, 18), provider: "Dr. John Smith", reason: "CHF management", notes: "Weight stable, no edema. EF improved to 40%." },
+      { date: new Date(2026, 4, 2), provider: "Dr. John Smith", reason: "Diabetes management", notes: "HbA1c 7.8%. Adjusting insulin to 22 units nightly." },
+      { date: new Date(2026, 2, 15), provider: "Dr. John Smith", reason: "Hypertension review", notes: "BP 138/86. Good response to regimen." }
+    ],
+    createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+  },
+  {
+    _id: "patient-8",
+    patientId: "PT-100008",
+    name: "Sophia Kim",
+    firstName: "Sophia",
+    lastName: "Kim",
+    dateOfBirth: new Date(2001, 10, 17),
+    gender: "female",
+    contactInfo: {
+      email: "sophia.kim@example.com",
+      phone: "(555) 890-1234",
+      address: "15 Cherry Blossom Ct, Portland, OR 97201"
+    },
+    insuranceInfo: {
+      provider: "UnitedHealth",
+      policyNumber: "UH-221133445",
+      groupNumber: "G-11100"
+    },
+    primaryProvider: "user-2",
+    riskScore: 20,
+    medicalHistory: [
+      { condition: "Seasonal Allergic Rhinitis", diagnosedDate: new Date(2012, 3, 5), notes: "Pollen and dust mite allergy confirmed by skin prick test." }
+    ],
+    medications: [
+      { name: "Cetirizine", dosage: "10mg", frequency: "Once daily during allergy season", startDate: new Date(2014, 2, 1) },
+      { name: "Fluticasone Nasal Spray", dosage: "50mcg", frequency: "2 sprays per nostril once daily", startDate: new Date(2015, 2, 1) }
+    ],
+    allergies: [
+      { allergen: "Tree pollen", reaction: "Rhinorrhea, sneezing, itchy eyes", severity: "Mild" },
+      { allergen: "Dust mites", reaction: "Nasal congestion, wheezing", severity: "Mild" }
+    ],
+    recentVisits: [
+      { date: new Date(2026, 4, 20), provider: "Dr. John Smith", reason: "Allergy season review", notes: "Symptoms controlled. No escalation needed." }
+    ],
+    createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000)
+  },
+  {
+    _id: "patient-9",
+    patientId: "PT-100009",
+    name: "Marcus Thompson",
+    firstName: "Marcus",
+    lastName: "Thompson",
+    dateOfBirth: new Date(1970, 8, 25),
+    gender: "male",
+    contactInfo: {
+      email: "marcus.thompson@example.com",
+      phone: "(555) 901-2345",
+      address: "310 Oak Blvd, Detroit, MI 48201"
+    },
+    insuranceInfo: {
+      provider: "Blue Cross Blue Shield",
+      policyNumber: "BC-556677889",
+      groupNumber: "G-44400"
+    },
+    primaryProvider: "user-2",
+    riskScore: 70,
+    medicalHistory: [
+      { condition: "Sickle Cell Trait", diagnosedDate: new Date(1998, 0, 15), notes: "Carrier, not disease state. Counselled on implications." },
+      { condition: "Hypertension", diagnosedDate: new Date(2013, 6, 9), notes: "Controlled on single agent. BP target <130/80." },
+      { condition: "Major Depressive Disorder", diagnosedDate: new Date(2021, 2, 18), notes: "Moderate severity. On antidepressant + therapy." }
+    ],
+    medications: [
+      { name: "Amlodipine", dosage: "5mg", frequency: "Once daily", startDate: new Date(2013, 7, 1) },
+      { name: "Bupropion", dosage: "150mg", frequency: "Once daily in the morning", startDate: new Date(2021, 3, 1) }
+    ],
+    allergies: [],
+    recentVisits: [
+      { date: new Date(2026, 5, 8), provider: "Dr. John Smith", reason: "Depression follow-up", notes: "PHQ-9 score improved from 14 to 8. Continuing bupropion." },
+      { date: new Date(2026, 3, 14), provider: "Dr. John Smith", reason: "Hypertension check", notes: "BP 128/78 — at goal. No medication changes." }
+    ],
+    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
+  },
+  {
+    _id: "patient-10",
+    patientId: "PT-100010",
+    name: "Linda Chen",
+    firstName: "Linda",
+    lastName: "Chen",
+    dateOfBirth: new Date(1963, 1, 28),
+    gender: "female",
+    contactInfo: {
+      email: "linda.chen@example.com",
+      phone: "(555) 012-3456",
+      address: "77 Bamboo Way, San Francisco, CA 94102"
+    },
+    insuranceInfo: {
+      provider: "Kaiser Permanente",
+      policyNumber: "KP-998811223",
+      groupNumber: "G-66600"
+    },
+    primaryProvider: "user-2",
+    riskScore: 55,
+    medicalHistory: [
+      { condition: "Osteoporosis", diagnosedDate: new Date(2019, 10, 5), notes: "T-score -2.7 at lumbar spine. On bisphosphonate therapy." },
+      { condition: "Breast Cancer (in remission)", diagnosedDate: new Date(2017, 4, 12), notes: "Stage II, hormone receptor positive. Completed chemo + radiation 2018. On tamoxifen." },
+      { condition: "Hypothyroidism", diagnosedDate: new Date(2014, 8, 20), notes: "Post-radiation hypothyroidism. TSH well-controlled." }
+    ],
+    medications: [
+      { name: "Tamoxifen", dosage: "20mg", frequency: "Once daily", startDate: new Date(2018, 8, 1) },
+      { name: "Alendronate", dosage: "70mg", frequency: "Once weekly on empty stomach", startDate: new Date(2019, 11, 1) },
+      { name: "Levothyroxine", dosage: "50mcg", frequency: "Once daily on empty stomach", startDate: new Date(2015, 2, 1) },
+      { name: "Calcium + Vitamin D", dosage: "1200mg/2000IU", frequency: "Once daily with food", startDate: new Date(2019, 11, 1) }
+    ],
+    allergies: [
+      { allergen: "Codeine", reaction: "Nausea and vomiting", severity: "Moderate" },
+      { allergen: "Morphine", reaction: "Respiratory depression", severity: "Severe" }
+    ],
+    recentVisits: [
+      { date: new Date(2026, 5, 12), provider: "Dr. John Smith", reason: "Oncology follow-up", notes: "5-year remission maintained. No evidence of recurrence." },
+      { date: new Date(2026, 4, 8), provider: "Dr. John Smith", reason: "Osteoporosis monitoring", notes: "Repeat DEXA: T-score -2.4 (improved). Continue alendronate." },
+      { date: new Date(2026, 2, 25), provider: "Dr. John Smith", reason: "Thyroid check", notes: "TSH 2.2 — well-controlled. No dose change." }
+    ],
+    createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
   }
 ];
-db.patients.insertMany(patients);
+await db.collection('patients').insertMany(patients);
 
 // Create medical records for patients
-print("Creating medical records collection...");
+console.log("Creating medical records collection...");
 const medicalRecords = [
   {
     _id: "medrec-1",
@@ -285,10 +675,10 @@ const medicalRecords = [
     updatedAt: new Date(2023, 0, 10).toISOString()
   }
 ];
-db.medicalRecords.insertMany(medicalRecords);
+await db.collection('medicalRecords').insertMany(medicalRecords);
 
 // Create referrals collection
-print("Creating referrals collection...");
+console.log("Creating referrals collection...");
 const referrals = [
   {
     _id: "referral-1",
@@ -318,12 +708,26 @@ const referrals = [
     createdAt: new Date(2023, 6, 28).toISOString(),
     updatedAt: new Date(2023, 6, 28).toISOString(),
     blockchainTransactionId: "tx_r2b3c4d5e6f7g8h9i0"
+  },
+  {
+    _id: "referral-3",
+    patientId: "patient-2",
+    referringProviderId: "user-2",
+    specialistId: "user-5",
+    specialty: "General Practice",
+    reason: "Annual wellness exam and preventive care follow-up",
+    status: "accepted",
+    priority: "low",
+    notes: "Patient needs routine bloodwork review",
+    createdAt: new Date(2023, 8, 5).toISOString(),
+    updatedAt: new Date(2023, 8, 10).toISOString(),
+    blockchainTransactionId: "tx_r3c4d5e6f7g8h9i0j1"
   }
 ];
-db.referrals.insertMany(referrals);
+await db.collection('referrals').insertMany(referrals);
 
 // Create analytics reports collection
-print("Creating analytics collection...");
+console.log("Creating analytics collection...");
 const analytics = [
   {
     _id: "ar-001",
@@ -397,10 +801,10 @@ const analytics = [
     }
   }
 ];
-db.analytics.insertMany(analytics);
+await db.collection('analytics').insertMany(analytics);
 
 // Create token transactions collection
-print("Creating token transactions collection...");
+console.log("Creating token transactions collection...");
 const tokenTransactions = [
   {
     _id: "tx-1",
@@ -673,10 +1077,10 @@ const tokenTransactions = [
     blockchainTxHash: "0xd3e4f5g6h7i8j9k0l1m2n3o4p5q6r7s8t9u0v1w2"
   }
 ];
-db.tokenTransactions.insertMany(tokenTransactions);
+await db.collection('tokenTransactions').insertMany(tokenTransactions);
 
 // Create token services collection
-print("Creating token services collection...");
+console.log("Creating token services collection...");
 const tokenServices = [
   {
     _id: "svc-1",
@@ -731,10 +1135,10 @@ const tokenServices = [
     ]
   }
 ];
-db.tokenServices.insertMany(tokenServices);
+await db.collection('tokenServices').insertMany(tokenServices);
 
 // Create token earn sources collection
-print("Creating token earn sources collection...");
+console.log("Creating token earn sources collection...");
 const tokenEarnSources = [
   {
     _id: "earn-analytics-risk",
@@ -773,10 +1177,10 @@ const tokenEarnSources = [
     requirements: "Outcomes must include treatment efficacy data and follow-up information"
   }
 ];
-db.tokenEarnSources.insertMany(tokenEarnSources);
+await db.collection('tokenEarnSources').insertMany(tokenEarnSources);
 
 // Create consent records collection
-print("Creating consent records collection...");
+console.log("Creating consent records collection...");
 const consentRecords = [
   {
     _id: "consent-1",
@@ -803,10 +1207,10 @@ const consentRecords = [
     blockchainTransactionId: "tx_c2b3c4d5e6f7g8h9i0"
   }
 ];
-db.consentRecords.insertMany(consentRecords);
+await db.collection('consentRecords').insertMany(consentRecords);
 
 // Create system status collection
-print("Creating system status collection...");
+console.log("Creating system status collection...");
 const systemStatus = {
   _id: "system-status-1",
   database: {
@@ -831,10 +1235,10 @@ const systemStatus = {
   },
   updatedAt: new Date()
 };
-db.systemStatus.insertOne(systemStatus);
+await db.collection('systemStatus').insertOne(systemStatus);
 
 // Create settings collection
-print("Creating settings collection...");
+console.log("Creating settings collection...");
 const settings = [
   {
     _id: "setting-1",
@@ -882,10 +1286,10 @@ const settings = [
     lastModifiedAt: new Date()
   }
 ];
-db.settings.insertMany(settings);
+await db.collection('settings').insertMany(settings);
 
 // Create activities collection
-print("Creating activities collection...");
+console.log("Creating activities collection...");
 const activities = [
   {
     _id: "act-001",
@@ -935,10 +1339,10 @@ const activities = [
     transactionId: "tx-1"
   }
 ];
-db.activities.insertMany(activities);
+await db.collection('activities').insertMany(activities);
 
 // Create broadcast messages collection
-print("Creating broadcast messages collection...");
+console.log("Creating broadcast messages collection...");
 const broadcastMessages = [
   {
     _id: "broadcast-1",
@@ -989,10 +1393,10 @@ const broadcastMessages = [
     category: "training"
   }
 ];
-db.broadcastMessages.insertMany(broadcastMessages);
+await db.collection('broadcastMessages').insertMany(broadcastMessages);
 
 // Create targeted alerts collection
-print("Creating targeted alerts collection...");
+console.log("Creating targeted alerts collection...");
 const targetedAlerts = [
   {
     _id: "alert-1",
@@ -1105,10 +1509,10 @@ const targetedAlerts = [
     relatedEntityType: null
   }
 ];
-db.targetedAlerts.insertMany(targetedAlerts);
+await db.collection('targetedAlerts').insertMany(targetedAlerts);
 
 // Create escalation workflows collection
-print("Creating escalation workflows collection...");
+console.log("Creating escalation workflows collection...");
 const escalationWorkflows = [
   {
     _id: "escalation-1",
@@ -1310,43 +1714,43 @@ const escalationWorkflows = [
     ]
   }
 ];
-db.escalationWorkflows.insertMany(escalationWorkflows);
+await db.collection('escalationWorkflows').insertMany(escalationWorkflows);
 
 // Create indexes for better performance
-print("Creating indexes...");
-db.users.createIndex({ email: 1 }, { unique: true });
-db.patients.createIndex({ patientId: 1 }, { unique: true });
-db.patients.createIndex({ email: 1 });
-db.referrals.createIndex({ patientId: 1 });
-db.referrals.createIndex({ status: 1 });
-db.medicalRecords.createIndex({ patientId: 1 });
-db.tokenTransactions.createIndex({ userId: 1 });
-db.tokenTransactions.createIndex({ timestamp: -1 });
-db.activities.createIndex({ timestamp: -1 });
-db.activities.createIndex({ userId: 1 });
-db.activities.createIndex({ patientId: 1 });
-db.consentRecords.createIndex({ patientId: 1 });
-db.consentRecords.createIndex({ providerId: 1 });
+console.log("Creating indexes...");
+// db.collection('users').createIndex({ email: 1 }, { unique: true });
+// db.collection('patients').createIndex({ patientId: 1 }, { unique: true });
+// db.collection('patients').createIndex({ email: 1 });
+// db.collection('referrals').createIndex({ patientId: 1 });
+// db.collection('referrals').createIndex({ status: 1 });
+// db.collection('medicalRecords').createIndex({ patientId: 1 });
+// db.collection('tokenTransactions').createIndex({ userId: 1 });
+// db.collection('tokenTransactions').createIndex({ timestamp: -1 });
+// db.collection('activities').createIndex({ timestamp: -1 });
+// db.collection('activities').createIndex({ userId: 1 });
+// db.collection('activities').createIndex({ patientId: 1 });
+// db.collection('consentRecords').createIndex({ patientId: 1 });
+// db.collection('consentRecords').createIndex({ providerId: 1 });
 
-db.broadcastMessages.createIndex({ status: 1 });
-db.broadcastMessages.createIndex({ sentAt: -1 });
-db.broadcastMessages.createIndex({ priority: 1 });
-db.broadcastMessages.createIndex({ category: 1 });
+// db.collection('broadcastMessages').createIndex({ status: 1 });
+// db.collection('broadcastMessages').createIndex({ sentAt: -1 });
+// db.collection('broadcastMessages').createIndex({ priority: 1 });
+// db.collection('broadcastMessages').createIndex({ category: 1 });
 
-db.targetedAlerts.createIndex({ status: 1 });
-db.targetedAlerts.createIndex({ sentAt: -1 });
-db.targetedAlerts.createIndex({ priority: 1 });
-db.targetedAlerts.createIndex({ category: 1 });
-db.targetedAlerts.createIndex({ "recipients.id": 1 });
+// db.collection('targetedAlerts').createIndex({ status: 1 });
+// db.collection('targetedAlerts').createIndex({ sentAt: -1 });
+// db.collection('targetedAlerts').createIndex({ priority: 1 });
+// db.collection('targetedAlerts').createIndex({ category: 1 });
+// db.collection('targetedAlerts').createIndex({ "recipients.id": 1 });
 
-db.escalationWorkflows.createIndex({ status: 1 });
-db.escalationWorkflows.createIndex({ flaggedAt: -1 });
-db.escalationWorkflows.createIndex({ priority: 1 });
-db.escalationWorkflows.createIndex({ category: 1 });
-db.escalationWorkflows.createIndex({ "assignedTo.id": 1 });
-db.escalationWorkflows.createIndex({ patientId: 1 });
+// db.collection('escalationWorkflows').createIndex({ status: 1 });
+// db.collection('escalationWorkflows').createIndex({ flaggedAt: -1 });
+// db.collection('escalationWorkflows').createIndex({ priority: 1 });
+// db.collection('escalationWorkflows').createIndex({ category: 1 });
+// db.collection('escalationWorkflows').createIndex({ "assignedTo.id": 1 });
+// db.collection('escalationWorkflows').createIndex({ patientId: 1 });
 
-print("Creating referral transactions collection...");
+console.log("Creating referral transactions collection...");
 const referralTransactions = [
   {
     _id: "reftx-001",
@@ -1478,10 +1882,10 @@ const referralTransactions = [
     blockchainTxId: "0xstu901vwx234"
   }
 ];
-db.referralTransactions.insertMany(referralTransactions);
+await db.collection('referralTransactions').insertMany(referralTransactions);
 
 // Create referral disputes collection
-print("Creating referral disputes collection...");
+console.log("Creating referral disputes collection...");
 const referralDisputes = [
   {
     _id: "dispute-001",
@@ -1632,10 +2036,10 @@ const referralDisputes = [
     }
   }
 ];
-db.referralDisputes.insertMany(referralDisputes);
+await db.collection('referralDisputes').insertMany(referralDisputes);
 
 // Create admin settings collection
-print("Creating admin settings collection...");
+console.log("Creating admin settings collection...");
 const adminSettings = [
   {
     _id: "setting-general",
@@ -1745,10 +2149,10 @@ const adminSettings = [
     access: ["admin"]
   }
 ];
-db.adminSettings.insertMany(adminSettings);
+await db.collection('adminSettings').insertMany(adminSettings);
 
 // Create AI reports collection
-print("Creating AI reports collection...");
+console.log("Creating AI reports collection...");
 const aiReports = [
   {
     _id: "ai-report-001",
@@ -1907,53 +2311,53 @@ const aiReports = [
     tags: ["documentation", "efficiency", "clinical notes", "time savings"]
   }
 ];
-db.aiReports.insertMany(aiReports);
+await db.collection('aiReports').insertMany(aiReports);
 
 // Create indexes for new collections
-print("Creating indexes for new collections...");
+console.log("Creating indexes for new collections...");
 
 // Indexes for adminSettings collection
-db.adminSettings.createIndex({ category: 1 });
-db.adminSettings.createIndex({ "access": 1 });
+// db.collection('adminSettings').createIndex({ category: 1 });
+// db.collection('adminSettings').createIndex({ "access": 1 });
 
 // Indexes for referralTransactions collection
-db.referralTransactions.createIndex({ referralId: 1 });
-db.referralTransactions.createIndex({ transactionType: 1 });
-db.referralTransactions.createIndex({ timestamp: -1 });
-db.referralTransactions.createIndex({ "performedBy.userId": 1 });
-db.referralTransactions.createIndex({ "details.patientId": 1 });
+// db.collection('referralTransactions').createIndex({ referralId: 1 });
+// db.collection('referralTransactions').createIndex({ transactionType: 1 });
+// db.collection('referralTransactions').createIndex({ timestamp: -1 });
+// db.collection('referralTransactions').createIndex({ "performedBy.userId": 1 });
+// db.collection('referralTransactions').createIndex({ "details.patientId": 1 });
 
 // Indexes for referralDisputes collection
-db.referralDisputes.createIndex({ referralId: 1 });
-db.referralDisputes.createIndex({ status: 1 });
-db.referralDisputes.createIndex({ createdAt: -1 });
-db.referralDisputes.createIndex({ "initiatedBy.userId": 1 });
-db.referralDisputes.createIndex({ "respondent.userId": 1 });
-db.referralDisputes.createIndex({ "reviewedBy.userId": 1 });
+// db.collection('referralDisputes').createIndex({ referralId: 1 });
+// db.collection('referralDisputes').createIndex({ status: 1 });
+// db.collection('referralDisputes').createIndex({ createdAt: -1 });
+// db.collection('referralDisputes').createIndex({ "initiatedBy.userId": 1 });
+// db.collection('referralDisputes').createIndex({ "respondent.userId": 1 });
+// db.collection('referralDisputes').createIndex({ "reviewedBy.userId": 1 });
 
 // Indexes for aiReports collection
-db.aiReports.createIndex({ type: 1 });
-db.aiReports.createIndex({ status: 1 });
-db.aiReports.createIndex({ createdAt: -1 });
-db.aiReports.createIndex({ "createdBy.userId": 1 });
-db.aiReports.createIndex({ "reviewedBy.userId": 1 });
-db.aiReports.createIndex({ tags: 1 });
+// db.collection('aiReports').createIndex({ type: 1 });
+// db.collection('aiReports').createIndex({ status: 1 });
+// db.collection('aiReports').createIndex({ createdAt: -1 });
+// db.collection('aiReports').createIndex({ "createdBy.userId": 1 });
+// db.collection('aiReports').createIndex({ "reviewedBy.userId": 1 });
+// db.collection('aiReports').createIndex({ tags: 1 });
 
 // Enhanced indexes for tokenTransactions collection
-db.tokenTransactions.createIndex({ userId: 1 });
-db.tokenTransactions.createIndex({ category: 1 });
-db.tokenTransactions.createIndex({ status: 1 });
-db.tokenTransactions.createIndex({ type: 1 });
-db.tokenTransactions.createIndex({ source: 1 });
-db.tokenTransactions.createIndex({ serviceId: 1 });
-db.tokenTransactions.createIndex({ timestamp: -1 });
+// db.collection('tokenTransactions').createIndex({ userId: 1 });
+// db.collection('tokenTransactions').createIndex({ category: 1 });
+// db.collection('tokenTransactions').createIndex({ status: 1 });
+// db.collection('tokenTransactions').createIndex({ type: 1 });
+// db.collection('tokenTransactions').createIndex({ source: 1 });
+// db.collection('tokenTransactions').createIndex({ serviceId: 1 });
+// db.collection('tokenTransactions').createIndex({ timestamp: -1 });
 
 // ============================================================
 // EHI Audit Logs — ONC 21st Century Cures Act (45 CFR Part 171)
 // Collection: ehi_audit_logs
 // Retention: 7-year TTL index (HIPAA minimum 6 years)
 // ============================================================
-print("Creating ehi_audit_logs collection...");
+console.log("Creating ehi_audit_logs collection...");
 
 const now = new Date();
 const daysAgo = (d, h) => new Date(now - d * 86400000 - (h || 0) * 3600000);
@@ -2150,23 +2554,20 @@ const ehiAuditLogs = [
     responseStatus: 200, oncException: null
   }
 ];
-db.ehi_audit_logs.insertMany(ehiAuditLogs);
+await db.collection('ehi_audit_logs').insertMany(ehiAuditLogs);
 
 // EHI audit log indexes
 // TTL index — 7-year retention (HIPAA minimum 6 years, §164.530)
-db.ehi_audit_logs.createIndex(
-  { timestamp: 1 },
-  { expireAfterSeconds: 7 * 365 * 24 * 60 * 60, name: "ttl_7yr_retention" }
-);
-db.ehi_audit_logs.createIndex({ userId: 1 });
-db.ehi_audit_logs.createIndex({ userEmail: 1 });
-db.ehi_audit_logs.createIndex({ action: 1 });
-db.ehi_audit_logs.createIndex({ resourceType: 1 });
-db.ehi_audit_logs.createIndex({ patientId: 1 });
-db.ehi_audit_logs.createIndex({ responseStatus: 1 });
-db.ehi_audit_logs.createIndex({ oncException: 1 });
+// db.collection('ehi_audit_logs').createIndex({ timestamp: 1 }, { expireAfterSeconds: 7 * 365 * 24 * 60 * 60, name: "ttl_7yr_retention" });
+// db.collection('ehi_audit_logs').createIndex({ userId: 1 });
+// db.collection('ehi_audit_logs').createIndex({ userEmail: 1 });
+// db.collection('ehi_audit_logs').createIndex({ action: 1 });
+// db.collection('ehi_audit_logs').createIndex({ resourceType: 1 });
+// db.collection('ehi_audit_logs').createIndex({ patientId: 1 });
+// db.collection('ehi_audit_logs').createIndex({ responseStatus: 1 });
+// db.collection('ehi_audit_logs').createIndex({ oncException: 1 });
 // Compound index for the most common admin query pattern
-db.ehi_audit_logs.createIndex({ timestamp: -1, action: 1, resourceType: 1 });
+// db.collection('ehi_audit_logs').createIndex({ timestamp: -1, action: 1, resourceType: 1 });
 
 // ---------------------------------------------------------------------------
 // FHIR R4 API — No new MongoDB collections required.
@@ -2179,38 +2580,19 @@ db.ehi_audit_logs.createIndex({ timestamp: -1, action: 1, resourceType: 1 });
 // ---------------------------------------------------------------------------
 
 // Fast Patient lookup by patientId (used by all /fhir/* patient-scoped queries)
-db.patients.createIndex({ patientId: 1 }, { unique: true, sparse: true, name: "fhir_patientId_lookup" });
+// db.collection('patients').createIndex({ patientId: 1 }, { unique: true, sparse: true, name: "fhir_patientId_lookup" });
 
 // Fast Practitioner lookup (already covered by _id, but alias for FHIR clarity)
 // db.users._id is always indexed by MongoDB.
 
 // Fast ServiceRequest (Referral) lookup by patient ref
-db.referrals.createIndex({ patient: 1 }, { name: "fhir_referral_by_patient" });
+// db.collection('referrals').createIndex({ patient: 1 }, { name: "fhir_referral_by_patient" });
 
 // ── Prior Authorization Collection ───────────────────────────────────────────
-db.createCollection('priorauthorizations', {
-  validator: {
-    $jsonSchema: {
-      bsonType: 'object',
-      required: ['patientId', 'patientName', 'serviceType', 'clinicalNotes', 'status'],
-      properties: {
-        status: { enum: ['Pending', 'Under Review', 'Approved', 'Denied', 'Appealing', 'Expired'] },
-        urgency: { enum: ['Routine', 'Urgent', 'Emergent'] }
-      }
-    }
-  }
-});
-
-db.priorauthorizations.createIndex({ patientId: 1 }, { name: 'pa_patientId' });
-db.priorauthorizations.createIndex({ requestingProviderId: 1 }, { name: 'pa_provider' });
-db.priorauthorizations.createIndex({ status: 1 }, { name: 'pa_status' });
-db.priorauthorizations.createIndex({ referralId: 1 }, { sparse: true, name: 'pa_referral' });
-db.priorauthorizations.createIndex({ createdAt: -1 }, { name: 'pa_created_desc' });
-
-print('Prior Authorization collection and indexes created');
+console.log('Creating priorauthorizations collection...');
 
 // Sample Prior Authorization data
-db.priorauthorizations.insertMany([
+await db.collection('priorauthorizations').insertMany([
   // ── Approved ──────────────────────────────────────────────────────────────
   {
     patientId: 'PT-100001',
@@ -2563,14 +2945,13 @@ db.priorauthorizations.insertMany([
   }
 ]);
 
-print('Prior Authorization sample data inserted (17 records across all statuses)');
+console.log('Prior Authorization sample data inserted (17 records across all statuses)');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // APPOINTMENTS
 // ═══════════════════════════════════════════════════════════════════════════
-print("Creating appointments collection...");
-db.appointments.drop();
-db.appointments.insertMany([
+console.log("Creating appointments collection...");
+await db.collection('appointments').insertMany([
   // ── Completed ─────────────────────────────────────────────────────────────
   {
     _id: "appt-001",
@@ -2990,18 +3371,17 @@ db.appointments.insertMany([
     updatedAt: new Date()
   }
 ]);
-db.appointments.createIndex({ providerId: 1 });
-db.appointments.createIndex({ status: 1 });
-db.appointments.createIndex({ scheduledDate: 1 });
-db.appointments.createIndex({ linkedReferralId: 1 });
-print('Appointments inserted (20 records — completed:5, no_show:3, cancelled:2, scheduled:4, confirmed:3, checked_in:3)');
+// db.collection('appointments').createIndex({ providerId: 1 });
+// db.collection('appointments').createIndex({ status: 1 });
+// db.collection('appointments').createIndex({ scheduledDate: 1 });
+// db.collection('appointments').createIndex({ linkedReferralId: 1 });
+console.log('Appointments inserted (20 records — completed:5, no_show:3, cancelled:2, scheduled:4, confirmed:3, checked_in:3)');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // DTX PROGRAMS
 // ═══════════════════════════════════════════════════════════════════════════
-print("Creating dtxprograms collection...");
-db.dtxprograms.drop();
-db.dtxprograms.insertMany([
+console.log("Creating dtxprograms collection...");
+await db.collection('dtxprograms').insertMany([
   {
     _id: "dtx-prog-001",
     name: "MindPath — Cognitive Behavioral Therapy for Depression",
@@ -3223,17 +3603,16 @@ db.dtxprograms.insertMany([
     updatedAt: new Date(new Date().setMonth(new Date().getMonth() - 1))
   }
 ]);
-db.dtxprograms.createIndex({ category: 1 });
-db.dtxprograms.createIndex({ isActive: 1 });
-db.dtxprograms.createIndex({ condition: 1 });
-print('DTx programs inserted (10 records across mental_health, metabolic, musculoskeletal, cardiovascular, behavioral)');
+// db.collection('dtxprograms').createIndex({ category: 1 });
+// db.collection('dtxprograms').createIndex({ isActive: 1 });
+// db.collection('dtxprograms').createIndex({ condition: 1 });
+console.log('DTx programs inserted (10 records across mental_health, metabolic, musculoskeletal, cardiovascular, behavioral)');
 
 // ═══════════════════════════════════════════════════════════════════════════
 // DTX PRESCRIPTIONS
 // ═══════════════════════════════════════════════════════════════════════════
-print("Creating dtxprescriptions collection...");
-db.dtxprescriptions.drop();
-db.dtxprescriptions.insertMany([
+console.log("Creating dtxprescriptions collection...");
+await db.collection('dtxprescriptions').insertMany([
   {
     _id: "dtx-rx-001",
     programId: "dtx-prog-001",
@@ -3404,15 +3783,789 @@ db.dtxprescriptions.insertMany([
     updatedAt: new Date(new Date().setDate(new Date().getDate() - 1))
   }
 ]);
-db.dtxprescriptions.createIndex({ providerId: 1 });
-db.dtxprescriptions.createIndex({ patientId: 1 });
-db.dtxprescriptions.createIndex({ status: 1 });
-db.dtxprescriptions.createIndex({ programId: 1 });
-db.dtxprescriptions.createIndex({ linkedReferralId: 1 });
-print('DTx prescriptions inserted (7 records — active:3, enrolled:1, prescribed:1, completed:1, dropped:1)');
+// db.collection('dtxprescriptions').createIndex({ providerId: 1 });
+// db.collection('dtxprescriptions').createIndex({ patientId: 1 });
+// db.collection('dtxprescriptions').createIndex({ status: 1 });
+// db.collection('dtxprescriptions').createIndex({ programId: 1 });
+// db.collection('dtxprescriptions').createIndex({ linkedReferralId: 1 });
+console.log('DTx prescriptions inserted (7 records — active:3, enrolled:1, prescribed:1, completed:1, dropped:1)');
 
-print("Database population complete!");
-print("Created collections:");
-db.getCollectionNames().forEach(function(collection) {
-  print(" - " + collection + ": " + db[collection].count() + " documents");
+// ── Provider Profiles (onboarding/KYC) ─────────────────────────────────────
+console.log("Creating provider profiles collection...");
+await db.collection('providerprofiles').insertMany([
+  {
+    _id: "profile-1",
+    userId: "user-2",
+    npi: "1234567890",
+    npiData: { npi: "1234567890", enumerationType: "NPI-1", firstName: "John", lastName: "Smith" },
+    credential: "MD",
+    specialty: "Cardiology",
+    taxonomyCode: "207RC0000X",
+    enumerationType: "NPI-1",
+    organizationName: "Metro Heart Institute",
+    gender: "M",
+    phone: "212-555-0102",
+    fax: "",
+    address: { line1: "456 Heart Ave", line2: "Suite 200", city: "New York", state: "NY", zip: "10002" },
+    licenseNumber: "MD-NY-12345",
+    licenseState: "NY",
+    deaNumber: "",
+    kycDocumentPath: "",
+    kycDocumentOriginalName: "",
+    kycStatus: "verified",
+    kycReviewedBy: "user-1",
+    kycReviewedAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
+    kycRejectionReason: "",
+    onboardingSteps: {
+      profile_created: true,
+      email_verified: true,
+      profile_reviewed: true,
+      docs_uploaded: true,
+      first_patient: true,
+      first_referral: true,
+      colleague_invited: false
+    },
+    invitesSent: [],
+    createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000)
+  },
+  {
+    _id: "profile-2",
+    userId: "user-3",
+    npi: "9876543210",
+    npiData: { npi: "9876543210", enumerationType: "NPI-1", firstName: "Sarah", lastName: "Johnson" },
+    credential: "NP",
+    specialty: "Pediatric Nursing",
+    taxonomyCode: "163W00000X",
+    enumerationType: "NPI-1",
+    organizationName: "Community Care Hospital",
+    gender: "F",
+    phone: "310-555-0203",
+    fax: "",
+    address: { line1: "789 Care Blvd", line2: "", city: "Los Angeles", state: "CA", zip: "90002" },
+    licenseNumber: "NP-CA-67890",
+    licenseState: "CA",
+    deaNumber: "",
+    kycDocumentPath: "",
+    kycDocumentOriginalName: "",
+    kycStatus: "under_review",
+    kycReviewedBy: null,
+    kycReviewedAt: null,
+    kycRejectionReason: "",
+    onboardingSteps: {
+      profile_created: true,
+      email_verified: true,
+      profile_reviewed: true,
+      docs_uploaded: true,
+      first_patient: false,
+      first_referral: false,
+      colleague_invited: false
+    },
+    invitesSent: [],
+    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
+  },
+  {
+    _id: "profile-3",
+    userId: "user-4",
+    npi: "1111111111",
+    npiData: { npi: "1111111111", enumerationType: "NPI-1", firstName: "Michael", lastName: "Chen" },
+    credential: "MD",
+    specialty: "Neurology",
+    taxonomyCode: "2084N0400X",
+    enumerationType: "NPI-1",
+    organizationName: "Neuroscience Medical Center",
+    gender: "M",
+    phone: "713-555-0304",
+    fax: "",
+    address: { line1: "321 Neuro Pkwy", line2: "Floor 3", city: "Houston", state: "TX", zip: "77002" },
+    licenseNumber: "MD-TX-11111",
+    licenseState: "TX",
+    deaNumber: "BC1234567",
+    kycDocumentPath: "",
+    kycDocumentOriginalName: "",
+    kycStatus: "pending_docs",
+    kycReviewedBy: null,
+    kycReviewedAt: null,
+    kycRejectionReason: "",
+    onboardingSteps: {
+      profile_created: true,
+      email_verified: true,
+      profile_reviewed: true,
+      docs_uploaded: false,
+      first_patient: false,
+      first_referral: false,
+      colleague_invited: false
+    },
+    invitesSent: [],
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+  },
+  {
+    _id: "profile-4",
+    userId: "user-5",
+    npi: "2222222222",
+    npiData: { npi: "2222222222", enumerationType: "NPI-1", firstName: "Robert", lastName: "Williams" },
+    credential: "MD",
+    specialty: "General Practice",
+    taxonomyCode: "208D00000X",
+    enumerationType: "NPI-1",
+    organizationName: "Westside Family Medicine",
+    gender: "M",
+    phone: "303-555-0405",
+    fax: "",
+    address: { line1: "555 Family Way", line2: "", city: "Denver", state: "CO", zip: "80201" },
+    licenseNumber: "MD-CO-22222",
+    licenseState: "CO",
+    deaNumber: "",
+    kycDocumentPath: "",
+    kycDocumentOriginalName: "",
+    kycStatus: "verified",
+    kycReviewedBy: "user-1",
+    kycReviewedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+    kycRejectionReason: "",
+    onboardingSteps: {
+      profile_created: true,
+      email_verified: true,
+      profile_reviewed: true,
+      docs_uploaded: true,
+      first_patient: true,
+      first_referral: false,
+      colleague_invited: true
+    },
+    invitesSent: [{ email: "colleague@example.com", sentAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000) }],
+    createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+    updatedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000)
+  }
+]);
+console.log("Provider profiles created: " + (await db.collection('providerprofiles').countDocuments()));
+
+// ═══════════════════════════════════════════════════════════════════════════
+// APPOINTMENT TYPES
+// ═══════════════════════════════════════════════════════════════════════════
+console.log("Creating appointmenttypes collection...");
+await db.collection('appointmenttypes').insertMany([
+  { code: 'new_patient', name: 'New Patient Consultation', description: 'First visit for new patients', defaultDurationMinutes: 60, color: '#2196F3', requiresPriorAuth: false, requiresReferral: false, telehealthEligible: true, bufferBeforeMinutes: 10, bufferAfterMinutes: 10, sortOrder: 0 },
+  { code: 'follow_up', name: 'Follow-Up Visit', description: 'Return visit for established patients', defaultDurationMinutes: 30, color: '#4CAF50', requiresPriorAuth: false, requiresReferral: false, telehealthEligible: true, bufferBeforeMinutes: 5, bufferAfterMinutes: 5, sortOrder: 1 },
+  { code: 'telehealth', name: 'Telehealth Visit', description: 'Virtual appointment via video', defaultDurationMinutes: 30, color: '#9C27B0', requiresPriorAuth: false, requiresReferral: false, telehealthEligible: true, bufferBeforeMinutes: 5, bufferAfterMinutes: 5, sortOrder: 2 },
+  { code: 'urgent', name: 'Urgent Care Visit', description: 'Same-day urgent appointment', defaultDurationMinutes: 45, color: '#F44336', requiresPriorAuth: false, requiresReferral: false, telehealthEligible: false, bufferBeforeMinutes: 5, bufferAfterMinutes: 10, sortOrder: 3 },
+  { code: 'procedure', name: 'Procedure / Treatment', description: 'In-office procedure or treatment', defaultDurationMinutes: 60, color: '#FF9800', requiresPriorAuth: true, requiresReferral: true, telehealthEligible: false, bufferBeforeMinutes: 15, bufferAfterMinutes: 15, sortOrder: 4 }
+]);
+console.log("Appointment types created: " + (await db.collection('appointmenttypes').countDocuments()));
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PROVIDER SCHEDULES
+// ═══════════════════════════════════════════════════════════════════════════
+console.log("Creating providerschedules collection...");
+var allTypeCodes = ['new_patient', 'follow_up', 'telehealth', 'urgent', 'procedure'];
+var scheduleProviders = [
+  { _id: 'user-2', name: 'Dr. John Smith', saturday: true },
+  { _id: 'user-3', name: 'Nurse Sarah Johnson', saturday: true },
+  { _id: 'user-4', name: 'Dr. Michael Chen', saturday: false },
+  { _id: 'user-5', name: 'Dr. Robert Williams', saturday: false }
+];
+var providerSchedules = [];
+scheduleProviders.forEach(function(prov) {
+  for (var day = 1; day <= 5; day++) {
+    providerSchedules.push({ providerId: prov._id, providerName: prov.name, dayOfWeek: day, startTime: '09:00', endTime: '17:00', slotDurationMinutes: 30, bufferMinutes: 5, maxDailyAppointments: 16, appointmentTypes: allTypeCodes, isActive: true });
+  }
+  if (prov.saturday) {
+    providerSchedules.push({ providerId: prov._id, providerName: prov.name, dayOfWeek: 6, startTime: '09:00', endTime: '13:00', slotDurationMinutes: 30, bufferMinutes: 5, maxDailyAppointments: 8, appointmentTypes: allTypeCodes, isActive: true });
+  }
+});
+await db.collection('providerschedules').insertMany(providerSchedules);
+console.log("Provider schedules created: " + (await db.collection('providerschedules').countDocuments()));
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SCHEDULE EXCEPTIONS
+// ═══════════════════════════════════════════════════════════════════════════
+console.log("Creating scheduleexceptions collection...");
+await db.collection('scheduleexceptions').insertMany([
+  { providerId: 'user-2', providerName: 'Dr. John Smith', type: 'unavailable', reason: 'vacation', date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), notes: 'Annual leave' },
+  { providerId: 'user-2', providerName: 'Dr. John Smith', type: 'unavailable', reason: 'conference', date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), notes: 'Medical conference' },
+  { providerId: 'user-2', providerName: 'Dr. John Smith', type: 'extra_hours', date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), startTime: '07:00', endTime: '19:00', reason: 'other', notes: 'Extended hours' }
+]);
+console.log("Schedule exceptions created: " + (await db.collection('scheduleexceptions').countDocuments()));
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WAITLIST ENTRIES
+// ═══════════════════════════════════════════════════════════════════════════
+console.log("Creating waitlistentries collection...");
+await db.collection('waitlistentries').insertMany([
+  { patientId: 'PT-100001', patientName: 'James Wilson', providerId: 'user-2', providerName: 'Dr. John Smith', appointmentType: 'new_patient', requestedDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), flexibleDates: true, status: 'waiting', priority: 'normal', notes: 'Patient prefers morning appointments, Monday or Wednesday.', createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) },
+  { patientId: 'PT-100002', patientName: 'Emily Rodriguez', providerId: 'user-2', providerName: 'Dr. John Smith', appointmentType: 'follow_up', requestedDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), flexibleDates: false, status: 'waiting', priority: 'high', notes: 'Post-discharge follow-up — needs earliest available slot.', createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) },
+  { patientId: 'PT-100003', patientName: 'Thomas Brown', providerId: 'user-3', providerName: 'Nurse Sarah Johnson', appointmentType: 'procedure', requestedDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), flexibleDates: true, status: 'waiting', priority: 'normal', notes: 'Procedure requires prior authorization — patient has been notified to expect a 1-2 week wait.', createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) }
+]);
+console.log("Waitlist entries created: " + (await db.collection('waitlistentries').countDocuments()));
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AMBIENT SESSIONS (ACI - Ambient Clinical Intelligence)
+// ═══════════════════════════════════════════════════════════════════════════
+console.log("Creating ambientSessions collection...");
+await db.collection('ambientSessions').insertMany([
+  { sessionId: 'ACI-001', providerName: 'Dr. John Smith', patientId: 'PT-100001', patientName: 'James Wilson', patientDOB: new Date('1968-03-15'), patientInsurance: 'Blue Cross Blue Shield', chiefComplaint: 'Chest pain', recordingDuration: 210, urgencyClassification: 'urgent', audioTranscript: 'Patient James Wilson, 56-year-old male, presents with intermittent chest pain over the past three days. Pain is described as pressure-like, 6 out of 10, radiating to the left arm. No diaphoresis. No prior cardiac history. EKG performed in office shows no acute changes. Troponin pending. Vitals stable, BP 138/88, HR 84.', clinicalSummary: 'S: 56-year-old male with 3-day history of intermittent pressure-like chest pain, 6/10, radiating to left arm. No diaphoresis or syncope.\nO: BP 138/88, HR 84, RR 16, SpO2 98%. EKG: no acute ST changes. Troponin pending.\nA: Chest pain, etiology unclear — rule out ACS.\nP: Troponin follow-up, cardiology referral pending results.', status: 'draft', createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) },
+  { sessionId: 'ACI-002', providerName: 'Dr. Sarah Chen', patientId: 'PT-100003', patientName: 'Thomas Brown', patientDOB: new Date('1975-07-22'), patientInsurance: 'Aetna', chiefComplaint: 'Chronic headaches', recordingDuration: 145, urgencyClassification: 'routine', audioTranscript: 'Patient Thomas Brown, 49-year-old male, reports chronic daily headaches for approximately 4 months. Pain is bifrontal, 5 out of 10, worse in the mornings. No visual aura. No nausea or vomiting. Taking OTC ibuprofen with partial relief. Neurological exam grossly intact. Sleep reported as poor.', clinicalSummary: 'S: 49-year-old male with 4-month history of chronic daily bifrontal headaches, 5/10, worse in mornings. OTC ibuprofen provides partial relief.\nO: Neuro exam intact. BP 124/78. No papilledema.\nA: Chronic daily headache, possible tension-type vs. medication overuse.\nP: Neurology referral for further evaluation.', status: 'draft', createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) },
+  { sessionId: 'ACI-003', providerName: 'Dr. John Smith', patientId: 'PT-100002', patientName: 'Emily Rodriguez', patientDOB: new Date('1990-11-05'), patientInsurance: 'UnitedHealth', chiefComplaint: 'Blurred vision', recordingDuration: 185, urgencyClassification: 'urgent', audioTranscript: 'Patient Emily Rodriguez, 34-year-old female, presents with sudden onset blurred vision in the right eye, onset 48 hours ago. Denies pain. No floaters or flashes initially but reports a small shadow in peripheral vision since this morning. History of mild myopia. No prior ocular surgery.', clinicalSummary: 'S: 34-year-old female with 48-hour history of blurred vision right eye and new peripheral shadow. No pain.\nO: Visual acuity 20/200 right, 20/20 left. Fundoscopic exam limited without dilation. Pupils equal and reactive.\nA: Right eye visual disturbance, possible retinal pathology — urgent ophthalmology evaluation required.\nP: Same-day ophthalmology referral.', referralNoteDraft: 'Dear Ophthalmology Colleague,\n\nI am referring Ms. Emily Rodriguez, a 34-year-old female, for urgent evaluation of sudden-onset right eye blurred vision with peripheral shadow of 48-hour duration. Visual acuity is 20/200 OD. Given the acute presentation and concern for possible retinal detachment or other urgent retinal pathology, same-day or next-day evaluation is strongly recommended.\n\nThank you for your prompt attention.\n\nSincerely,\nDr. John Smith', urgencyReason: 'Acute visual loss with peripheral shadow raises concern for retinal detachment requiring same-day ophthalmology evaluation.', icdCodes: ['H53.10', 'H33.009', 'H52.10'], recommendedSpecialty: 'Ophthalmology', status: 'reviewing', createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) },
+  { sessionId: 'ACI-004', providerName: 'Dr. John Smith', patientId: 'PT-100001', patientName: 'James Wilson', patientDOB: new Date('1968-03-15'), patientInsurance: 'Blue Cross Blue Shield', chiefComplaint: 'Shortness of breath', recordingDuration: 320, urgencyClassification: 'urgent', audioTranscript: 'Patient James Wilson returns with progressive shortness of breath on exertion over 2 weeks. Now limited to 1 flight of stairs. BNP elevated at 480. Echo ordered. History of hypertension, well controlled on lisinopril. No orthopnea. Mild bilateral ankle edema noted on exam. Crackles bilateral bases.', clinicalSummary: 'S: 56-year-old male with 2-week history of progressive dyspnea on exertion, now limited to 1 flight of stairs. Mild bilateral ankle edema.\nO: BP 142/90, HR 92, SpO2 94% on room air. Bilateral basal crackles. 1+ pitting edema ankles. BNP 480 pg/mL.\nA: New onset heart failure with reduced or preserved ejection fraction — cardiology referral warranted.\nP: Echo ordered, cardiology referral initiated, low-sodium diet counseling provided.', referralNoteDraft: 'Dear Cardiology Colleague,\n\nI am referring Mr. James Wilson, a 56-year-old male with hypertension, for evaluation of new onset heart failure. He presents with progressive exertional dyspnea, bilateral basal crackles, 1+ ankle edema, and an elevated BNP of 480 pg/mL. An echocardiogram has been ordered. Cardiology evaluation for management and further workup is requested.\n\nThank you,\nDr. John Smith', urgencyReason: 'Elevated BNP with clinical signs of heart failure requires urgent cardiology evaluation and echocardiogram.', icdCodes: ['I50.9', 'I10', 'R06.09'], recommendedSpecialty: 'Cardiology', status: 'approved', approvedNote: 'Dear Cardiology Colleague,\n\nI am referring Mr. James Wilson, a 56-year-old male with hypertension, for evaluation of new onset heart failure. He presents with progressive exertional dyspnea, bilateral basal crackles, 1+ ankle edema, and an elevated BNP of 480 pg/mL. An echocardiogram has been ordered. Cardiology evaluation for management and further workup is requested.\n\nThank you,\nDr. John Smith', reviewedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000) },
+  { sessionId: 'ACI-005', providerName: 'Dr. Sarah Chen', patientId: 'PT-100004', patientName: 'Maria Garcia', patientDOB: new Date('1982-09-18'), patientInsurance: 'Cigna', chiefComplaint: 'Joint pain', recordingDuration: 265, urgencyClassification: 'routine', audioTranscript: 'Patient Maria Garcia, 43-year-old female, with 6-month history of symmetric polyarthritis involving MCPs, PIPs, and wrists bilaterally. Morning stiffness lasting over 2 hours. RF and anti-CCP both positive. ESR 68, CRP 3.2. Radiographs of hands ordered — no erosions yet. No current DMARDs.', clinicalSummary: 'S: 43-year-old female with 6-month symmetric polyarthritis — MCPs, PIPs, wrists bilaterally. Morning stiffness >2 hours.\nO: Tender and swollen MCPs/PIPs bilateral. RF positive, anti-CCP positive. ESR 68, CRP 3.2. Hand XR: no erosions.\nA: Seropositive rheumatoid arthritis, early disease.\nP: Rheumatology referral for DMARD initiation.', referralNoteDraft: 'Dear Rheumatology Colleague,\n\nI am referring Ms. Maria Garcia, a 43-year-old female, for evaluation and management of newly diagnosed seropositive rheumatoid arthritis.\n\nThank you,\nDr. Sarah Chen', urgencyReason: 'Early seropositive RA requires timely DMARD initiation to prevent joint destruction.', icdCodes: ['M05.79', 'M79.3', 'Z13.828'], recommendedSpecialty: 'Rheumatology', status: 'approved', reviewedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000) },
+  { sessionId: 'ACI-006', providerName: 'Dr. John Smith', patientId: 'PT-100005', patientName: 'David Lee', patientDOB: new Date('1955-01-30'), patientInsurance: 'Medicare', chiefComplaint: 'Type 2 diabetes management', recordingDuration: 480, urgencyClassification: 'routine', audioTranscript: 'Patient David Lee, 70-year-old male, established patient with type 2 diabetes. Last HbA1c 9.4% three months ago. Currently on metformin 1000mg twice daily and glipizide 10mg daily. Reports polyuria and polydipsia.', clinicalSummary: 'S: 70-year-old male with poorly controlled T2DM. HbA1c 9.4%. Polyuria and polydipsia. On metformin + glipizide.\nO: BP 148/92. BG 214 fasting. Fundoscopic: early NPDR bilateral. Microalbumin/Cr ratio elevated. Monofilament: decreased sensation bilateral feet.\nA: Poorly controlled T2DM with early diabetic nephropathy, retinopathy, and peripheral neuropathy.\nP: Endocrinology referral for regimen optimization.', referralNoteDraft: 'Dear Endocrinology Colleague,\n\nI am referring Mr. David Lee, a 70-year-old male, for optimization of his type 2 diabetes management. His most recent HbA1c is 9.4% despite metformin and glipizide.\n\nThank you,\nDr. John Smith', urgencyReason: 'Poorly controlled T2DM with multi-organ complications requires specialist optimization.', icdCodes: ['E11.65', 'E11.319', 'E11.40', 'N18.2'], recommendedSpecialty: 'Endocrinology', status: 'approved', reviewedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000) },
+  { sessionId: 'ACI-007', providerName: 'Dr. John Smith', patientId: 'PT-100003', patientName: 'Thomas Brown', patientDOB: new Date('1975-07-22'), patientInsurance: 'Aetna', chiefComplaint: 'Abdominal pain', recordingDuration: 300, urgencyClassification: 'urgent', audioTranscript: 'Patient Thomas Brown returns with 3-week history of right upper quadrant abdominal pain, worse after fatty meals. One episode of jaundice noted by family last week. LFTs show elevated total bilirubin 2.8 and alkaline phosphatase 320. Ultrasound shows cholelithiasis with CBD dilation to 9mm.', clinicalSummary: 'S: 49-year-old male with 3-week RUQ colicky pain worsening post-fatty meals. Episode of jaundice reported.\nO: T 37.4, tenderness RUQ. Total bilirubin 2.8, ALP 320, ALT 88. US: cholelithiasis, CBD 9mm.\nA: Choledocholithiasis with obstructive jaundice pattern — GI/surgery referral indicated.\nP: GI referral for ERCP evaluation.', referralNoteDraft: 'Dear Gastroenterology Colleague,\n\nI am referring Mr. Thomas Brown, a 49-year-old male, for evaluation of likely choledocholithiasis.\n\nThank you,\nDr. John Smith', urgencyReason: 'Choledocholithiasis with obstructive jaundice pattern and CBD dilation requires timely ERCP evaluation.', icdCodes: ['K80.50', 'K83.1', 'R17'], recommendedSpecialty: 'Gastroenterology', status: 'approved', reviewedAt: new Date(Date.now() - 22 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 27 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 22 * 24 * 60 * 60 * 1000) },
+  { sessionId: 'ACI-008', providerName: 'Dr. Sarah Chen', patientId: 'PT-100002', patientName: 'Emily Rodriguez', patientDOB: new Date('1990-11-05'), patientInsurance: 'UnitedHealth', chiefComplaint: 'Skin rash', recordingDuration: 120, urgencyClassification: 'routine', audioTranscript: 'Patient Emily Rodriguez with a 2-week pruritic rash on both forearms. Appears erythematous with well-demarcated borders. Started after using a new laundry detergent. Treated with topical hydrocortisone with minimal relief.', clinicalSummary: 'S: 34-year-old female with 2-week pruritic erythematous rash bilateral forearms following new detergent exposure.\nO: Well-demarcated erythematous plaques bilateral forearms. No systemic involvement.\nA: Allergic contact dermatitis.\nP: Switch to fragrance-free detergent, triamcinolone 0.1% ointment prescribed.', icdCodes: ['L23.7', 'L30.9'], recommendedSpecialty: 'Dermatology', status: 'rejected', reviewedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) },
+  { sessionId: 'ACI-009', providerName: 'Dr. John Smith', patientId: 'PT-100005', patientName: 'David Lee', patientDOB: new Date('1955-01-30'), patientInsurance: 'Medicare', chiefComplaint: 'Hypertension follow-up', recordingDuration: 195, urgencyClassification: 'routine', audioTranscript: 'Patient David Lee follow-up for hypertension. Currently on lisinopril 20mg and amlodipine 10mg. BP today 162/98 despite maximal doses. Has been compliant with medications per refill records.', clinicalSummary: 'S: 70-year-old male with resistant hypertension. BP 162/98 on lisinopril 20mg and amlodipine 10mg at max doses.\nO: BP 162/98 bilateral arms. BMP: Cr 1.3, K 4.2. Echo: LVH.\nA: Resistant hypertension — secondary causes to be excluded.\nP: Nephrology referral.', icdCodes: ['I10', 'I51.7', 'N18.3'], recommendedSpecialty: 'Nephrology', status: 'submitted', reviewedAt: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000) },
+  { sessionId: 'ACI-010', providerName: 'Dr. Sarah Chen', patientId: 'PT-100004', patientName: 'Maria Garcia', patientDOB: new Date('1982-09-18'), patientInsurance: 'Cigna', chiefComplaint: 'Knee injury', recordingDuration: 240, urgencyClassification: 'emergent', audioTranscript: 'Patient Maria Garcia presents with acute right knee injury sustained during recreational soccer 4 hours ago. Immediate swelling and inability to bear weight. Positive Lachman test and positive anterior drawer. McMurray test positive medial compartment. Radiograph rules out fracture.', clinicalSummary: 'S: 43-year-old female with acute right knee injury 4 hours ago during soccer. Immediate swelling, unable to bear weight.\nO: Significant knee effusion. Positive Lachman, positive anterior drawer, positive McMurray medial. XR: no fracture.\nA: Suspected ACL tear with concomitant medial meniscus injury.\nP: MRI right knee ordered, orthopedic referral same-day.', icdCodes: ['S83.511A', 'S83.201A', 'M23.200'], recommendedSpecialty: 'Orthopedic Surgery', status: 'submitted', reviewedAt: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000) }
+]);
+console.log("Ambient sessions created: " + (await db.collection('ambientSessions').countDocuments()));
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NOTIFICATION TEMPLATES
+// ═══════════════════════════════════════════════════════════════════════════
+console.log("Creating notificationtemplates collection...");
+await db.collection('notificationtemplates').insertMany([
+  { name: 'Appointment Reminder', description: 'Reminds a patient of an upcoming scheduled appointment with date, time, and provider details.', type: 'appointment_reminder', subject: 'Reminder: Your Appointment on {{appointmentDate}}', body: 'Dear {{patientName}},\n\nThis is a friendly reminder that you have an upcoming appointment scheduled with {{providerName}} at {{clinicName}}.\n\nDate: {{appointmentDate}}\nTime: {{appointmentTime}}\nLocation: {{clinicAddress}}\n\nPlease arrive 15 minutes early. Call {{clinicPhone}} to reschedule.\n\n{{clinicName}} Care Team', smsBody: 'Reminder: Appt with {{providerName}} on {{appointmentDate}} at {{appointmentTime}}. Call {{clinicPhone}} to reschedule.', pushTitle: 'Upcoming Appointment Reminder', defaultChannels: ['email', 'sms', 'in_app'], variables: ['patientName', 'providerName', 'clinicName', 'appointmentDate', 'appointmentTime', 'clinicAddress', 'clinicPhone'], isActive: true, usageCount: 47, createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) },
+  { name: 'Referral Status Update', description: 'Notifies the patient when the status of a specialist referral has changed.', type: 'referral_update', subject: 'Update on Your Referral to {{specialistName}}', body: 'Dear {{patientName}},\n\nThere has been an update on your referral to {{specialistName}} at {{specialistClinic}}.\n\nReferral Status: {{referralStatus}}\n\nNext Steps:\n{{nextSteps}}\n\nIf you have any questions, please contact our office at {{clinicPhone}}.\n\nBest regards,\n{{sentByName}}\n{{clinicName}}', smsBody: 'Your referral to {{specialistName}} status: {{referralStatus}}. Questions? Call {{clinicPhone}}.', pushTitle: 'Referral Status Update', defaultChannels: ['email', 'in_app'], variables: ['patientName', 'specialistName', 'specialistClinic', 'referralStatus', 'referralNotes', 'nextSteps', 'clinicPhone', 'clinicName', 'sentByName'], isActive: true, usageCount: 23, createdAt: new Date(Date.now() - 55 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000) },
+  { name: 'Prior Authorization Update', description: 'Informs the patient of a prior authorization approval, denial, or status change from their insurer.', type: 'prior_auth_update', subject: 'Prior Authorization Decision: {{serviceType}}', body: 'Dear {{patientName}},\n\nWe have received a decision from {{insurancePlan}} regarding the prior authorization request for {{serviceType}}.\n\nAuthorization Status: {{authStatus}}\nReference Number: {{authReferenceNumber}}\n\nIf you have questions, please do not hesitate to reach out.\n\nSincerely,\n{{sentByName}}\n{{clinicName}}', smsBody: 'PA Update: {{serviceType}} is {{authStatus}}. Ref: {{authReferenceNumber}}. Call {{clinicPhone}} for details.', pushTitle: 'Prior Auth Decision Received', defaultChannels: ['email', 'sms', 'in_app'], variables: ['patientName', 'insurancePlan', 'serviceType', 'authStatus', 'authReferenceNumber', 'effectiveDate', 'expiryDate', 'clinicPhone', 'clinicName', 'sentByName'], isActive: true, usageCount: 18, createdAt: new Date(Date.now() - 50 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000) },
+  { name: 'Preventive Care Reminder', description: 'Alerts patients who are overdue for preventive screenings, vaccinations, or wellness visits.', type: 'care_gap', subject: 'Action Needed: You May Be Due for {{screeningType}}', body: 'Dear {{patientName}},\n\nOur records indicate you may be due for:\n  {{screeningType}}\n  Recommended Frequency: {{screeningFrequency}}\n  Last Completed: {{lastCompletedDate}}\n\nCall us at {{clinicPhone}} or visit our patient portal at {{portalUrl}} to schedule.\n\n{{clinicName}} Preventive Care Team', smsBody: 'Hi {{patientName}}, you may be due for {{screeningType}}. Call {{clinicPhone}} or visit {{portalUrl}} to schedule.', pushTitle: 'Preventive Care Reminder', defaultChannels: ['email', 'sms', 'push', 'in_app'], variables: ['patientName', 'screeningType', 'screeningFrequency', 'lastCompletedDate', 'screeningReason', 'clinicPhone', 'portalUrl', 'clinicName'], isActive: true, usageCount: 112, createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) },
+  { name: 'General Health Update', description: 'A flexible template for general communications, health tips, or policy updates.', type: 'general', subject: '{{messageSubject}} — {{clinicName}}', body: 'Dear {{patientName}},\n\n{{messageBody}}\n\nIf you have any questions, contact our office at {{clinicPhone}} or send a message through the patient portal at {{portalUrl}}.\n\nSincerely,\n{{sentByName}}\n{{clinicName}}', smsBody: '{{clinicName}}: {{smsMessage}} Questions? Call {{clinicPhone}}.', pushTitle: '{{messageSubject}}', defaultChannels: ['in_app'], variables: ['patientName', 'messageSubject', 'messageBody', 'smsMessage', 'clinicPhone', 'portalUrl', 'clinicName', 'sentByName'], isActive: true, usageCount: 34, createdAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000) },
+  { name: 'Prescription Ready', description: 'Notifies a patient that their prescription is ready for pickup at the pharmacy.', type: 'prescription', subject: 'Your Prescription is Ready for Pickup', body: 'Dear {{patientName}},\n\nYour prescription is ready and waiting for you at the pharmacy.\n\nMedication: {{medicationName}}\nDosage: {{dosage}}\nPharmacy: {{pharmacyName}}\nAddress: {{pharmacyAddress}}\n\nPlease bring a valid photo ID when picking up.\n\nTake care,\n{{clinicName}}', smsBody: 'Rx Ready: {{medicationName}} is ready at {{pharmacyName}}. Pickup by {{prescriptionExpiryDate}}. ID required.', pushTitle: 'Prescription Ready for Pickup', defaultChannels: ['sms', 'push', 'in_app'], variables: ['patientName', 'medicationName', 'dosage', 'quantity', 'pharmacyName', 'pharmacyAddress', 'pharmacyPhone', 'prescriptionExpiryDate', 'clinicPhone', 'clinicName'], isActive: true, usageCount: 61, createdAt: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) }
+]);
+console.log("Notification templates created: " + (await db.collection('notificationtemplates').countDocuments()));
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PATIENT NOTIFICATIONS
+// ═══════════════════════════════════════════════════════════════════════════
+console.log("Creating patientnotifications collection...");
+await db.collection('patientnotifications').insertMany([
+  { patientId: 'PT-100001', patientName: 'James Wilson', patientEmail: 'james.wilson@email.com', patientPhone: '+1-555-0101', title: 'Appointment Reminder — Cardiology Follow-Up', message: 'Dear James Wilson, this is a reminder that you have an upcoming appointment with Dr. Sarah Chen at Metro Heart Institute on June 28, 2026 at 10:30 AM. Please arrive 15 minutes early. Call 555-0100 to reschedule.', type: 'appointment_reminder', priority: 'normal', channels: ['email', 'sms', 'in_app'], channelStatus: { email: { sent: true, sentAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), deliveredAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) }, sms: { sent: true, sentAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) }, in_app: { sent: true, read: true, readAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) } }, status: 'read', relatedType: 'appointment', sentByName: 'Admin User', sentAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) },
+  { patientId: 'PT-100001', patientName: 'James Wilson', patientEmail: 'james.wilson@email.com', patientPhone: '+1-555-0101', title: 'Prior Authorization Approved — MRI Brain with Contrast', message: 'Dear James Wilson, your prior authorization for MRI Brain with Contrast has been approved by Blue Cross Blue Shield. Authorization Reference: PA-2026-0441. Valid through September 25, 2026. Please contact our office at 555-0100 to schedule your procedure.', type: 'prior_auth_update', priority: 'high', channels: ['email', 'sms', 'in_app'], channelStatus: { email: { sent: true, sentAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) }, sms: { sent: true, sentAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) }, in_app: { sent: true, read: true, readAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000) } }, status: 'read', relatedType: 'prior_auth', relatedId: 'PA-2026-0441', sentByName: 'Dr. John Smith', sentAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) },
+  { patientId: 'PT-100002', patientName: 'Emily Rodriguez', patientEmail: 'emily.rodriguez@email.com', patientPhone: '+1-555-0102', title: 'Preventive Care Reminder — Annual Mammogram Screening', message: 'Dear Emily Rodriguez, our records indicate you may be due for your Annual Mammogram Screening. Recommended annually for women aged 40+. Last completed: June 2025. Call 555-0100 or visit our portal to schedule.', type: 'care_gap', priority: 'normal', channels: ['email', 'push', 'in_app'], channelStatus: { email: { sent: true, sentAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }, push: { sent: true, sentAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }, in_app: { sent: true, read: false } }, status: 'delivered', sentByName: 'Admin User', sentAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+  { patientId: 'PT-100002', patientName: 'Emily Rodriguez', patientEmail: 'emily.rodriguez@email.com', patientPhone: '+1-555-0102', title: 'Referral to Rheumatology — Status Update', message: 'Dear Emily Rodriguez, your referral to Dr. Patricia Moore at Rheumatology Specialists has been approved and the office will contact you within 3 business days to schedule. Questions? Reach us at 555-0100.', type: 'referral_update', priority: 'normal', channels: ['email', 'in_app'], channelStatus: { email: { sent: true, sentAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) }, in_app: { sent: true, read: true, readAt: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000) } }, status: 'read', relatedType: 'referral', relatedId: 'REF-2026-0118', sentByName: 'Dr. John Smith', sentAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) },
+  { patientId: 'PT-100003', patientName: 'Thomas Brown', patientEmail: 'thomas.brown@email.com', patientPhone: '+1-555-0103', title: 'Prescription Ready — Metformin 500mg', message: 'Dear Thomas Brown, your prescription for Metformin 500mg (90 tablets) is ready for pickup at City Pharmacy, 123 Main St. Bring a valid photo ID. Prescription expires July 25, 2026.', type: 'prescription', priority: 'normal', channels: ['sms', 'push', 'in_app'], channelStatus: { sms: { sent: true, sentAt: new Date(Date.now() - 18 * 60 * 60 * 1000) }, push: { sent: true, sentAt: new Date(Date.now() - 18 * 60 * 60 * 1000) }, in_app: { sent: true, read: true, readAt: new Date(Date.now() - 16 * 60 * 60 * 1000) } }, status: 'read', relatedType: 'prescription', relatedId: 'RX-2026-8834', sentByName: 'Dr. John Smith', sentAt: new Date(Date.now() - 18 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 18 * 60 * 60 * 1000) },
+  { patientId: 'PT-100003', patientName: 'Thomas Brown', patientEmail: 'thomas.brown@email.com', patientPhone: '+1-555-0103', title: 'Prior Authorization Denied — PET Scan', message: 'Dear Thomas Brown, UnitedHealth has denied the prior authorization request for PET Scan. Reason: Additional clinical documentation required. You have the right to appeal within 30 days. Please call our office at 555-0100.', type: 'prior_auth_update', priority: 'high', channels: ['email', 'sms', 'in_app'], channelStatus: { email: { sent: true, sentAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) }, sms: { sent: false, error: 'Carrier delivery failure' }, in_app: { sent: true, read: false } }, status: 'delivered', relatedType: 'prior_auth', relatedId: 'PA-2026-0389', sentByName: 'Admin User', sentAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) },
+  { patientId: 'PT-100004', patientName: 'Maria Garcia', patientEmail: 'maria.garcia@email.com', patientPhone: '+1-555-0104', title: 'Appointment Reminder — Diabetes Management Check-In', message: 'Dear Maria Garcia, this is a reminder of your upcoming Diabetes Management appointment with Dr. Mike Johnson at Central Health Clinic on June 30, 2026 at 2:00 PM. Please fast for 8 hours before your appointment. Call 555-0100 with questions.', type: 'appointment_reminder', priority: 'normal', channels: ['email', 'sms'], channelStatus: { email: { sent: true, sentAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) }, sms: { sent: true, sentAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) } }, status: 'delivered', relatedType: 'appointment', sentByName: 'Admin User', sentAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) },
+  { patientId: 'PT-100004', patientName: 'Maria Garcia', patientEmail: 'maria.garcia@email.com', patientPhone: '+1-555-0104', title: 'Preventive Care Reminder — HbA1c Screening Overdue', message: 'Dear Maria Garcia, our records show you are overdue for your HbA1c screening, recommended every 3 months for patients managing Type 2 Diabetes. Last completed: February 2026. Schedule today at 555-0100.', type: 'care_gap', priority: 'high', channels: ['email', 'sms', 'push', 'in_app'], channelStatus: { email: { sent: true, sentAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) }, sms: { sent: true, sentAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) }, push: { sent: true, sentAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) }, in_app: { sent: true, read: true, readAt: new Date(Date.now() - 13 * 24 * 60 * 60 * 1000) } }, status: 'read', sentByName: 'Dr. Mike Johnson', sentAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) },
+  { patientId: 'PT-100005', patientName: 'David Lee', patientEmail: 'david.lee@email.com', patientPhone: '+1-555-0105', title: 'General Health Update — New Patient Portal Features', message: 'Dear David Lee, we are excited to share that our patient portal has been updated with new features including secure messaging, online prescription refill requests, and appointment self-scheduling.', type: 'general', priority: 'low', channels: ['email', 'in_app'], channelStatus: { email: { sent: true, sentAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000) }, in_app: { sent: true, read: false } }, status: 'delivered', sentByName: 'Admin User', sentAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000) },
+  { patientId: 'PT-100005', patientName: 'David Lee', patientEmail: 'david.lee@email.com', patientPhone: '+1-555-0105', title: 'Referral Approved — Orthopedic Surgery Consultation', message: 'Dear David Lee, your referral to Dr. Alan Turner at Metro Orthopedic Center has been approved by your insurance. The specialist office will contact you within 5 business days. Referral ID: REF-2026-0203. Questions? Call 555-0100.', type: 'referral_update', priority: 'normal', channels: ['email', 'sms', 'in_app'], channelStatus: { email: { sent: true, sentAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000) }, sms: { sent: true, sentAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000) }, in_app: { sent: true, read: true, readAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } }, status: 'read', relatedType: 'referral', relatedId: 'REF-2026-0203', sentByName: 'Dr. Sarah Chen', sentAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000) },
+  { patientId: 'PT-100005', patientName: 'David Lee', patientEmail: 'david.lee@email.com', patientPhone: '+1-555-0105', title: 'Prescription Ready — Lisinopril 10mg', message: 'Dear David Lee, your prescription for Lisinopril 10mg (30 tablets) is ready at Central Pharmacy, 456 Oak Ave. Pickup hours: Mon-Sat 9 AM – 7 PM. Bring valid ID. Refills remaining: 5.', type: 'prescription', priority: 'normal', channels: ['sms', 'in_app'], channelStatus: { sms: { sent: false, error: 'Invalid phone number format' }, in_app: { sent: true, read: false } }, status: 'failed', relatedType: 'prescription', relatedId: 'RX-2026-9021', sentByName: 'Dr. John Smith', sentAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000) },
+  { patientId: 'PT-100003', patientName: 'Thomas Brown', patientEmail: 'thomas.brown@email.com', patientPhone: '+1-555-0103', title: 'Flu Vaccination Campaign — Schedule Your Shot Today', message: 'Dear Thomas Brown, flu season is here and we want to make sure you are protected. We are offering flu vaccinations during all clinic hours this month — no separate appointment needed. Walk-ins welcome. Call 555-0100 or book online.', type: 'campaign', priority: 'low', channels: ['email', 'sms', 'in_app'], channelStatus: { email: { sent: true, sentAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000) }, sms: { sent: true, sentAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000) }, in_app: { sent: true, read: true, readAt: new Date(Date.now() - 24 * 24 * 60 * 60 * 1000) } }, status: 'read', sentByName: 'Admin User', sentAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000), metadata: { campaignName: 'Flu Season Vaccination Reminder' } }
+]);
+console.log("Patient notifications created: " + (await db.collection('patientnotifications').countDocuments()));
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NOTIFICATION CAMPAIGNS
+// ═══════════════════════════════════════════════════════════════════════════
+console.log("Creating notificationcampaigns collection...");
+await db.collection('notificationcampaigns').insertMany([
+  { name: 'Flu Season Vaccination Reminder', description: 'Outreach campaign to remind all active patients to schedule their annual flu vaccination before the peak season.', templateName: 'General Health Update', customSubject: 'Get Your Flu Shot — Protect Yourself This Season', customMessage: 'Flu season is here and we want to help you stay healthy. Flu vaccinations are now available during all clinic hours — walk-ins welcome, no separate appointment needed.', targetCriteria: { all: true, patientIds: [], conditions: [], insurancePlan: '' }, channels: ['email', 'sms'], status: 'completed', scheduledAt: new Date(Date.now() - 27 * 24 * 60 * 60 * 1000), startedAt: new Date(Date.now() - 26 * 24 * 60 * 60 * 1000), completedAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000), stats: { totalTargeted: 1248, totalSent: 1242, totalDelivered: 1198, totalFailed: 44, totalRead: 874, openRate: 72.96 }, createdByName: 'Admin User', createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000) },
+  { name: 'Annual Wellness Check — High-Risk Patients', description: 'Targeted campaign for patients with a risk score of 60 or above who have not completed their annual wellness visit.', templateName: 'Preventive Care Reminder', customSubject: 'Your Annual Wellness Visit is Overdue — Schedule Today', customMessage: 'As one of our high-priority patients, your annual wellness visit is an important part of managing your health. Please call us or use the patient portal to schedule.', targetCriteria: { all: false, patientIds: [], conditions: [], riskScoreMin: 60, insurancePlan: '' }, channels: ['email', 'sms', 'push'], status: 'completed', scheduledAt: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000), startedAt: new Date(Date.now() - 17 * 24 * 60 * 60 * 1000), completedAt: new Date(Date.now() - 16 * 24 * 60 * 60 * 1000), stats: { totalTargeted: 312, totalSent: 312, totalDelivered: 298, totalFailed: 14, totalRead: 241, openRate: 80.87 }, createdByName: 'Dr. John Smith', createdAt: new Date(Date.now() - 22 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 16 * 24 * 60 * 60 * 1000) },
+  { name: 'Diabetes Management Program', description: 'Educational and engagement campaign targeting patients diagnosed with Type 2 Diabetes.', templateName: 'Preventive Care Reminder', customSubject: 'Managing Type 2 Diabetes — Resources & Support From Our Team', customMessage: 'Living with Type 2 Diabetes can be challenging, but you do not have to do it alone. We are reaching out to share resources and let you know about our dedicated Diabetes Management Program.', targetCriteria: { all: false, patientIds: [], conditions: ['Type 2 Diabetes'], insurancePlan: '' }, channels: ['email', 'in_app'], status: 'draft', stats: { totalTargeted: 0, totalSent: 0, totalDelivered: 0, totalFailed: 0, totalRead: 0, openRate: 0 }, createdByName: 'Dr. Mike Johnson', createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) }
+]);
+console.log("Notification campaigns created: " + (await db.collection('notificationcampaigns').countDocuments()));
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PROVIDER MATCH PROFILES (Referral Matching)
+// ═══════════════════════════════════════════════════════════════════════════
+console.log("Creating providerMatchProfiles collection...");
+await db.collection('providerMatchProfiles').insertMany([
+  { providerId: new ObjectId(), providerName: 'Dr. James Hartwell', specialty: 'Cardiology', acceptedInsurance: ['Blue Cross Blue Shield', 'Medicare', 'Aetna', 'United Healthcare'], city: 'Boston', state: 'MA', acceptanceRate: 0.91, avgResponseTimeDays: 2, totalReferralsReceived: 420, completedReferrals: 382, tokenBalance: 1850, tokenEarned: 3200, availabilityScore: 88, yearsInPractice: 18, telehealth: false },
+  { providerId: new ObjectId(), providerName: 'Dr. Sandra Okafor', specialty: 'Cardiology', acceptedInsurance: ['Cigna', 'Humana', 'Anthem', 'Medicare', 'Medicaid'], city: 'Atlanta', state: 'GA', acceptanceRate: 0.85, avgResponseTimeDays: 3, totalReferralsReceived: 310, completedReferrals: 264, tokenBalance: 1100, tokenEarned: 2400, availabilityScore: 75, yearsInPractice: 12, telehealth: true },
+  { providerId: new ObjectId(), providerName: 'Dr. Michael Reyes', specialty: 'Cardiology', acceptedInsurance: ['United Healthcare', 'Blue Cross Blue Shield', 'WellCare', 'Kaiser Permanente'], city: 'Houston', state: 'TX', acceptanceRate: 0.94, avgResponseTimeDays: 1, totalReferralsReceived: 490, completedReferrals: 461, tokenBalance: 2450, tokenEarned: 4900, availabilityScore: 93, yearsInPractice: 22, telehealth: false },
+  { providerId: new ObjectId(), providerName: 'Dr. Priya Nambiar', specialty: 'Neurology', acceptedInsurance: ['Aetna', 'Blue Cross Blue Shield', 'Medicare', 'Cigna'], city: 'New York', state: 'NY', acceptanceRate: 0.88, avgResponseTimeDays: 2, totalReferralsReceived: 375, completedReferrals: 330, tokenBalance: 1620, tokenEarned: 3800, availabilityScore: 82, yearsInPractice: 15, telehealth: true },
+  { providerId: new ObjectId(), providerName: 'Dr. Thomas Bellamy', specialty: 'Neurology', acceptedInsurance: ['Humana', 'United Healthcare', 'Anthem', 'Medicaid'], city: 'Chicago', state: 'IL', acceptanceRate: 0.78, avgResponseTimeDays: 4, totalReferralsReceived: 210, completedReferrals: 164, tokenBalance: 740, tokenEarned: 1500, availabilityScore: 65, yearsInPractice: 8, telehealth: false },
+  { providerId: new ObjectId(), providerName: 'Dr. Rachel Cunningham', specialty: 'Orthopedics', acceptedInsurance: ['Blue Cross Blue Shield', 'Aetna', 'Cigna', 'Medicare', 'WellCare'], city: 'Dallas', state: 'TX', acceptanceRate: 0.87, avgResponseTimeDays: 2, totalReferralsReceived: 460, completedReferrals: 400, tokenBalance: 2100, tokenEarned: 4200, availabilityScore: 85, yearsInPractice: 20, telehealth: false },
+  { providerId: new ObjectId(), providerName: 'Dr. Kevin Tran', specialty: 'Orthopedics', acceptedInsurance: ['Kaiser Permanente', 'United Healthcare', 'Humana'], city: 'Los Angeles', state: 'CA', acceptanceRate: 0.81, avgResponseTimeDays: 3, totalReferralsReceived: 280, completedReferrals: 227, tokenBalance: 950, tokenEarned: 2100, availabilityScore: 72, yearsInPractice: 10, telehealth: true },
+  { providerId: new ObjectId(), providerName: 'Dr. Angela Flores', specialty: 'Gastroenterology', acceptedInsurance: ['Medicare', 'Medicaid', 'Blue Cross Blue Shield', 'Aetna', 'Cigna'], city: 'Miami', state: 'FL', acceptanceRate: 0.90, avgResponseTimeDays: 2, totalReferralsReceived: 350, completedReferrals: 315, tokenBalance: 1780, tokenEarned: 3500, availabilityScore: 89, yearsInPractice: 16, telehealth: false },
+  { providerId: new ObjectId(), providerName: 'Dr. Nathan Pierce', specialty: 'Gastroenterology', acceptedInsurance: ['Anthem', 'United Healthcare', 'WellCare', 'Humana'], city: 'Phoenix', state: 'AZ', acceptanceRate: 0.76, avgResponseTimeDays: 5, totalReferralsReceived: 160, completedReferrals: 122, tokenBalance: 560, tokenEarned: 1100, availabilityScore: 61, yearsInPractice: 6, telehealth: true },
+  { providerId: new ObjectId(), providerName: 'Dr. Vivian Chen', specialty: 'Oncology', acceptedInsurance: ['Blue Cross Blue Shield', 'Medicare', 'Aetna', 'United Healthcare', 'Cigna', 'Anthem'], city: 'Boston', state: 'MA', acceptanceRate: 0.96, avgResponseTimeDays: 1, totalReferralsReceived: 500, completedReferrals: 480, tokenBalance: 2500, tokenEarned: 5000, availabilityScore: 95, yearsInPractice: 25, telehealth: false },
+  { providerId: new ObjectId(), providerName: 'Dr. Samuel Adeyemi', specialty: 'Pulmonology', acceptedInsurance: ['Medicare', 'Medicaid', 'Humana', 'WellCare'], city: 'Atlanta', state: 'GA', acceptanceRate: 0.83, avgResponseTimeDays: 3, totalReferralsReceived: 240, completedReferrals: 199, tokenBalance: 870, tokenEarned: 1900, availabilityScore: 78, yearsInPractice: 11, telehealth: true },
+  { providerId: new ObjectId(), providerName: 'Dr. Laura Steinberg', specialty: 'Rheumatology', acceptedInsurance: ['Cigna', 'Blue Cross Blue Shield', 'Aetna', 'Medicare'], city: 'Seattle', state: 'WA', acceptanceRate: 0.86, avgResponseTimeDays: 2, totalReferralsReceived: 195, completedReferrals: 168, tokenBalance: 1050, tokenEarned: 2200, availabilityScore: 80, yearsInPractice: 13, telehealth: true },
+  { providerId: new ObjectId(), providerName: 'Dr. Omar Hassan', specialty: 'Endocrinology', acceptedInsurance: ['United Healthcare', 'Aetna', 'Anthem', 'Medicare', 'Medicaid'], city: 'Chicago', state: 'IL', acceptanceRate: 0.89, avgResponseTimeDays: 2, totalReferralsReceived: 320, completedReferrals: 285, tokenBalance: 1400, tokenEarned: 3000, availabilityScore: 84, yearsInPractice: 14, telehealth: false },
+  { providerId: new ObjectId(), providerName: 'Dr. Jessica Park', specialty: 'Endocrinology', acceptedInsurance: ['Kaiser Permanente', 'Blue Cross Blue Shield', 'Cigna'], city: 'Los Angeles', state: 'CA', acceptanceRate: 0.80, avgResponseTimeDays: 4, totalReferralsReceived: 175, completedReferrals: 140, tokenBalance: 680, tokenEarned: 1400, availabilityScore: 69, yearsInPractice: 7, telehealth: true },
+  { providerId: new ObjectId(), providerName: 'Dr. Richard Nakamura', specialty: 'Ophthalmology', acceptedInsurance: ['Medicare', 'Blue Cross Blue Shield', 'Humana', 'United Healthcare', 'Aetna'], city: 'New York', state: 'NY', acceptanceRate: 0.93, avgResponseTimeDays: 2, totalReferralsReceived: 430, completedReferrals: 400, tokenBalance: 2050, tokenEarned: 4100, availabilityScore: 91, yearsInPractice: 21, telehealth: false },
+  { providerId: new ObjectId(), providerName: 'Dr. Monique Delacroix', specialty: 'Dermatology', acceptedInsurance: ['Cigna', 'Anthem', 'Blue Cross Blue Shield', 'Aetna'], city: 'Miami', state: 'FL', acceptanceRate: 0.84, avgResponseTimeDays: 3, totalReferralsReceived: 260, completedReferrals: 218, tokenBalance: 1200, tokenEarned: 2600, availabilityScore: 77, yearsInPractice: 9, telehealth: true },
+  { providerId: new ObjectId(), providerName: 'Dr. Anthony Morales', specialty: 'Nephrology', acceptedInsurance: ['Medicare', 'Medicaid', 'United Healthcare', 'WellCare', 'Humana'], city: 'Houston', state: 'TX', acceptanceRate: 0.92, avgResponseTimeDays: 1, totalReferralsReceived: 390, completedReferrals: 359, tokenBalance: 1950, tokenEarned: 4000, availabilityScore: 90, yearsInPractice: 19, telehealth: false },
+  { providerId: new ObjectId(), providerName: 'Dr. Claire Beaumont', specialty: 'Allergy', acceptedInsurance: ['Blue Cross Blue Shield', 'Aetna', 'Cigna', 'Kaiser Permanente'], city: 'Seattle', state: 'WA', acceptanceRate: 0.74, avgResponseTimeDays: 4, totalReferralsReceived: 130, completedReferrals: 96, tokenBalance: 50, tokenEarned: 100, availabilityScore: 55, yearsInPractice: 5, telehealth: true },
+  { providerId: new ObjectId(), providerName: 'Dr. Gregory Wallace', specialty: 'ENT', acceptedInsurance: ['Anthem', 'United Healthcare', 'Medicare', 'Blue Cross Blue Shield'], city: 'Dallas', state: 'TX', acceptanceRate: 0.82, avgResponseTimeDays: 3, totalReferralsReceived: 220, completedReferrals: 180, tokenBalance: 880, tokenEarned: 1800, availabilityScore: 74, yearsInPractice: 10, telehealth: false },
+  { providerId: new ObjectId(), providerName: 'Dr. Amara Osei', specialty: 'Psychiatry', acceptedInsurance: ['Medicaid', 'Medicare', 'Cigna', 'Aetna', 'WellCare'], city: 'Phoenix', state: 'AZ', acceptanceRate: 0.79, avgResponseTimeDays: 4, totalReferralsReceived: 290, completedReferrals: 229, tokenBalance: 1030, tokenEarned: 2300, availabilityScore: 71, yearsInPractice: 12, telehealth: true }
+]);
+console.log("Provider match profiles created: " + (await db.collection('providerMatchProfiles').countDocuments()));
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PRIOR AUTHORIZATIONS (John Smith — user-2, Cardiology)
+// ═══════════════════════════════════════════════════════════════════════════
+console.log("Creating priorauthorizations collection...");
+await db.collection('priorauthorizations').insertMany([
+  {
+    patientId: "PT-100001", patientName: "James Wilson",
+    requestingProviderId: "user-2", requestingProviderName: "Dr. John Smith",
+    targetProviderName: "Radiology Associates",
+    serviceType: "Cardiac MRI", serviceCode: "75561",
+    diagnosisCodes: [
+      { code: "I25.10", description: "Atherosclerotic heart disease of native coronary artery" },
+      { code: "R00.0", description: "Tachycardia, unspecified" }
+    ],
+    clinicalNotes: "Patient presents with chest pain and palpitations. Echo shows EF 45%. Cardiac MRI needed for detailed assessment of myocardial viability and perfusion prior to potential intervention.",
+    urgency: "Urgent", insurancePlan: "HealthPlus Insurance", memberId: "HP-987654321",
+    status: "Pending",
+    aiRecommendation: null, aiConfidenceScore: null, aiReasoning: "", aiAnalyzedAt: null,
+    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
+  },
+  {
+    patientId: "PT-100002", patientName: "Emily Rodriguez",
+    requestingProviderId: "user-2", requestingProviderName: "Dr. John Smith",
+    targetProviderName: "Metro Nuclear Medicine",
+    serviceType: "Nuclear Stress Test", serviceCode: "78451",
+    diagnosisCodes: [
+      { code: "I10", description: "Essential (primary) hypertension" },
+      { code: "Z82.49", description: "Family history of ischemic heart disease" }
+    ],
+    clinicalNotes: "38-year-old female with hypertension and strong family history of CAD. Experiencing exertional dyspnea. Standard stress test inconclusive. Nuclear stress test requested for definitive perfusion evaluation.",
+    urgency: "Routine", insurancePlan: "MediCare Plus", memberId: "MC-123456789",
+    status: "Under Review",
+    aiRecommendation: "Approve", aiConfidenceScore: 84,
+    aiReasoning: "Patient presents with multiple CAD risk factors including hypertension and family history. Nuclear stress test is medically appropriate for further risk stratification. Clinical documentation supports medical necessity.",
+    aiAnalyzedAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 3 * 60 * 60 * 1000)
+  },
+  {
+    patientId: "PT-100003", patientName: "Thomas Brown",
+    requestingProviderId: "user-2", requestingProviderName: "Dr. John Smith",
+    targetProviderName: "Advanced Imaging Center",
+    serviceType: "Cardiac PET Scan", serviceCode: "78491",
+    diagnosisCodes: [
+      { code: "I25.10", description: "Atherosclerotic heart disease" },
+      { code: "I50.32", description: "Chronic diastolic heart failure, moderate" }
+    ],
+    clinicalNotes: "61-year-old male with known CAD and diastolic HF. Prior CABG 2019. Progressive dyspnea. PET scan needed to assess hibernating myocardium before considering re-intervention.",
+    urgency: "Urgent", insurancePlan: "Blue Shield", memberId: "BS-567891234",
+    status: "Denied",
+    aiRecommendation: "Deny", aiConfidenceScore: 71,
+    aiReasoning: "While the patient has significant cardiac history, submitted documentation does not sufficiently establish that less intensive alternatives have been exhausted prior to PET imaging. Additional workup documentation is required.",
+    aiAnalyzedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+    reviewerNotes: "Insufficient documentation. Resubmit with recent stress test results and current echocardiogram report.",
+    reviewedBy: "user-1", reviewedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
+    deniedDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
+    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000)
+  },
+  {
+    patientId: "PT-100004", patientName: "Maria Garcia",
+    requestingProviderId: "user-2", requestingProviderName: "Dr. John Smith",
+    targetProviderName: "Metro Heart Institute Cath Lab",
+    serviceType: "Cardiac Catheterization", serviceCode: "93454",
+    diagnosisCodes: [
+      { code: "I25.110", description: "Atherosclerotic heart disease with unstable angina pectoris" },
+      { code: "R07.9", description: "Chest pain, unspecified" }
+    ],
+    clinicalNotes: "46-year-old female with Type 2 Diabetes and new onset unstable angina. Positive stress test. Cardiac catheterization indicated to define coronary anatomy and guide management.",
+    urgency: "Urgent", insurancePlan: "Aetna Health", memberId: "AH-112233445",
+    status: "Approved",
+    aiRecommendation: "Approve", aiConfidenceScore: 92,
+    aiReasoning: "Patient presents with unstable angina and positive stress test in the setting of diabetes. Cardiac catheterization meets medical necessity criteria for urgent evaluation of coronary anatomy.",
+    aiAnalyzedAt: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000),
+    reviewerNotes: "Approved. Procedure authorized. Valid for 90 days.",
+    reviewedBy: "user-1", reviewedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
+    approvedDate: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
+    expiryDate: new Date(Date.now() + 82 * 24 * 60 * 60 * 1000),
+    createdAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000)
+  },
+  {
+    patientId: "PT-100005", patientName: "David Lee",
+    requestingProviderId: "user-2", requestingProviderName: "Dr. John Smith",
+    targetProviderName: "Metro Heart Institute EP Lab",
+    serviceType: "Electrophysiology Study", serviceCode: "93619",
+    diagnosisCodes: [
+      { code: "I49.0", description: "Ventricular fibrillation and flutter" },
+      { code: "I25.10", description: "Atherosclerotic heart disease of native coronary artery" }
+    ],
+    clinicalNotes: "71-year-old male with documented episodes of ventricular fibrillation and known CAD. EP study needed to guide ICD programming and ablation planning.",
+    urgency: "Urgent", insurancePlan: "Medicare", memberId: "MC-998877665",
+    status: "Appealing",
+    aiRecommendation: "Review", aiConfidenceScore: 68,
+    aiReasoning: "Patient has documented VF episodes which generally support EP study. However, submitted notes lack recent Holter monitor results and current medication list. Additional documentation would strengthen the case.",
+    aiAnalyzedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+    reviewerNotes: "Initially denied pending documentation of Holter results and specialist recommendation.",
+    reviewedBy: "user-1", reviewedAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
+    deniedDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
+    appealNotes: "Resubmitting with 30-day Holter results confirming 3 VF episodes, current medication list, and EP consultant recommendation letter. Patient safety requires this procedure urgently.",
+    appealSubmittedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+    createdAt: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+  },
+  {
+    patientId: "PT-100001", patientName: "James Wilson",
+    requestingProviderId: "user-2", requestingProviderName: "Dr. John Smith",
+    targetProviderName: "Cardiology Echo Lab",
+    serviceType: "Transesophageal Echocardiogram", serviceCode: "93312",
+    diagnosisCodes: [
+      { code: "I34.0", description: "Nonrheumatic mitral valve regurgitation" },
+      { code: "I48.2", description: "Chronic atrial fibrillation" }
+    ],
+    clinicalNotes: "Patient with known mitral regurgitation and new onset AFib. TEE needed to assess valve anatomy and exclude LA thrombus before cardioversion.",
+    urgency: "Routine", insurancePlan: "HealthPlus Insurance", memberId: "HP-987654321",
+    status: "Expired",
+    aiRecommendation: "Approve", aiConfidenceScore: 89,
+    aiReasoning: "TEE is the gold standard for assessing mitral valve morphology and excluding LA thrombus prior to cardioversion in patients with AFib. This request clearly meets medical necessity criteria.",
+    aiAnalyzedAt: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000),
+    reviewerNotes: "Approved. 90-day authorization window.",
+    reviewedBy: "user-1", reviewedAt: new Date(Date.now() - 98 * 24 * 60 * 60 * 1000),
+    approvedDate: new Date(Date.now() - 98 * 24 * 60 * 60 * 1000),
+    expiryDate: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
+    createdAt: new Date(Date.now() - 105 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000)
+  }
+]);
+console.log("Prior authorizations created: " + (await db.collection('priorauthorizations').countDocuments()));
+
+// ═══════════════════════════════════════════════════════════════════════════
+// APPOINTMENTS (John Smith as provider — July 2026 upcoming)
+// ═══════════════════════════════════════════════════════════════════════════
+console.log("Creating appointments collection...");
+await db.collection('appointments').insertMany([
+  {
+    appointmentId: "APT-2026-00001",
+    patientId: "patient-1", patientName: "James Wilson",
+    patientEmail: "james.wilson@example.com", patientPhone: "(555) 123-4567",
+    providerId: "user-2", providerName: "Dr. John Smith", providerSpecialty: "Cardiology",
+    organizationName: "Metro Heart Institute",
+    appointmentType: "follow_up", status: "scheduled",
+    scheduledDate: new Date(2026, 6, 21), startTime: "09:00", endTime: "09:30", durationMinutes: 30,
+    location: "in_person",
+    chiefComplaint: "Follow-up for hypertension management and cardiac monitoring",
+    reasonForVisit: "Routine cardiology follow-up. Review BP logs and assess medication efficacy.",
+    remindersSent: [], rescheduleHistory: [], tokenRewardIssued: false, followUpNeeded: false,
+    createdBy: "provider",
+    createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
+  },
+  {
+    appointmentId: "APT-2026-00002",
+    patientId: "patient-2", patientName: "Emily Rodriguez",
+    patientEmail: "emily.rodriguez@example.com", patientPhone: "(555) 234-5678",
+    providerId: "user-2", providerName: "Dr. John Smith", providerSpecialty: "Cardiology",
+    organizationName: "Metro Heart Institute",
+    appointmentType: "new_patient", status: "confirmed",
+    scheduledDate: new Date(2026, 6, 22), startTime: "10:30", endTime: "11:15", durationMinutes: 45,
+    location: "in_person",
+    chiefComplaint: "Cardiac evaluation — exertional chest discomfort and dyspnea",
+    reasonForVisit: "New patient referral from PCP. Evaluate for suspected coronary artery disease.",
+    notes: "Patient to bring prior ECG records and recent lab results.",
+    remindersSent: [], rescheduleHistory: [], tokenRewardIssued: false, followUpNeeded: false,
+    createdBy: "provider",
+    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000)
+  },
+  {
+    appointmentId: "APT-2026-00003",
+    patientId: "patient-3", patientName: "Thomas Brown",
+    patientEmail: "thomas.brown@example.com", patientPhone: "(555) 345-6789",
+    providerId: "user-2", providerName: "Dr. John Smith", providerSpecialty: "Cardiology",
+    organizationName: "Metro Heart Institute",
+    appointmentType: "follow_up", status: "scheduled",
+    scheduledDate: new Date(2026, 6, 24), startTime: "14:00", endTime: "14:30", durationMinutes: 30,
+    location: "in_person",
+    chiefComplaint: "Post-CABG follow-up and diastolic heart failure management",
+    reasonForVisit: "Quarterly follow-up for chronic diastolic HF. Review NYHA class and optimize diuretic therapy.",
+    remindersSent: [], rescheduleHistory: [], tokenRewardIssued: false, followUpNeeded: false,
+    createdBy: "provider",
+    createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000)
+  },
+  {
+    appointmentId: "APT-2026-00004",
+    patientId: "patient-4", patientName: "Maria Garcia",
+    patientEmail: "maria.garcia@example.com", patientPhone: "(555) 456-7890",
+    providerId: "user-2", providerName: "Dr. John Smith", providerSpecialty: "Cardiology",
+    organizationName: "Metro Heart Institute",
+    appointmentType: "follow_up", status: "confirmed",
+    scheduledDate: new Date(2026, 6, 25), startTime: "11:00", endTime: "11:45", durationMinutes: 45,
+    location: "in_person",
+    chiefComplaint: "Post-catheterization follow-up and revascularization discussion",
+    reasonForVisit: "Review cardiac catheterization results and discuss PCI vs. CABG options with patient.",
+    notes: "Post-cath care instructions reviewed. Patient reports improved angina.",
+    remindersSent: [], rescheduleHistory: [], tokenRewardIssued: false, followUpNeeded: false,
+    createdBy: "provider",
+    createdAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000)
+  },
+  {
+    appointmentId: "APT-2026-00005",
+    patientId: "patient-5", patientName: "David Lee",
+    patientEmail: "david.lee@example.com", patientPhone: "(555) 567-8901",
+    providerId: "user-2", providerName: "Dr. John Smith", providerSpecialty: "Cardiology",
+    organizationName: "Metro Heart Institute",
+    appointmentType: "follow_up", status: "scheduled",
+    scheduledDate: new Date(2026, 6, 28), startTime: "13:00", endTime: "13:30", durationMinutes: 30,
+    location: "in_person",
+    chiefComplaint: "VF management and EP study appeal review",
+    reasonForVisit: "Urgent follow-up to review Holter results, discuss EP study authorization appeal, and assess ICD settings.",
+    remindersSent: [], rescheduleHistory: [], tokenRewardIssued: false, followUpNeeded: false,
+    createdBy: "provider",
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+  },
+  {
+    appointmentId: "APT-2026-00006",
+    patientId: "patient-1", patientName: "James Wilson",
+    patientEmail: "james.wilson@example.com", patientPhone: "(555) 123-4567",
+    providerId: "user-2", providerName: "Dr. John Smith", providerSpecialty: "Cardiology",
+    organizationName: "Metro Heart Institute",
+    appointmentType: "telehealth", status: "scheduled",
+    scheduledDate: new Date(2026, 6, 29), startTime: "15:30", endTime: "16:00", durationMinutes: 30,
+    location: "telehealth",
+    telehealthLink: "https://telehealth.clinictrustai.com/room/a1b2c3d4e5f67890",
+    chiefComplaint: "Telehealth check-in — beta-blocker side effect review",
+    reasonForVisit: "Patient reporting dizziness with new carvedilol dose. Telehealth consult to assess and adjust.",
+    remindersSent: [], rescheduleHistory: [], tokenRewardIssued: false, followUpNeeded: false,
+    createdBy: "provider",
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+  },
+  {
+    appointmentId: "APT-2026-00007",
+    patientId: "patient-2", patientName: "Emily Rodriguez",
+    patientEmail: "emily.rodriguez@example.com", patientPhone: "(555) 234-5678",
+    providerId: "user-2", providerName: "Dr. John Smith", providerSpecialty: "Cardiology",
+    organizationName: "Metro Heart Institute",
+    appointmentType: "procedure", status: "scheduled",
+    scheduledDate: new Date(2026, 6, 30), startTime: "08:00", endTime: "10:00", durationMinutes: 120,
+    location: "in_person",
+    chiefComplaint: "Nuclear Stress Test procedure",
+    reasonForVisit: "Nuclear stress test per approved prior authorization (PA-2026). Assess myocardial perfusion.",
+    linkedReferralId: "referral-1",
+    notes: "NPO after midnight. Must be accompanied. Hold beta-blockers 24h prior. IV access required.",
+    remindersSent: [], rescheduleHistory: [], tokenRewardIssued: false, followUpNeeded: false,
+    createdBy: "provider",
+    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
+  },
+  {
+    appointmentId: "APT-2026-00008",
+    patientId: "patient-3", patientName: "Thomas Brown",
+    patientEmail: "thomas.brown@example.com", patientPhone: "(555) 345-6789",
+    providerId: "user-2", providerName: "Dr. John Smith", providerSpecialty: "Cardiology",
+    organizationName: "Metro Heart Institute",
+    appointmentType: "urgent", status: "confirmed",
+    scheduledDate: new Date(2026, 6, 31), startTime: "09:00", endTime: "09:30", durationMinutes: 30,
+    location: "in_person",
+    chiefComplaint: "Acute onset shortness of breath and bilateral leg edema",
+    reasonForVisit: "Patient called clinic with acute SOB and new bilateral pitting edema. Urgent slot for evaluation of possible acute HF decompensation.",
+    notes: "Urgent. BNP and CXR orders pre-placed. Patient advised to restrict fluids.",
+    remindersSent: [], rescheduleHistory: [], tokenRewardIssued: false, followUpNeeded: false,
+    createdBy: "provider",
+    createdAt: new Date(), updatedAt: new Date()
+  }
+]);
+console.log("Appointments created: " + (await db.collection('appointments').countDocuments()));
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DTx PROGRAMS — Respiratory & Neurology
+// ═══════════════════════════════════════════════════════════════════════════
+console.log("Creating dtxprograms collection...");
+const dtxProgId1 = new ObjectId();
+const dtxProgId2 = new ObjectId();
+const dtxProgId3 = new ObjectId();
+const dtxProgId4 = new ObjectId();
+const dtxProgId5 = new ObjectId();
+const dtxProgId6 = new ObjectId();
+
+await db.collection('dtxprograms').insertMany([
+  {
+    _id: dtxProgId1,
+    name: "BreathWell COPD Manager",
+    vendor: "PulmoTech Solutions",
+    category: "respiratory",
+    description: "Comprehensive digital therapeutic for COPD patients combining real-time spirometry tracking, personalized breathing exercises, inhaler technique coaching, and AI-driven exacerbation risk prediction.",
+    conditions: ["COPD", "Chronic Bronchitis", "Emphysema"],
+    evidenceLevel: "fda_cleared",
+    durationWeeks: 16,
+    deliveryFormat: "app",
+    contentTypes: ["breathing exercises", "spirometry logging", "inhaler technique coaching", "AI risk alerts"],
+    highlights: ["FDA-cleared Class II device", "Reduces COPD exacerbations by 34%", "Integrates with Bluetooth spirometers", "Personalized action plans"],
+    contraindications: ["Severe cognitive impairment", "Unable to use smartphone"],
+    tokenReward: 20, isActive: true, prescriptionCount: 48, avgEngagementScore: 73
+  },
+  {
+    _id: dtxProgId2,
+    name: "AsthmaClear Pro",
+    vendor: "AirWay Digital Health",
+    category: "respiratory",
+    description: "AI-driven asthma management platform tracking symptoms, peak flow, and environmental triggers, with step-up/step-down therapy guidance aligned to GINA 2025 guidelines.",
+    conditions: ["Asthma", "Allergic Asthma", "Exercise-Induced Bronchoconstriction"],
+    evidenceLevel: "fda_authorized",
+    durationWeeks: 12,
+    deliveryFormat: "both",
+    contentTypes: ["symptom tracker", "peak flow monitoring", "trigger alerts", "medication reminders", "GINA-based care plans"],
+    highlights: ["FDA-authorized", "GINA 2025 aligned", "Reduces ER visits by 42%", "Real-time air quality integration"],
+    contraindications: ["Severe uncontrolled asthma requiring ICU care"],
+    tokenReward: 15, isActive: true, prescriptionCount: 92, avgEngagementScore: 81
+  },
+  {
+    _id: dtxProgId3,
+    name: "PulmoRehab Connect",
+    vendor: "RespiCare Innovations",
+    category: "respiratory",
+    description: "Digital pulmonary rehabilitation program with structured exercise training, education modules, nutritional guidance, and psychosocial support — designed for patients unable to attend in-person PR programs.",
+    conditions: ["COPD", "Pulmonary Fibrosis", "Post-COVID Respiratory Syndrome", "Interstitial Lung Disease"],
+    evidenceLevel: "peer_reviewed",
+    durationWeeks: 8,
+    deliveryFormat: "hybrid",
+    contentTypes: ["video exercise sessions", "education modules", "nutritional coaching", "weekly provider check-ins"],
+    highlights: ["Equivalent outcomes to in-person PR", "Covers rural and homebound patients", "Avg 6MWT improvement 18%", "Peer-reviewed in AJRCCM"],
+    contraindications: ["O2 dependent > 4 L/min at rest", "Unstable cardiac comorbidity"],
+    tokenReward: 18, isActive: true, prescriptionCount: 31, avgEngagementScore: 67
+  },
+  {
+    _id: dtxProgId4,
+    name: "NeuroBalance Migraine",
+    vendor: "Cognify Health",
+    category: "neurology",
+    description: "Evidence-based digital therapeutic for chronic migraine combining headache diary logging, biofeedback, CBT modules, and ML-powered trigger identification to reduce monthly migraine frequency.",
+    conditions: ["Chronic Migraine", "Episodic Migraine", "Tension-Type Headache"],
+    evidenceLevel: "fda_cleared",
+    durationWeeks: 20,
+    deliveryFormat: "app",
+    contentTypes: ["headache diary", "biofeedback exercises", "CBT modules", "trigger analysis", "medication tracking"],
+    highlights: ["FDA-cleared for migraine prevention", "50% reduction in monthly headache days", "Validated biofeedback technology", "No systemic side effects"],
+    contraindications: ["Secondary headache disorder undiagnosed", "Active psychiatric crisis"],
+    tokenReward: 22, isActive: true, prescriptionCount: 65, avgEngagementScore: 78
+  },
+  {
+    _id: dtxProgId5,
+    name: "CogniPath Rehab",
+    vendor: "MindBridge Digital Therapeutics",
+    category: "neurology",
+    description: "Adaptive cognitive rehabilitation platform for acquired brain injury, stroke, and mild cognitive impairment — using gamified exercises targeting attention, memory, processing speed, and executive function.",
+    conditions: ["Mild Cognitive Impairment", "Post-Stroke Cognitive Deficits", "Traumatic Brain Injury", "Early-Stage Alzheimer's Disease"],
+    evidenceLevel: "clinical_study",
+    durationWeeks: 24,
+    deliveryFormat: "both",
+    contentTypes: ["adaptive cognitive exercises", "progress dashboards", "caregiver tools", "clinician outcome reports"],
+    highlights: ["Validated in 3 RCTs", "Adaptive difficulty algorithm", "Caregiver integration portal", "HIPAA-compliant data sharing"],
+    contraindications: ["Severe aphasia preventing program interaction", "Moderate-to-severe dementia"],
+    tokenReward: 25, isActive: true, prescriptionCount: 39, avgEngagementScore: 72
+  },
+  {
+    _id: dtxProgId6,
+    name: "ParkinsonsCompanion",
+    vendor: "NeuroTrack Systems",
+    category: "neurology",
+    description: "Holistic digital therapeutic for Parkinson's disease combining wearable-based tremor and gait analysis, medication adherence tracking, voice and motor exercises, and a caregiver communication dashboard.",
+    conditions: ["Parkinson's Disease", "Parkinsonism", "Essential Tremor"],
+    evidenceLevel: "fda_authorized",
+    durationWeeks: 52,
+    deliveryFormat: "hybrid",
+    contentTypes: ["wearable sensor integration", "gait analysis", "medication tracker", "voice exercises", "caregiver dashboard"],
+    highlights: ["FDA-authorized", "Integrates with Apple Watch & Fitbit", "UPDRS score improvement 22%", "Reduces caregiver burden"],
+    contraindications: ["Unable to use wearable device", "Advanced PD Hoehn & Yahr Stage 5"],
+    tokenReward: 30, isActive: true, prescriptionCount: 27, avgEngagementScore: 69
+  }
+]);
+console.log("DTx programs created: " + (await db.collection('dtxprograms').countDocuments()));
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DTx PRESCRIPTIONS — All statuses (John Smith — user-2)
+// ═══════════════════════════════════════════════════════════════════════════
+console.log("Creating dtxprescriptions collection...");
+await db.collection('dtxprescriptions').insertMany([
+  {
+    programId: dtxProgId2, programName: "AsthmaClear Pro",
+    programVendor: "AirWay Digital Health", programCategory: "respiratory",
+    providerId: "user-2", providerName: "Dr. John Smith",
+    patientName: "Emily Rodriguez", patientId: "patient-2",
+    patientEmail: "emily.rodriguez@example.com", patientPhone: "(555) 234-5678",
+    status: "prescribed",
+    clinicalNotes: "Patient with new asthma exacerbations triggered by seasonal allergens. Prescribing AsthmaClear Pro as adjunct to GINA step-up therapy and to improve self-management between visits.",
+    statusHistory: [{ status: "prescribed", changedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), notes: "Initial prescription issued" }],
+    prescribedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+    tokenRewardIssued: false,
+    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
+  },
+  {
+    programId: dtxProgId1, programName: "BreathWell COPD Manager",
+    programVendor: "PulmoTech Solutions", programCategory: "respiratory",
+    providerId: "user-2", providerName: "Dr. John Smith",
+    patientName: "David Lee", patientId: "patient-5",
+    patientEmail: "david.lee@example.com", patientPhone: "(555) 567-8901",
+    status: "enrolled",
+    clinicalNotes: "71-year-old with COPD and cardiac comorbidities. Enrolled in BreathWell to reduce exacerbation frequency and improve inhaler technique compliance.",
+    statusHistory: [
+      { status: "prescribed", changedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), notes: "Initial prescription issued" },
+      { status: "enrolled", changedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), notes: "Patient completed onboarding and linked Bluetooth spirometer" }
+    ],
+    prescribedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+    enrolledAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+    tokenRewardIssued: false,
+    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+  },
+  {
+    programId: dtxProgId4, programName: "NeuroBalance Migraine",
+    programVendor: "Cognify Health", programCategory: "neurology",
+    providerId: "user-2", providerName: "Dr. John Smith",
+    patientName: "Maria Garcia", patientId: "patient-4",
+    patientEmail: "maria.garcia@example.com", patientPhone: "(555) 456-7890",
+    status: "active",
+    clinicalNotes: "Patient with 15+ headache days/month. Pharmacological therapy partially effective. NeuroBalance prescribed as adjunct for headache prevention and trigger identification.",
+    engagementScore: 76,
+    statusHistory: [
+      { status: "prescribed", changedAt: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000), notes: "Prescribed as adjunct to topiramate therapy" },
+      { status: "enrolled", changedAt: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000), notes: "Patient completed setup and completed first CBT module" },
+      { status: "active", changedAt: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000), notes: "Actively using daily. Headache frequency down from 15 to 9 days/month at week 2 review" }
+    ],
+    prescribedAt: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000),
+    enrolledAt: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000),
+    tokenRewardIssued: false,
+    createdAt: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+  },
+  {
+    programId: dtxProgId3, programName: "PulmoRehab Connect",
+    programVendor: "RespiCare Innovations", programCategory: "respiratory",
+    providerId: "user-2", providerName: "Dr. John Smith",
+    patientName: "James Wilson", patientId: "patient-1",
+    patientEmail: "james.wilson@example.com", patientPhone: "(555) 123-4567",
+    status: "completed",
+    clinicalNotes: "Patient completed 8-week digital pulmonary rehab following hospital admission for AECOPD. Excellent engagement and significant functional improvement documented.",
+    engagementScore: 91,
+    outcomeNotes: "8-week program fully completed. 6MWT improved from 340m to 412m (+21%). SGRQ quality-of-life score improved 18 points. Inhaler use reduced. Patient reports significantly improved exertional tolerance.",
+    statusHistory: [
+      { status: "prescribed", changedAt: new Date(Date.now() - 75 * 24 * 60 * 60 * 1000), notes: "Prescribed post-AECOPD hospitalization" },
+      { status: "enrolled", changedAt: new Date(Date.now() - 70 * 24 * 60 * 60 * 1000), notes: "Patient enrolled and completed orientation" },
+      { status: "active", changedAt: new Date(Date.now() - 63 * 24 * 60 * 60 * 1000), notes: "Week 1 completed. High engagement." },
+      { status: "completed", changedAt: new Date(Date.now() - 19 * 24 * 60 * 60 * 1000), notes: "All 8 weeks completed with excellent outcomes" }
+    ],
+    prescribedAt: new Date(Date.now() - 75 * 24 * 60 * 60 * 1000),
+    enrolledAt: new Date(Date.now() - 70 * 24 * 60 * 60 * 1000),
+    completedAt: new Date(Date.now() - 19 * 24 * 60 * 60 * 1000),
+    tokenRewardIssued: true, tokenRewardAmount: 18,
+    createdAt: new Date(Date.now() - 75 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 19 * 24 * 60 * 60 * 1000)
+  },
+  {
+    programId: dtxProgId5, programName: "CogniPath Rehab",
+    programVendor: "MindBridge Digital Therapeutics", programCategory: "neurology",
+    providerId: "user-2", providerName: "Dr. John Smith",
+    patientName: "Thomas Brown", patientId: "patient-3",
+    patientEmail: "thomas.brown@example.com", patientPhone: "(555) 345-6789",
+    status: "dropped",
+    clinicalNotes: "Post-stroke mild cognitive impairment. CogniPath prescribed for cognitive rehab targeting attention and memory deficits.",
+    engagementScore: 34,
+    outcomeNotes: "Patient engaged for first 2 weeks then discontinued. Reported difficulty using interface independently. Caregiver unable to provide consistent support. Dropped at week 3 due to usability and support barriers. Recommend revisiting with tablet-based interface and caregiver training.",
+    statusHistory: [
+      { status: "prescribed", changedAt: new Date(Date.now() - 55 * 24 * 60 * 60 * 1000), notes: "Prescribed for post-stroke cognitive rehab" },
+      { status: "enrolled", changedAt: new Date(Date.now() - 50 * 24 * 60 * 60 * 1000), notes: "Patient enrolled with daughter's assistance" },
+      { status: "active", changedAt: new Date(Date.now() - 46 * 24 * 60 * 60 * 1000), notes: "Initial engagement moderate, completing 2-3 sessions/week" },
+      { status: "dropped", changedAt: new Date(Date.now() - 34 * 24 * 60 * 60 * 1000), notes: "Patient unable to continue. Usability barriers and insufficient caregiver support." }
+    ],
+    prescribedAt: new Date(Date.now() - 55 * 24 * 60 * 60 * 1000),
+    enrolledAt: new Date(Date.now() - 50 * 24 * 60 * 60 * 1000),
+    droppedAt: new Date(Date.now() - 34 * 24 * 60 * 60 * 1000),
+    tokenRewardIssued: false,
+    createdAt: new Date(Date.now() - 55 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 34 * 24 * 60 * 60 * 1000)
+  }
+]);
+console.log("DTx prescriptions created: " + (await db.collection('dtxprescriptions').countDocuments()));
+
+  console.log('\nDatabase population complete!');
+  const collections = await db.listCollections().toArray();
+  const names = collections.map(c => c.name).sort();
+  for (const name of names) {
+    const count = await db.collection(name).countDocuments();
+    console.log(` - ${name}: ${count} documents`);
+  }
+
+  await mongoose.disconnect();
+  console.log('\nDone. Connection closed.');
+}
+
+main().catch(err => {
+  console.error('populate_db failed:', err.message);
+  process.exit(1);
 });

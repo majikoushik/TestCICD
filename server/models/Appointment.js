@@ -32,7 +32,7 @@ const appointmentSchema = new mongoose.Schema({
     index: true,
   },
   patientId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'Patient',
     required: true,
   },
@@ -40,7 +40,7 @@ const appointmentSchema = new mongoose.Schema({
   patientEmail: { type: String },
   patientPhone: { type: String },
   providerId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'User',
     required: true,
   },
@@ -80,11 +80,11 @@ const appointmentSchema = new mongoose.Schema({
   reasonForVisit: { type: String },
   notes: { type: String },
   linkedReferralId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'Referral',
   },
   priorAuthId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'PriorAuth',
   },
   insuranceVerified: { type: Boolean, default: false },
@@ -94,10 +94,7 @@ const appointmentSchema = new mongoose.Schema({
   rescheduleHistory: { type: [rescheduleHistorySchema], default: [] },
   cancellationReason: { type: String },
   cancelledAt: { type: Date },
-  cancelledBy: {
-    type: String,
-    enum: ['patient', 'provider', 'admin'],
-  },
+  cancelledBy: { type: String },
   noShowMarkedAt: { type: Date },
   tokenRewardIssued: { type: Boolean, default: false },
   tokenRewardAmount: { type: Number },

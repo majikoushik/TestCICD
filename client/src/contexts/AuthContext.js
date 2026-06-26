@@ -53,8 +53,10 @@ export function AuthProvider({ children }) {
       authStorage.set('token', response.token);
       setToken(response.token);
       setCurrentUser(response.user);
+      // Store user for onboarding status checks
+      localStorage.setItem('user', JSON.stringify(response.user));
       setError('');
-      
+
       return response;
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed. Please try again.');
@@ -73,8 +75,9 @@ export function AuthProvider({ children }) {
       authStorage.set('token', response.token);
       setToken(response.token);
       setCurrentUser(response.user);
+      localStorage.setItem('user', JSON.stringify(response.user));
       setError('');
-      
+
       return response;
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
@@ -89,6 +92,7 @@ export function AuthProvider({ children }) {
     try {
       await authService.logout();
       authStorage.clear();
+      localStorage.removeItem('user');
       setToken(null);
       setCurrentUser(null);
     } catch (err) {
@@ -153,6 +157,17 @@ export function AuthProvider({ children }) {
     setError('');
   };
 
+  const refreshUser = async () => {
+    try {
+      const user = await authService.getCurrentUser();
+      setCurrentUser(user);
+      localStorage.setItem('user', JSON.stringify(user));
+      return user;
+    } catch (e) {
+      console.error('Failed to refresh user:', e);
+    }
+  };
+
   const value = {
     currentUser,
     token,
@@ -164,7 +179,8 @@ export function AuthProvider({ children }) {
     updateProfile,
     forgotPassword,
     resetPassword,
-    clearError
+    clearError,
+    refreshUser
   };
 
   return (

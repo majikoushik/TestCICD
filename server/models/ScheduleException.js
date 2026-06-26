@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const scheduleExceptionSchema = new mongoose.Schema({
   providerId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'User',
     required: true,
     index: true

@@ -9,6 +9,7 @@
     "client": "cd client && npm start",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "start-dev": "node start-dev.js",
+    "populate_db": "node populate_db.js",
     "install-all": "npm install && cd client && npm install",
     "build": "cd client && npm run build",
     "blockchain:start": "cd blockchain && ./startFabric.sh",
@@ -37,6 +38,9 @@
     "jsonwebtoken": "^9.0.0",
     "mongoose": "^7.0.3",
     "morgan": "^1.10.0",
+    "multer": "^2.2.0",
+    "node-fetch": "^2.7.0",
+    "nodemailer": "^9.0.1",
     "winston": "^3.8.2"
   },
   "devDependencies": {

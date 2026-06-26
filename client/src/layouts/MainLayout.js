@@ -151,6 +151,12 @@ export default function MainLayout() {
     return items;
   };
   
+  useEffect(() => {
+    if (currentUser && !['admin','superadmin'].includes(currentUser.role) && currentUser.onboardingStatus !== 'verified') {
+      navigate('/onboarding');
+    }
+  }, [currentUser]);
+
   // Fetch referral counts when component mounts
   useEffect(() => {
     const fetchReferralCounts = async () => {

@@ -39,6 +39,7 @@ import {
   Mic as MicIcon,
   Storefront as StorefrontIcon,
   ContactMail as ContactMailIcon,
+  VerifiedUser as VerifiedUserIcon,
 } from '@mui/icons-material';
 import adminAuthService from '../services/adminAuthService';
 import { isAuthenticated, hasRole } from '../utils/authUtils';
@@ -108,6 +109,7 @@ const getMenuItems = () => [
   { text: 'AI Management', icon: <AIIcon />, path: '/admin/ai-management' },
   { text: 'Token Management', icon: <TokenIcon />, path: '/admin/token-management' },
   { text: 'Messaging', icon: <MessageIcon />, path: '/admin/messaging' },
+  { text: 'KYC Verification', icon: <VerifiedUserIcon />, path: '/admin/kyc' },
   { text: 'Contact Inquiries', icon: <ContactMailIcon />, path: '/admin/contacts' },
 ];
 

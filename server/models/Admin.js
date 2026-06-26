@@ -25,7 +25,7 @@ const AdminSettingSchema = new mongoose.Schema({
     default: true
   },
   lastModifiedBy: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'User'
   },
   lastModifiedAt: {

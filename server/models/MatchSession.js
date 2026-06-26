@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 
 const suggestionSchema = new mongoose.Schema(
   {
-    providerId: mongoose.Schema.Types.ObjectId,
+    providerId: String,
     providerName: String,
     specialty: String,
     matchScore: Number,
@@ -15,7 +15,7 @@ const suggestionSchema = new mongoose.Schema(
 
 const matchSessionSchema = new mongoose.Schema({
   requestedBy: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'User',
   },
   requestedByName: {
@@ -56,7 +56,7 @@ const matchSessionSchema = new mongoose.Schema({
     type: Number,
   },
   linkedReferralId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'Referral',
   },
   suggestions: {
