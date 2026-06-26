@@ -40,6 +40,7 @@ import {
   CalendarMonth as CalendarIcon,
   Storefront as StorefrontIcon,
   LocalPharmacy as RxIcon,
+  Forum as ForumIcon,
 } from '@mui/icons-material';
 import { useAuth, useToken, useNotification } from '../contexts';
 import referralService from '../services/referralService';
@@ -138,6 +139,7 @@ export default function MainLayout() {
       { text: 'My Schedule', icon: <CalendarIcon />, path: '/app/schedule' },
       { text: 'DTx Marketplace', icon: <StorefrontIcon />, path: '/app/dtx/marketplace' },
       { text: 'DTx Prescriptions', icon: <RxIcon />, path: '/app/dtx/prescriptions' },
+      { text: 'Secure Messaging', icon: <ForumIcon />, path: '/app/messaging' },
       { text: 'Settings', icon: <SettingsIcon />, path: '/app/settings' }
     ];
     

@@ -84,6 +84,9 @@ const BookAppointment = lazy(() => import('./pages/appointments/BookAppointment'
 // Provider Schedule
 const ProviderSchedulePage = lazy(() => import('./pages/schedule/ProviderSchedule'));
 
+// Provider Secure Messaging
+const ProviderInbox = lazy(() => import('./pages/app/ProviderInbox'));
+
 // DTx Marketplace
 const DtxMarketplace = lazy(() => import('./pages/dtx/DtxMarketplace'));
 const DtxPrescriptions = lazy(() => import('./pages/dtx/DtxPrescriptions'));
@@ -348,6 +351,13 @@ function App() {
         <Route path="schedule" element={
           <Suspense fallback={<PageLoadingFallback />}>
             <ProviderSchedulePage />
+          </Suspense>
+        } />
+
+        {/* Provider Secure Messaging */}
+        <Route path="messaging" element={
+          <Suspense fallback={<PageLoadingFallback />}>
+            <ProviderInbox />
           </Suspense>
         } />
 

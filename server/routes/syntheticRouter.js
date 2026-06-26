@@ -3388,4 +3388,153 @@ router.get('/admin/analytics/ai-performance', protect, authorize('admin', 'super
   });
 });
 
+// ── PROVIDER SECURE MESSAGING ─────────────────────────────────────────────────
+// In-memory thread store for synthetic mode.
+const syntheticMessages = [
+  // Thread 1 — referral ref-001 (Dr. John Smith ↔ Dr. Michael Chen)
+  {
+    _id: 'msg-001', referralId: 'ref-001',
+    senderId: 'user-2', senderName: 'Dr. John Smith', senderRole: 'doctor',
+    receiverId: 'user-4', receiverName: 'Dr. Michael Chen',
+    content: "Hi Dr. Chen, I'm referring Alice Johnson for an orthopedic consult. She's been experiencing knee pain for 3 months. Please review the attached imaging.",
+    readAt: new Date(Date.now() - 82800000), createdAt: new Date(Date.now() - 86400000),
+  },
+  {
+    _id: 'msg-002', referralId: 'ref-001',
+    senderId: 'user-4', senderName: 'Dr. Michael Chen', senderRole: 'doctor',
+    receiverId: 'user-2', receiverName: 'Dr. John Smith',
+    content: "Thanks Dr. Smith, I've reviewed the X-rays. Consistent with moderate medial compartment OA. I'll schedule her for next Tuesday. Any contraindications to intra-articular injections?",
+    readAt: new Date(Date.now() - 79200000), createdAt: new Date(Date.now() - 82800000),
+  },
+  {
+    _id: 'msg-003', referralId: 'ref-001',
+    senderId: 'user-2', senderName: 'Dr. John Smith', senderRole: 'doctor',
+    receiverId: 'user-4', receiverName: 'Dr. Michael Chen',
+    content: "No contraindications. She's on warfarin (INR 2.1 last week) — please coordinate with hematology before any injection. Her INR target is 2.0–3.0.",
+    readAt: null, createdAt: new Date(Date.now() - 3600000),
+  },
+  // Thread 2 — referral ref-002 (Dr. Sarah Johnson ↔ Dr. Emily Rodriguez)
+  {
+    _id: 'msg-004', referralId: 'ref-002',
+    senderId: 'user-3', senderName: 'Dr. Sarah Johnson', senderRole: 'doctor',
+    receiverId: 'user-5', receiverName: 'Dr. Emily Rodriguez',
+    content: "Dr. Rodriguez, Bob Williams needs a behavioral health evaluation. He's been presenting with increased anxiety post his neuro diagnosis. Do you have capacity this month?",
+    readAt: new Date(Date.now() - 43200000), createdAt: new Date(Date.now() - 48000000),
+  },
+  {
+    _id: 'msg-005', referralId: 'ref-002',
+    senderId: 'user-5', senderName: 'Dr. Emily Rodriguez', senderRole: 'doctor',
+    receiverId: 'user-3', receiverName: 'Dr. Sarah Johnson',
+    content: "Yes, I can take him. I have an opening Thursday at 2 PM. I'll also initiate the DTx AnxietyFree program as adjunct therapy. Please send over his full psych history if available.",
+    readAt: null, createdAt: new Date(Date.now() - 7200000),
+  },
+  // Thread 3 — referral ref-004 (Dr. Emily Rodriguez ↔ Dr. John Smith)
+  {
+    _id: 'msg-006', referralId: 'ref-004',
+    senderId: 'user-5', senderName: 'Dr. Emily Rodriguez', senderRole: 'doctor',
+    receiverId: 'user-2', receiverName: 'Dr. John Smith',
+    content: "Dr. Smith, quick note on David Brown's cardiology referral — patient mentioned he had a reaction to beta-blockers in 2019. I don't see this documented in the referral form. Can you confirm?",
+    readAt: null, createdAt: new Date(Date.now() - 1800000),
+  },
+];
+
+const _buildThreadSummary = (messages, requestingUserId) => {
+  const byReferral = {};
+  for (const m of messages) {
+    if (!byReferral[m.referralId]) byReferral[m.referralId] = [];
+    byReferral[m.referralId].push(m);
+  }
+  return Object.entries(byReferral).map(([referralId, msgs]) => {
+    const sorted = msgs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const lastMessage = sorted[0];
+    const unreadCount = msgs.filter(
+      (m) => m.receiverId === requestingUserId && !m.readAt
+    ).length;
+    return { _id: referralId, lastMessage, totalMessages: msgs.length, unreadCount };
+  }).sort((a, b) => new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt));
+};
+
+// GET /api/messages/threads — provider inbox
+router.get('/messages/threads', protect, (req, res) => {
+  const uid = req.user._id || req.user.id;
+  const userThreads = syntheticMessages.filter(
+    (m) => m.senderId === uid || m.receiverId === uid
+  );
+  // If user isn't a participant in any thread, show all threads (demo mode)
+  const filtered = userThreads.length > 0 ? userThreads : syntheticMessages;
+  res.json({ success: true, data: _buildThreadSummary(filtered, uid) });
+});
+
+// GET /api/messages/threads/:referralId — full conversation
+router.get('/messages/threads/:referralId', protect, (req, res) => {
+  const { referralId } = req.params;
+  const messages = syntheticMessages
+    .filter((m) => m.referralId === referralId)
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+  // Mark as read
+  const uid = req.user._id || req.user.id;
+  syntheticMessages.forEach((m) => {
+    if (m.referralId === referralId && m.receiverId === uid && !m.readAt) {
+      m.readAt = new Date();
+    }
+  });
+
+  const referralMeta = {
+    _id: referralId,
+    reason: 'Specialist consultation',
+    status: 'accepted',
+    patient: { name: 'See referral record' },
+  };
+  res.json({ success: true, data: { referral: referralMeta, messages } });
+});
+
+// POST /api/messages/threads/:referralId — send message
+router.post('/messages/threads/:referralId', protect, (req, res) => {
+  const { referralId } = req.params;
+  const { content, receiverId, receiverName } = req.body;
+  if (!content || !content.trim()) {
+    return res.status(400).json({ success: false, error: 'Content is required' });
+  }
+  const uid = String(req.user._id || req.user.id);
+  const newMsg = {
+    _id: `msg-${Date.now()}`,
+    referralId,
+    senderId: uid,
+    senderName: req.user.name || `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim(),
+    senderRole: req.user.role,
+    receiverId: receiverId || 'user-2',
+    receiverName: receiverName || 'Provider',
+    content: content.trim(),
+    readAt: null,
+    createdAt: new Date(),
+  };
+  syntheticMessages.push(newMsg);
+  res.status(201).json({ success: true, data: newMsg });
+});
+
+// PATCH /api/messages/read/:referralId — mark thread read
+router.patch('/messages/read/:referralId', protect, (req, res) => {
+  const { referralId } = req.params;
+  const uid = req.user._id || req.user.id;
+  syntheticMessages.forEach((m) => {
+    if (m.referralId === referralId && m.receiverId === uid && !m.readAt) {
+      m.readAt = new Date();
+    }
+  });
+  res.json({ success: true });
+});
+
+// GET /api/messages/admin/threads — admin monitoring
+router.get('/messages/admin/threads', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const summaries = _buildThreadSummary(syntheticMessages, null);
+  // Enrich with participant list for admin view
+  const enriched = summaries.map((t) => {
+    const msgs = syntheticMessages.filter((m) => m.referralId === t._id);
+    const names = [...new Set(msgs.map((m) => m.senderName))];
+    return { ...t, participants: names };
+  });
+  res.json({ success: true, data: enriched });
+});
+
 module.exports = router;

@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
-import { 
-  Box, 
-  Container, 
-  Typography, 
-  Paper, 
-  Tabs, 
+import {
+  Box,
+  Container,
+  Typography,
+  Paper,
+  Tabs,
   Tab,
   Divider
 } from '@mui/material';
 import BroadcastMessages from './messaging/BroadcastMessages';
 import TargetedAlerts from './messaging/TargetedAlerts';
 import EscalationWorkflows from './messaging/EscalationWorkflows';
+import ProviderThreads from './messaging/ProviderThreads';
 
 // TabPanel component for tab content
 function TabPanel(props) {
@@ -60,20 +61,22 @@ const AdminMessaging = () => {
             <Tab label="Broadcast Messages" />
             <Tab label="Targeted Alerts" />
             <Tab label="Escalation Workflows" />
+            <Tab label="Provider Threads" />
           </Tabs>
           <Divider />
 
-          <Box sx={{ p: 3 }}>
-            <TabPanel value={activeTab} index={0}>
-              <BroadcastMessages />
-            </TabPanel>
-            <TabPanel value={activeTab} index={1}>
-              <TargetedAlerts />
-            </TabPanel>
-            <TabPanel value={activeTab} index={2}>
-              <EscalationWorkflows />
-            </TabPanel>
-          </Box>
+          <TabPanel value={activeTab} index={0}>
+            <Box sx={{ p: 3 }}><BroadcastMessages /></Box>
+          </TabPanel>
+          <TabPanel value={activeTab} index={1}>
+            <Box sx={{ p: 3 }}><TargetedAlerts /></Box>
+          </TabPanel>
+          <TabPanel value={activeTab} index={2}>
+            <Box sx={{ p: 3 }}><EscalationWorkflows /></Box>
+          </TabPanel>
+          <TabPanel value={activeTab} index={3}>
+            <ProviderThreads />
+          </TabPanel>
         </Paper>
       </Box>
     </Container>
