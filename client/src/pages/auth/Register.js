@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useTransition } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -36,6 +36,7 @@ export default function Register() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { register, error, clearError } = useAuth();
   const navigate = useNavigate();
+  const [, startTransition] = useTransition();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -101,7 +102,7 @@ export default function Register() {
     try {
       const { confirmPassword, ...registrationData } = formData;
       await register(registrationData);
-      navigate('/');
+      startTransition(() => navigate('/'));
     } catch (error) {
       console.error('Registration error:', error);
     } finally {

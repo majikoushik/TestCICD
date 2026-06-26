@@ -219,12 +219,12 @@ export const mockResponse = async (data, delay = 1000, success = true, status = 
   }
   
   // Otherwise, reject with error
-  throw {
+  throw new Error(JSON.stringify({
     response: {
       data: { message: 'Mock API error' },
       status
     }
-  };
+  }));
 };
 
 // Export the axios instance

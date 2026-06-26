@@ -61,10 +61,12 @@ export const logout = () => {
   window.location.href = '/login';
 };
 
-export default {
+const authUtils = {
   getToken,
   getCurrentUser,
   isAuthenticated,
   hasRole,
   logout
 };
+
+export default authUtils;

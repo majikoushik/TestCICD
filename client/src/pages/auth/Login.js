@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useTransition } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth, useNotification } from '../../contexts';
 import { useForm } from '../../hooks';
@@ -19,6 +19,7 @@ export default function Login() {
   const { login, error, clearError } = useAuth();
   const { notifySuccess } = useNotification();
   const navigate = useNavigate();
+  const [, startTransition] = useTransition();
   
   // Form validation rules
   const validationRules = {
@@ -57,7 +58,7 @@ export default function Login() {
     try {
       await login(formData.email, formData.password);
       notifySuccess('Login successful');
-      navigate('/app/dashboard');
+      startTransition(() => navigate('/app/dashboard'));
     } catch (error) {
       console.error('Login error:', error);
     }
