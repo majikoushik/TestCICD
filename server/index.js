@@ -44,6 +44,7 @@ const referralMatchingRoutes = require('./routes/referralMatching');
 const appointmentRoutes = require('./routes/appointments');
 const scheduleRoutes = require('./routes/schedules');
 const adminAppointmentRoutes = require('./routes/admin/appointments');
+const adminAnalyticsRoutes = require('./routes/admin/analytics');
 const dtxRoutes = require('./routes/dtx');
 const adminDtxRoutes = require('./routes/adminDtx');
 const { seedPriorAuths } = require('./seeds/priorAuthSeed');
@@ -125,6 +126,7 @@ function mountLiveRoutes() {
   app.use('/api/admin/patient-engagement', [protect, authorize('admin', 'superadmin'), adminPatientEngagementRoutes]);
   app.use('/api/admin/ambient-sessions', [protect, authorize('admin', 'superadmin'), adminAmbientSessionRoutes]);
   app.use('/api/admin/appointments', [protect, authorize('admin', 'superadmin'), adminAppointmentRoutes]);
+  app.use('/api/admin/analytics', [protect, authorize('admin', 'superadmin'), adminAnalyticsRoutes]);
   app.use('/api/admin/dtx', adminDtxRoutes);
   app.use('/api/admin', [protect, authorize('admin', 'superadmin'), adminRoutes]);
   app.use('/api/referral-matching', protect, referralMatchingRoutes);

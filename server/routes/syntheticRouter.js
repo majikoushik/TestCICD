@@ -3203,4 +3203,189 @@ router.use('*', (req, res) => {
   res.status(404).json({ success: false, error: `Synthetic route not found: ${req.method} ${req.originalUrl}` });
 });
 
+// ═══════════════════════════════════════════════════════════════════════════
+// ADMIN ANALYTICS — dashboard endpoints
+// ═══════════════════════════════════════════════════════════════════════════
+
+router.get('/admin/analytics/platform-health', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      activeProviders: { count: 4, total: 5 },
+      referralsThisMonth: { count: 12, trend: 15 },
+      appointmentsThisWeek: { scheduled: 8, completed: 5 },
+      priorAuthPending: { count: 3, overdueCount: 1 },
+      dtxActivePrescriptions: { count: 5 },
+      tokensInCirculation: { total: 1235, issuedThisMonth: 145 },
+    },
+  });
+});
+
+router.get('/admin/analytics/alerts', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({
+    success: true,
+    data: [
+      { type: 'prior_auth_overdue', severity: 'error', message: '1 prior auth request pending > 7 days without a decision', count: 1, link: '/admin/prior-auth' },
+      { type: 'referral_stale', severity: 'warning', message: '2 referrals stuck in pending > 14 days with no provider response', count: 2, link: '/admin/referrals' },
+      { type: 'provider_inactive', severity: 'warning', message: '1 provider with no login activity this month', count: 1, link: '/admin/users' },
+      { type: 'dtx_unused', severity: 'info', message: '3 active DTx programs with 0 prescriptions — consider catalog review', count: 3, link: '/admin/dtx' },
+    ],
+  });
+});
+
+router.get('/admin/analytics/care-funnel', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const stages = [
+    { stage: 'Referrals Created', count: 47, color: '#1976d2', dropoffPct: null },
+    { stage: 'Referrals Accepted', count: 38, color: '#0288d1', dropoffPct: 19 },
+    { stage: 'Appointments Booked', count: 31, color: '#00897b', dropoffPct: 18 },
+    { stage: 'Appointments Completed', count: 25, color: '#388e3c', dropoffPct: 19 },
+    { stage: 'DTx Prescribed', count: 12, color: '#7b1fa2', dropoffPct: 52 },
+    { stage: 'DTx Completed', count: 7, color: '#f57c00', dropoffPct: 42 },
+  ];
+  res.json({ success: true, data: stages });
+});
+
+router.get('/admin/analytics/activity-feed', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const now = Date.now();
+  const feed = [
+    { type: 'appointment', title: 'Appointment completed', description: 'James Wilson with Dr. John Smith — follow_up', timestamp: new Date(now - 1200000), link: '/admin/appointments' },
+    { type: 'referral', title: 'Referral accepted', description: 'Neurology referral for Thomas Brown', timestamp: new Date(now - 3600000), link: '/admin/referrals' },
+    { type: 'dtx', title: 'DTx active', description: 'Emily Rodriguez — Calm Mind CBT Program', timestamp: new Date(now - 7200000), link: '/admin/dtx' },
+    { type: 'prior_auth', title: 'Prior Auth Approved', description: 'James Wilson — Cardiology consultation', timestamp: new Date(now - 10800000), link: '/admin/prior-auth' },
+    { type: 'appointment', title: 'Appointment confirmed', description: 'Thomas Brown with Dr. Michael Chen — new_patient', timestamp: new Date(now - 14400000), link: '/admin/appointments' },
+    { type: 'ambient', title: 'Ambient AI approved', description: 'Chest pain assessment — Dr. John Smith', timestamp: new Date(now - 18000000), link: '/admin/ambient-sessions' },
+    { type: 'referral', title: 'Referral completed', description: 'Cardiology referral for James Wilson', timestamp: new Date(now - 21600000), link: '/admin/referrals' },
+    { type: 'dtx', title: 'DTx prescribed', description: 'Thomas Brown — DiaBetter Metabolic Program', timestamp: new Date(now - 28800000), link: '/admin/dtx' },
+    { type: 'appointment', title: 'Appointment no_show', description: 'Emily Rodriguez with Dr. Robert Williams', timestamp: new Date(now - 36000000), link: '/admin/appointments' },
+    { type: 'prior_auth', title: 'Prior Auth Pending', description: 'Thomas Brown — Neurology follow-up', timestamp: new Date(now - 43200000), link: '/admin/prior-auth' },
+  ];
+  res.json({ success: true, data: feed });
+});
+
+router.get('/admin/analytics/platform-overview', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      dtx: { activePrograms: 10, prescriptionsThisMonth: 7, completionRate: 43, tokensAwarded: 120 },
+      priorAuth: { submitted: 10, pending: 3, approved: 5, denied: 2, avgTurnaroundDays: 4.2 },
+      engagement: { sent: 48, deliveryRate: 94 },
+      ambientAI: { sessionsThisMonth: 8, approvedThisMonth: 6, approvalRate: 75 },
+    },
+  });
+});
+
+router.get('/admin/analytics/provider-performance', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const providers = (store.users || []).filter(u => ['doctor', 'nurse', 'provider'].includes(u.role));
+  const data = providers.map((p, i) => ({
+    id: p._id,
+    name: p.name,
+    specialty: p.specialty,
+    organization: p.organization,
+    referrals: [8, 12, 6, 10][i] || 5,
+    acceptanceRate: [0.87, 0.92, 0.78, 0.83][i] || 0.8,
+    avgResponseTime: [22, 18, 30, 24][i] || 24,
+    tokenBalance: p.tokenBalance || 0,
+    tokenEarnedThisMonth: [45, 60, 30, 50][i] || 25,
+    dtxPrescriptions: [3, 5, 2, 4][i] || 1,
+    appointmentsTotal: [16, 20, 12, 18][i] || 10,
+    appointmentsCompleted: [13, 18, 9, 15][i] || 8,
+    noShowRate: [12, 5, 18, 8][i] || 10,
+  }));
+  res.json({ success: true, data });
+});
+
+router.get('/admin/analytics/referral-conversion', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const period = req.query.period || 'last6months';
+  const numMonths = period === 'last3months' ? 3 : period === 'lastyear' ? 12 : 6;
+  const base = [
+    { sent: 8, accepted: 7, completed: 5 },
+    { sent: 10, accepted: 8, completed: 6 },
+    { sent: 7, accepted: 6, completed: 5 },
+    { sent: 12, accepted: 10, completed: 8 },
+    { sent: 9, accepted: 7, completed: 6 },
+    { sent: 11, accepted: 9, completed: 7 },
+    { sent: 13, accepted: 11, completed: 9 },
+    { sent: 8, accepted: 7, completed: 5 },
+    { sent: 10, accepted: 9, completed: 7 },
+    { sent: 14, accepted: 12, completed: 10 },
+    { sent: 11, accepted: 9, completed: 8 },
+    { sent: 12, accepted: 10, completed: 8 },
+  ];
+  const data = Array.from({ length: numMonths }, (_, i) => {
+    const d = new Date(); d.setMonth(d.getMonth() - (numMonths - 1 - i));
+    const label = d.toLocaleString('default', { month: 'short', year: '2-digit' });
+    const b = base[i % base.length];
+    return { month: label, ...b };
+  });
+  const totals = data.reduce((a, m) => ({ sent: a.sent + m.sent, accepted: a.accepted + m.accepted, completed: a.completed + m.completed }), { sent: 0, accepted: 0, completed: 0 });
+  res.json({
+    success: true, data,
+    meta: {
+      ...totals,
+      acceptanceRate: Math.round((totals.accepted / totals.sent) * 100),
+      completionRate: Math.round((totals.completed / totals.accepted) * 100),
+      overallConversion: Math.round((totals.completed / totals.sent) * 100),
+      referralToApptRate: 68,
+      rejectionReasons: [
+        { reason: 'Insurance not accepted', count: 4 },
+        { reason: 'At capacity', count: 3 },
+        { reason: 'Incomplete referral info', count: 2 },
+        { reason: 'Out of specialty scope', count: 1 },
+      ],
+    },
+  });
+});
+
+router.get('/admin/analytics/token-economy', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const period = req.query.period || 'last6months';
+  const numMonths = period === 'last3months' ? 3 : period === 'lastyear' ? 12 : 6;
+  const base = [35, 42, 38, 55, 48, 62, 70, 45, 58, 75, 63, 80];
+  let running = 800;
+  const data = Array.from({ length: numMonths }, (_, i) => {
+    const d = new Date(); d.setMonth(d.getMonth() - (numMonths - 1 - i));
+    const label = d.toLocaleString('default', { month: 'short', year: '2-digit' });
+    const issued = base[i % base.length];
+    const redeemed = Math.floor(issued * 0.35);
+    running = Math.max(0, running + issued - redeemed);
+    return { month: label, issued, redeemed, circulation: running };
+  });
+  res.json({
+    success: true, data,
+    meta: {
+      totalIssued: data.reduce((s, m) => s + m.issued, 0),
+      totalRedeemed: data.reduce((s, m) => s + m.redeemed, 0),
+      currentCirculation: data[data.length - 1]?.circulation || 0,
+      leaderboard: [
+        { rank: 1, name: 'Dr. Michael Chen', specialty: 'Neurology', balance: 420 },
+        { rank: 2, name: 'Dr. John Smith', specialty: 'Cardiology', balance: 350 },
+        { rank: 3, name: 'Dr. Robert Williams', specialty: 'General Practice', balance: 290 },
+        { rank: 4, name: 'Nurse Sarah Johnson', specialty: 'Pediatric Nursing', balance: 175 },
+      ],
+      breakdown: { referral: 380, appointment: 290, dtx: 120, other: 210 },
+    },
+  });
+});
+
+router.get('/admin/analytics/ai-performance', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const months = ['Jan 25', 'Feb 25', 'Mar 25', 'Apr 25', 'May 25', 'Jun 25'];
+  const usage = months.map((month, i) => ({
+    month,
+    ambientSessions: [3, 5, 4, 7, 8, 10][i],
+    matchSessions: [5, 8, 7, 10, 12, 15][i],
+    recommendationEngine: [5, 8, 7, 10, 12, 15][i],
+  }));
+  res.json({
+    success: true,
+    data: {
+      accuracy: { riskAssessment: 0.87, summaryGeneration: 0.92, recommendationEngine: 0.85 },
+      ambientAI: { total: 37, approved: 28, rejected: 5, pending: 4, approvalRate: 76 },
+      referralMatching: { sessions: 57, withSelection: 48, selectionRate: 84, avgMatchScore: 78.4 },
+      usage,
+      falsePositives: 12,
+      falseNegatives: 8,
+      improvementRate: 0.082,
+    },
+  });
+});
+
 module.exports = router;
