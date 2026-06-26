@@ -2266,6 +2266,180 @@ router.get('/schedules/:providerId/waitlist', protect, (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Digital Therapeutics (DTx) Marketplace routes (synthetic mode)
+// ---------------------------------------------------------------------------
+
+const syntheticDtxPrograms = [
+  { _id: 'dtx-001', name: 'Diabetes Prevention Program', vendor: 'Omada Health', category: 'metabolic', description: 'A CDC-recognized lifestyle change program for preventing Type 2 diabetes through coaching, curriculum, and community.', conditions: ['Type 2 Diabetes', 'Pre-diabetes', 'Obesity'], evidenceLevel: 'fda_cleared', durationWeeks: 52, deliveryFormat: 'both', contentTypes: ['Coaching', 'Nutrition', 'Exercise'], highlights: ['CDC-recognized program', 'Proven 4-7% weight loss', 'Human health coach included', '35+ group sessions'], contraindications: ['Type 1 Diabetes'], tokenReward: 15, isActive: true, prescriptionCount: 48, avgEngagementScore: 78 },
+  { _id: 'dtx-002', name: 'Back & Joint Care', vendor: 'Kaia Health', category: 'musculoskeletal', description: 'AI-guided exercise therapy for chronic back, knee, and hip pain using computer-vision motion feedback.', conditions: ['Chronic Back Pain', 'Knee Osteoarthritis', 'Hip Pain'], evidenceLevel: 'peer_reviewed', durationWeeks: 12, deliveryFormat: 'app', contentTypes: ['Exercise', 'CBT', 'Education'], highlights: ['AI motion feedback', 'No equipment needed', 'Clinically validated in RCTs'], contraindications: ['Recent spinal surgery'], tokenReward: 10, isActive: true, prescriptionCount: 62, avgEngagementScore: 82 },
+  { _id: 'dtx-003', name: 'Sleepio CBT-I', vendor: 'Big Health', category: 'mental_health', description: 'FDA-cleared digital CBT for insomnia (CBT-I) delivering 6-session structured sleep therapy through an AI therapist.', conditions: ['Chronic Insomnia', 'Sleep Disorder'], evidenceLevel: 'fda_cleared', durationWeeks: 6, deliveryFormat: 'web', contentTypes: ['CBT', 'Education'], highlights: ['FDA Breakthrough Device', '76% of users achieve normal sleep', 'No medication required'], contraindications: [], tokenReward: 10, isActive: true, prescriptionCount: 31, avgEngagementScore: 74 },
+  { _id: 'dtx-004', name: 'Rejoyn CBT App', vendor: 'Alto Neuroscience', category: 'mental_health', description: 'FDA-authorized prescription digital therapeutic for major depressive disorder, used adjunctively with antidepressants.', conditions: ['Major Depressive Disorder', 'Depression'], evidenceLevel: 'fda_authorized', durationWeeks: 8, deliveryFormat: 'app', contentTypes: ['CBT', 'Behavioral Activation'], highlights: ['FDA De Novo authorized', 'Adjunctive to antidepressants', 'Used alongside medication'], contraindications: ['Bipolar disorder', 'Active suicidal ideation'], tokenReward: 12, isActive: true, prescriptionCount: 19, avgEngagementScore: 69 },
+  { _id: 'dtx-005', name: 'Quit Genius', vendor: 'Quit Genius', category: 'behavioral', description: 'Evidence-based digital therapeutic for smoking cessation combining CBT, medication support, and 1-on-1 coaching.', conditions: ['Nicotine Addiction', 'Smoking Cessation'], evidenceLevel: 'clinical_study', durationWeeks: 12, deliveryFormat: 'app', contentTypes: ['CBT', 'Coaching', 'NRT Integration'], highlights: ['3x quit rates vs. standard care', 'NRT coordination', 'Clinical coach included'], contraindications: [], tokenReward: 10, isActive: true, prescriptionCount: 27, avgEngagementScore: 71 },
+  { _id: 'dtx-006', name: 'Cardiac Rehab PRO', vendor: 'Movn', category: 'cardiovascular', description: 'Home-based cardiac rehabilitation program for post-MI and heart failure patients, monitored by care team.', conditions: ['Post-MI', 'Heart Failure', 'Coronary Artery Disease'], evidenceLevel: 'clinical_study', durationWeeks: 12, deliveryFormat: 'hybrid', contentTypes: ['Exercise', 'Education', 'Monitoring'], highlights: ['Remote monitoring', 'Care team dashboard', 'Equivalent outcomes to in-person rehab'], contraindications: ['Unstable angina', 'Decompensated heart failure'], tokenReward: 15, isActive: true, prescriptionCount: 14, avgEngagementScore: 85 },
+  { _id: 'dtx-007', name: 'Noom Weight', vendor: 'Noom', category: 'metabolic', description: 'Psychology-based weight management program using CBT and behavioral change science to create sustainable habits.', conditions: ['Obesity', 'Overweight', 'Metabolic Syndrome'], evidenceLevel: 'peer_reviewed', durationWeeks: 16, deliveryFormat: 'app', contentTypes: ['CBT', 'Nutrition', 'Coaching'], highlights: ['Psychology-first approach', 'Personal goal specialist', '45% of users maintain weight loss at 1 year'], contraindications: [], tokenReward: 10, isActive: true, prescriptionCount: 55, avgEngagementScore: 76 },
+  { _id: 'dtx-008', name: 'MindShift CBT', vendor: 'Anxiety Canada', category: 'mental_health', description: 'CBT-based digital therapeutic for generalized anxiety disorder and social anxiety using evidence-based strategies.', conditions: ['Generalized Anxiety', 'Social Anxiety', 'Panic Disorder'], evidenceLevel: 'evidence_based', durationWeeks: 8, deliveryFormat: 'app', contentTypes: ['CBT', 'Mindfulness', 'Exposure Therapy'], highlights: ['Free to prescribe', 'Developed by anxiety experts', 'Proven anxiety reduction'], contraindications: [], tokenReward: 8, isActive: true, prescriptionCount: 43, avgEngagementScore: 68 },
+  { _id: 'dtx-009', name: 'PT Anywhere', vendor: 'Reflexion Health', category: 'musculoskeletal', description: 'Computer vision-guided home physical therapy for post-surgical rehabilitation and musculoskeletal conditions.', conditions: ['Post-surgical Rehab', 'ACL Reconstruction', 'Rotator Cuff', 'Knee Replacement'], evidenceLevel: 'peer_reviewed', durationWeeks: 8, deliveryFormat: 'app', contentTypes: ['Exercise', 'Physical Therapy'], highlights: ['Motion capture via smartphone', 'Reduces costly PT visits', 'Real-time form correction'], contraindications: ['Open wounds at treatment site'], tokenReward: 10, isActive: true, prescriptionCount: 22, avgEngagementScore: 80 },
+  { _id: 'dtx-010', name: 'Headspace Clinical', vendor: 'Headspace Health', category: 'mental_health', description: 'Clinical mindfulness and meditation program for stress, burnout, and mild anxiety with evidence-based guided content.', conditions: ['Stress', 'Burnout', 'Mild Anxiety', 'Insomnia'], evidenceLevel: 'evidence_based', durationWeeks: 8, deliveryFormat: 'both', contentTypes: ['Mindfulness', 'Meditation', 'Education'], highlights: ['500+ guided sessions', 'Clinician-recommended tracks', 'Proven stress reduction'], contraindications: [], tokenReward: 8, isActive: true, prescriptionCount: 89, avgEngagementScore: 72 },
+];
+
+const syntheticDtxPrescriptions = [
+  { _id: 'rx-001', programId: 'dtx-001', programName: 'Diabetes Prevention Program', programVendor: 'Omada Health', programCategory: 'metabolic', providerId: 'u002', providerName: 'Dr. John Smith', patientName: 'James Wilson', patientId: 'PT-100001', patientEmail: 'james.wilson@email.com', status: 'active', prescribedAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(), enrolledAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString(), engagementScore: null, outcomeNotes: null, tokenRewardIssued: false, clinicalNotes: 'Patient at high risk for T2D. A1C 6.1%.' },
+  { _id: 'rx-002', programId: 'dtx-010', programName: 'Headspace Clinical', programVendor: 'Headspace Health', programCategory: 'mental_health', providerId: 'u002', providerName: 'Dr. John Smith', patientName: 'Emily Rodriguez', patientId: 'PT-100002', patientEmail: 'emily.rodriguez@email.com', status: 'completed', prescribedAt: new Date(Date.now() - 70 * 24 * 60 * 60 * 1000).toISOString(), enrolledAt: new Date(Date.now() - 65 * 24 * 60 * 60 * 1000).toISOString(), completedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), engagementScore: 84, outcomeNotes: 'Patient reported significant stress reduction. PHQ-4 improved from 8 to 3.', tokenRewardIssued: true, tokenRewardAmount: 8 },
+  { _id: 'rx-003', programId: 'dtx-002', programName: 'Back & Joint Care', programVendor: 'Kaia Health', programCategory: 'musculoskeletal', providerId: 'u003', providerName: 'Dr. Michael Chen', patientName: 'Thomas Brown', patientId: 'PT-100003', status: 'enrolled', prescribedAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), enrolledAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), engagementScore: null, tokenRewardIssued: false, clinicalNotes: 'Chronic lower back pain. Avoidance of opioids preferred.' },
+  { _id: 'rx-004', programId: 'dtx-003', programName: 'Sleepio CBT-I', programVendor: 'Big Health', programCategory: 'mental_health', providerId: 'u002', providerName: 'Dr. John Smith', patientName: 'Maria Garcia', patientId: 'PT-100004', status: 'prescribed', prescribedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), engagementScore: null, tokenRewardIssued: false, clinicalNotes: 'Insomnia NOS. Avoid benzodiazepines.' },
+  { _id: 'rx-005', programId: 'dtx-005', programName: 'Quit Genius', programVendor: 'Quit Genius', programCategory: 'behavioral', providerId: 'u003', providerName: 'Dr. Michael Chen', patientName: 'David Lee', patientId: 'PT-100005', status: 'dropped', prescribedAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(), enrolledAt: new Date(Date.now() - 55 * 24 * 60 * 60 * 1000).toISOString(), droppedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), engagementScore: 22, outcomeNotes: 'Patient disengaged after week 4. Considering NRT patch instead.', tokenRewardIssued: false },
+  { _id: 'rx-006', programId: 'dtx-007', programName: 'Noom Weight', programVendor: 'Noom', programCategory: 'metabolic', providerId: 'u004', providerName: 'Dr. Sarah Patel', patientName: 'Linda Chen', patientId: 'PT-100009', status: 'completed', prescribedAt: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString(), enrolledAt: new Date(Date.now() - 115 * 24 * 60 * 60 * 1000).toISOString(), completedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), engagementScore: 91, outcomeNotes: 'Excellent outcomes. Lost 18 lbs over 16 weeks. BMI reduced from 32 to 29.', tokenRewardIssued: true, tokenRewardAmount: 10 },
+  { _id: 'rx-007', programId: 'dtx-006', programName: 'Cardiac Rehab PRO', programVendor: 'Movn', programCategory: 'cardiovascular', providerId: 'u003', providerName: 'Dr. Michael Chen', patientName: 'Robert Johnson', patientId: 'PT-100010', status: 'active', prescribedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), enrolledAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(), engagementScore: null, tokenRewardIssued: false, clinicalNotes: 'Post-NSTEMI. Declined in-person cardiac rehab due to work schedule.' },
+];
+
+// GET /dtx/programs
+router.get('/dtx/programs', protect, (req, res) => {
+  const { category, evidenceLevel, search } = req.query;
+  let results = syntheticDtxPrograms.filter(p => p.isActive);
+  if (category && category !== 'all') results = results.filter(p => p.category === category);
+  if (evidenceLevel && evidenceLevel !== 'all') results = results.filter(p => p.evidenceLevel === evidenceLevel);
+  if (search) {
+    const q = search.toLowerCase();
+    results = results.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.vendor.toLowerCase().includes(q) ||
+      p.description.toLowerCase().includes(q) ||
+      (p.conditions || []).some(c => c.toLowerCase().includes(q))
+    );
+  }
+  res.json({ success: true, data: { programs: results, total: results.length } });
+});
+
+// GET /dtx/programs/:id
+router.get('/dtx/programs/:id', protect, (req, res) => {
+  const prog = syntheticDtxPrograms.find(p => p._id === req.params.id);
+  if (!prog) return res.status(404).json({ success: false, error: 'Program not found' });
+  res.json({ success: true, data: prog });
+});
+
+// POST /dtx/prescriptions
+router.post('/dtx/prescriptions', protect, (req, res) => {
+  const { programId, patientName, patientId, patientEmail, clinicalNotes, linkedReferralId } = req.body;
+  if (!programId || !patientName) return res.status(400).json({ success: false, error: 'programId and patientName are required' });
+  const prog = syntheticDtxPrograms.find(p => p._id === programId);
+  const newRx = {
+    _id: 'rx-' + Date.now(),
+    programId,
+    programName: prog?.name || 'Unknown Program',
+    programVendor: prog?.vendor || '',
+    programCategory: prog?.category || '',
+    providerId: req.user?.id || 'u002',
+    providerName: req.user?.name || 'Dr. John Smith',
+    patientName,
+    patientId: patientId || '',
+    patientEmail: patientEmail || '',
+    status: 'prescribed',
+    prescribedAt: new Date().toISOString(),
+    linkedReferralId: linkedReferralId || undefined,
+    engagementScore: null,
+    outcomeNotes: null,
+    tokenRewardIssued: false,
+    clinicalNotes: clinicalNotes || '',
+    statusHistory: [{ status: 'prescribed', changedAt: new Date().toISOString(), notes: 'Initial prescription' }],
+  };
+  if (prog) prog.prescriptionCount = (prog.prescriptionCount || 0) + 1;
+  syntheticDtxPrescriptions.push(newRx);
+  res.status(201).json({ success: true, data: newRx });
+});
+
+// GET /dtx/prescriptions
+router.get('/dtx/prescriptions', protect, (req, res) => {
+  const { status, page = 1, limit = 20 } = req.query;
+  let results = [...syntheticDtxPrescriptions];
+  if (req.user?.id) results = results.filter(r => r.providerId === req.user.id || true); // show all in synthetic
+  if (status && status !== 'all') results = results.filter(r => r.status === status);
+  results.sort((a, b) => new Date(b.prescribedAt) - new Date(a.prescribedAt));
+  const pageNum = parseInt(page, 10) || 1;
+  const limitNum = parseInt(limit, 10) || 20;
+  const paged = results.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+  res.json({ success: true, data: { prescriptions: paged, total: results.length } });
+});
+
+// PUT /dtx/prescriptions/:id/status
+router.put('/dtx/prescriptions/:id/status', protect, (req, res) => {
+  const rx = syntheticDtxPrescriptions.find(r => r._id === req.params.id);
+  if (!rx) return res.status(404).json({ success: false, error: 'Prescription not found' });
+  const { status, engagementScore, outcomeNotes } = req.body;
+  rx.status = status;
+  if (engagementScore != null) rx.engagementScore = engagementScore;
+  if (outcomeNotes) rx.outcomeNotes = outcomeNotes;
+  const now = new Date().toISOString();
+  if (status === 'enrolled') rx.enrolledAt = now;
+  if (status === 'completed') { rx.completedAt = now; rx.tokenRewardIssued = true; rx.tokenRewardAmount = syntheticDtxPrograms.find(p => p._id === rx.programId)?.tokenReward || 10; }
+  if (status === 'dropped') rx.droppedAt = now;
+  if (!rx.statusHistory) rx.statusHistory = [];
+  rx.statusHistory.push({ status, changedAt: now, notes: req.body.notes || '' });
+  res.json({ success: true, data: rx });
+});
+
+// GET /admin/dtx/stats
+router.get('/admin/dtx/stats', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const total = syntheticDtxPrescriptions.length;
+  const completed = syntheticDtxPrescriptions.filter(r => r.status === 'completed').length;
+  const active = syntheticDtxPrescriptions.filter(r => ['active', 'enrolled'].includes(r.status)).length;
+  const dropped = syntheticDtxPrescriptions.filter(r => r.status === 'dropped').length;
+  const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const tokensAwarded = syntheticDtxPrescriptions.filter(r => r.tokenRewardIssued).reduce((s, r) => s + (r.tokenRewardAmount || 0), 0);
+  const catMap = {};
+  syntheticDtxPrescriptions.forEach(r => { catMap[r.programCategory] = (catMap[r.programCategory] || 0) + 1; });
+  const byCategory = Object.entries(catMap).map(([_id, count]) => ({ _id, count })).sort((a, b) => b.count - a.count);
+  const statusMap = {};
+  syntheticDtxPrescriptions.forEach(r => { statusMap[r.status] = (statusMap[r.status] || 0) + 1; });
+  const byStatus = Object.entries(statusMap).map(([_id, count]) => ({ _id, count }));
+  const progMap = {};
+  syntheticDtxPrescriptions.forEach(r => {
+    if (!progMap[r.programId]) progMap[r.programId] = { _id: r.programId, programName: r.programName, count: 0, scores: [] };
+    progMap[r.programId].count++;
+    if (r.engagementScore != null) progMap[r.programId].scores.push(r.engagementScore);
+  });
+  const topPrograms = Object.values(progMap).map(p => ({
+    ...p, avgEngagement: p.scores.length ? Math.round(p.scores.reduce((s, x) => s + x, 0) / p.scores.length) : null
+  })).sort((a, b) => b.count - a.count).slice(0, 5);
+  res.json({ success: true, data: { totalPrograms: syntheticDtxPrograms.filter(p => p.isActive).length, totalPrescriptions: total, completed, active, dropped, completionRate, tokensAwarded, byCategory, byStatus, topPrograms } });
+});
+
+// GET /admin/dtx/programs
+router.get('/admin/dtx/programs', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const { category, isActive } = req.query;
+  let results = [...syntheticDtxPrograms];
+  if (category && category !== 'all') results = results.filter(p => p.category === category);
+  if (isActive !== undefined) results = results.filter(p => p.isActive === (isActive === 'true'));
+  res.json({ success: true, data: { programs: results, total: results.length } });
+});
+
+// POST /admin/dtx/programs
+router.post('/admin/dtx/programs', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const newProg = { _id: 'dtx-' + Date.now(), ...req.body, isActive: true, prescriptionCount: 0, avgEngagementScore: 0, createdAt: new Date().toISOString() };
+  syntheticDtxPrograms.push(newProg);
+  res.status(201).json({ success: true, data: newProg });
+});
+
+// PUT /admin/dtx/programs/:id
+router.put('/admin/dtx/programs/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const idx = syntheticDtxPrograms.findIndex(p => p._id === req.params.id);
+  if (idx === -1) return res.status(404).json({ success: false, error: 'Program not found' });
+  Object.assign(syntheticDtxPrograms[idx], req.body);
+  res.json({ success: true, data: syntheticDtxPrograms[idx] });
+});
+
+// GET /admin/dtx/prescriptions
+router.get('/admin/dtx/prescriptions', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const { status, page = 1, limit = 20 } = req.query;
+  let results = [...syntheticDtxPrescriptions];
+  if (status && status !== 'all') results = results.filter(r => r.status === status);
+  results.sort((a, b) => new Date(b.prescribedAt) - new Date(a.prescribedAt));
+  const pageNum = parseInt(page, 10) || 1;
+  const limitNum = parseInt(limit, 10) || 20;
+  const paged = results.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+  res.json({ success: true, data: { prescriptions: paged, total: results.length } });
+});
+
+// ---------------------------------------------------------------------------
 // FHIR R4 API routes (synthetic mode — transforms in-memory data)
 // ---------------------------------------------------------------------------
 

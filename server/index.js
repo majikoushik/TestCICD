@@ -44,6 +44,8 @@ const referralMatchingRoutes = require('./routes/referralMatching');
 const appointmentRoutes = require('./routes/appointments');
 const scheduleRoutes = require('./routes/schedules');
 const adminAppointmentRoutes = require('./routes/admin/appointments');
+const dtxRoutes = require('./routes/dtx');
+const adminDtxRoutes = require('./routes/adminDtx');
 const { seedPriorAuths } = require('./seeds/priorAuthSeed');
 const { seedPatientEngagement } = require('./seeds/patientEngagementSeed');
 const { seedAmbientSessions } = require('./seeds/ambientSessionSeed');
@@ -123,12 +125,14 @@ function mountLiveRoutes() {
   app.use('/api/admin/patient-engagement', [protect, authorize('admin', 'superadmin'), adminPatientEngagementRoutes]);
   app.use('/api/admin/ambient-sessions', [protect, authorize('admin', 'superadmin'), adminAmbientSessionRoutes]);
   app.use('/api/admin/appointments', [protect, authorize('admin', 'superadmin'), adminAppointmentRoutes]);
+  app.use('/api/admin/dtx', adminDtxRoutes);
   app.use('/api/admin', [protect, authorize('admin', 'superadmin'), adminRoutes]);
   app.use('/api/referral-matching', protect, referralMatchingRoutes);
   app.use('/api/appointments', protect, appointmentRoutes);
   app.use('/api/schedules', protect, scheduleRoutes);
   app.use('/api/patient-engagement', protect, patientEngagementRoutes);
   app.use('/api/ambient-sessions', protect, ambientSessionRoutes);
+  app.use('/api/dtx', dtxRoutes);
 
   // FHIR R4 API — ONC 21st Century Cures Act / CMS-0057-F compliant
   app.use('/api/fhir', fhirRoutes);

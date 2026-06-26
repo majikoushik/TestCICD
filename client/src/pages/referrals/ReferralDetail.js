@@ -21,7 +21,9 @@ import {
   Cancel as CancelIcon,
   Done as DoneIcon,
   EventAvailable as BookApptIcon,
+  LocalPharmacy as RxIcon,
 } from '@mui/icons-material';
+import PrescribeDtxModal from '../../components/dtx/PrescribeDtxModal';
 
 // Import components
 import ReferralStatusUpdate from './components/ReferralStatusUpdate';
@@ -58,6 +60,8 @@ export default function ReferralDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [tabValue, setTabValue] = useState(0);
+  const [dtxModalOpen, setDtxModalOpen] = useState(false);
+  const [dtxSuccessMsg, setDtxSuccessMsg] = useState('');
 
   useEffect(() => {
     const fetchReferral = async () => {
@@ -245,20 +249,36 @@ export default function ReferralDetail() {
           </Typography>
         </Box>
         {referral && !['completed', 'rejected', 'cancelled'].includes(referral.status) && (
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<BookApptIcon />}
-            onClick={() => {
-              const providerId = referral.receivingProvider?._id || referral.receivingDoctor?._id || '';
-              navigate(`/app/appointments/book?referralId=${id}&providerId=${providerId}`);
-            }}
-          >
-            Schedule Appointment
-          </Button>
+          <Box display="flex" gap={1} flexWrap="wrap">
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<RxIcon />}
+              onClick={() => setDtxModalOpen(true)}
+            >
+              Prescribe DTx
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<BookApptIcon />}
+              onClick={() => {
+                const providerId = referral.receivingProvider?._id || referral.receivingDoctor?._id || '';
+                navigate(`/app/appointments/book?referralId=${id}&providerId=${providerId}`);
+              }}
+            >
+              Schedule Appointment
+            </Button>
+          </Box>
         )}
       </Box>
       
+      {dtxSuccessMsg && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setDtxSuccessMsg('')}>
+          {dtxSuccessMsg}
+        </Alert>
+      )}
+
       {/* Referral Summary */}
       <Paper sx={{ p: 3, mb: 3 }}>
         <Grid container spacing={3}>
@@ -378,13 +398,32 @@ export default function ReferralDetail() {
         
         {/* Billing Tab */}
         <TabPanel value={tabValue} index={3}>
-          <ReferralBilling 
-            billing={referral.billing} 
+          <ReferralBilling
+            billing={referral.billing}
             onBillingUpdate={handleBillingUpdate}
             status={referral.status}
           />
         </TabPanel>
       </Paper>
+
+      {/* DTx Prescription Modal — uses a placeholder program for the referral context */}
+      <PrescribeDtxModal
+        open={dtxModalOpen}
+        program={dtxModalOpen ? {
+          _id: 'referral-dtx-placeholder',
+          name: 'Digital Therapeutic Program',
+          vendor: 'Select in Marketplace',
+          evidenceLevel: 'evidence_based',
+          conditions: referral?.reason ? [referral.reason] : [],
+          tokenReward: 10,
+          durationWeeks: null,
+        } : null}
+        prefillReferralId={id}
+        onClose={() => setDtxModalOpen(false)}
+        onSuccess={() => {
+          setDtxSuccessMsg('DTx program prescribed successfully! Track it under DTx Prescriptions.');
+        }}
+      />
     </Container>
   );
 }

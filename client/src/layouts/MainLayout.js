@@ -38,6 +38,8 @@ import {
   Mic as MicIcon,
   EventAvailable as EventAvailableIcon,
   CalendarMonth as CalendarIcon,
+  Storefront as StorefrontIcon,
+  LocalPharmacy as RxIcon,
 } from '@mui/icons-material';
 import { useAuth, useToken, useNotification } from '../contexts';
 import referralService from '../services/referralService';
@@ -134,6 +136,8 @@ export default function MainLayout() {
       { text: 'Ambient AI', icon: <MicIcon />, path: '/app/ambient' },
       { text: 'Patient Appointments', icon: <EventAvailableIcon />, path: '/app/appointments' },
       { text: 'My Schedule', icon: <CalendarIcon />, path: '/app/schedule' },
+      { text: 'DTx Marketplace', icon: <StorefrontIcon />, path: '/app/dtx/marketplace' },
+      { text: 'DTx Prescriptions', icon: <RxIcon />, path: '/app/dtx/prescriptions' },
       { text: 'Settings', icon: <SettingsIcon />, path: '/app/settings' }
     ];
     

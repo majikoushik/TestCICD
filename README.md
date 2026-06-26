@@ -16,6 +16,8 @@
   - [Patient Notification & Engagement](#patient-notification--engagement)
   - [AI Referral Matching](#ai-referral-matching)
   - [Ambient Clinical Intelligence](#ambient-clinical-intelligence)
+  - [Patient Self-Scheduling](#patient-self-scheduling)
+  - [Digital Therapeutics Marketplace](#digital-therapeutics-marketplace)
 - [Project Structure](#project-structure)
 - [API Reference](#api-reference)
 - [Running Locally](#running-locally)
@@ -42,6 +44,8 @@ ClinicTrust AI is an enterprise healthcare platform that solves critical problem
 | Poor patient communication and follow-up | Multi-channel engagement platform (email, SMS, push, in-app) |
 | Inefficient specialist referral selection | AI-powered provider matching with weighted scoring across 5 dimensions |
 | Incomplete clinical documentation at point of care | Ambient speech recognition + Azure OpenAI clinical note generation |
+| Fragmented appointment booking across provider workflows | Provider-initiated patient self-scheduling with waitlist, reminders, and token rewards |
+| No structured pathway from referral to evidence-based digital care | DTx Marketplace linking specialist referrals to vetted digital therapeutic programs with outcome tracking |
 
 This repository demonstrates a **cloud-native, microservices-aligned full-stack architecture** — from smart contract design through REST/GraphQL API layers to a React SPA — deployable on Azure App Service with a managed MongoDB Atlas backend.
 
@@ -365,6 +369,207 @@ The service is designed to degrade gracefully — the full UI workflow runs with
 
 ---
 
+### Patient Self-Scheduling
+
+**What it does**
+
+Patient Self-Scheduling gives providers full control over appointment booking on behalf of their patients — from a dedicated schedule view showing their daily calendar, to real-time waitlist management, automated reminders, and token rewards on appointment completion. The feature closes the loop between a specialist referral being accepted and the actual appointment taking place.
+
+**How it works in the application**
+
+Providers access their daily schedule at `/app/schedule`. The page is built around the `ProviderSchedule` component and the `AppointmentCard` subcomponent, which together surface each appointment's status and drive every in-line action.
+
+**Booking an appointment**
+
+From any open referral (`/app/referrals/:id`), providers click **Schedule Appointment**. This opens the booking flow at `/app/appointments/book`, pre-populated with the referral ID and the receiving provider ID. The provider selects a date, time slot, appointment type, and duration, then confirms. The created appointment is linked to the referral so the full care episode is traceable in one record.
+
+**Provider Schedule page**
+
+The schedule renders as a filterable, searchable daily card list. Each `AppointmentCard` displays:
+
+| Field | Detail |
+|---|---|
+| Patient name and appointment type | At a glance identification |
+| Status chip | `scheduled`, `confirmed`, `checked_in`, `in_progress`, `completed`, `no_show`, `cancelled` |
+| Date, time, and duration | |
+| Referral link | Clickable badge when the appointment is linked to an open referral |
+| Action buttons | Context-sensitive — see below |
+
+**In-line actions on each card**
+
+| Action | Visible when | What it does |
+|---|---|---|
+| Check In | status = `scheduled` or `confirmed` | Moves appointment to `checked_in`, marks `checkedInAt` timestamp |
+| Start | status = `checked_in` | Moves to `in_progress`, marks `startedAt` |
+| Complete | status = `checked_in` or `in_progress` | Moves to `completed`, marks `completedAt`, awards tokens to the provider |
+| Remind | status = `scheduled` or `confirmed` (upcoming) | Sends a reminder notification to the patient, records `reminderSentAt` |
+| No-Show | status = any upcoming | Marks the appointment as `no_show` |
+
+**Token rewards on completion**
+
+When a provider clicks **Complete**, the backend calls `processTokenTransaction` and increments the provider's `tokenBalance` via `$inc` — the same pattern used across all other token-earning events in the platform. Token earnings are reflected on the Dashboard and the Token Management page within the same session.
+
+**Waitlist management**
+
+The `ProviderSchedule` page surfaces a **Waitlist** panel showing patients waiting for an open slot with the current provider. When a slot opens (cancellation or no-show), the provider can book directly from the waitlist entry, filling the gap without leaving the schedule view.
+
+**Appointment reminders**
+
+Clicking **Remind** on an upcoming appointment fires a `POST /api/appointments/:id/reminder` call. The backend records the reminder in the appointment document (`remindersSent[]` array with timestamps and channel). In a production environment with Azure Communication Services configured, this triggers an actual email or SMS to the patient.
+
+**Admin oversight**
+
+Administrators see a unified **Appointments** view at `/admin/appointments` with two tabs:
+
+- **All Appointments** — full-platform table with status, date range, and provider filters, plus export.
+- **Provider Utilization** — per-provider fill rate bars, peak appointment hours, and a detailed breakdown table covering booked vs. total slots, no-show rate, cancel rate, average duration, and tokens earned. The date range selector (7 days / 30 days / 90 days / YTD) dynamically re-fetches the aggregate from the backend.
+
+**Value it adds**
+
+- **Eliminates scheduling gaps**: Providers manage their own calendar inside the same application they use for referrals and documentation — no separate scheduling system, no tab-switching.
+- **Reduces no-shows**: One-click reminders reach patients directly from the provider's daily schedule view, requiring seconds rather than a manual outreach workflow.
+- **Closes the referral-to-appointment loop**: Appointment records are linked to referral records, giving admins and providers end-to-end visibility from referral creation through appointment completion.
+- **Reinforces the token economy**: Appointment completions earn tokens, aligning financial incentives with care delivery outcomes and encouraging providers to close care episodes rather than leave referrals open.
+- **Operational intelligence for admins**: The Provider Utilization report reveals which providers are underutilised, which slots go unfilled, and which providers have high no-show or cancellation rates — actionable data for network management without leaving the platform.
+
+**Admin access**: Admin Panel → Appointments → Provider Utilization tab  
+**Provider access**: Main App → Schedule (daily calendar); Referral Detail → Schedule Appointment
+
+---
+
+### Digital Therapeutics Marketplace
+
+**What it does**
+
+The Digital Therapeutics (DTx) Marketplace is a curated catalog of evidence-based digital health programs — apps, web platforms, and coaching interventions — that providers can prescribe directly to patients as part of a referral or care plan. It extends ClinicTrust AI's referral coordination model into the growing prescription digital therapeutics space, letting providers leverage software-based treatments (behavioural, metabolic, musculoskeletal, and more) without leaving the platform.
+
+This is a **B2B-only feature**: the marketplace is for providers to browse, prescribe, and track outcomes. Patient program delivery occurs on the vendor's own platform. ClinicTrust AI manages the prescription lifecycle, outcome capture, and token incentives.
+
+**Why it adds B2B value**
+
+| Problem | DTx Marketplace solution |
+|---|---|
+| Providers are unaware of vetted digital programs relevant to their patients | Curated, admin-managed catalog with evidence level badges (FDA Cleared, FDA Authorized, Peer Reviewed) |
+| No structured prescription workflow for digital programs | Provider-initiated prescriptions with patient demographics, clinical notes, and referral linkage |
+| Outcomes of digital interventions are not tracked in the platform | Prescription lifecycle (`prescribed → enrolled → active → completed / dropped`) with engagement scores and clinical notes |
+| No incentive for providers to close digital care loops | Token reward on prescription completion — same economy as appointment and referral completion |
+| Administrators have no visibility into DTx utilisation across the network | Admin analytics: prescriptions by category, completion rate, top programs, tokens awarded |
+
+**How it works in the application**
+
+**For providers — browsing the catalog**
+
+Providers navigate to `/app/dtx/marketplace`. The page presents programs grouped by category tabs (Mental Health, Metabolic, Musculoskeletal, Cardiovascular, Behavioral, Respiratory, Neurology, General) with two additional filters:
+
+- **Evidence level** dropdown — filter to FDA Cleared / FDA Authorized / Peer Reviewed / Evidence Based / Clinical Study
+- **Search bar** — searches across program name, vendor name, and target conditions
+
+Each program is displayed as a `DtxProgramCard` showing:
+
+| Element | Detail |
+|---|---|
+| Evidence badge | Color-coded chip (green = FDA, blue = peer reviewed, etc.) |
+| Category color border | Instant visual categorisation |
+| Conditions treated | Chip list of target conditions |
+| Highlights | Bulleted clinical benefits |
+| Delivery format | App / Web / Both / Coaching / Hybrid |
+| Duration | Program length in weeks |
+| Token reward | Tokens the provider earns when a patient completes the program |
+
+**For providers — prescribing a program**
+
+Clicking **Prescribe** on any card opens the `PrescribeDtxModal`. The provider enters:
+
+- Patient Full Name (required)
+- Patient ID / MRN (optional)
+- Patient Email and Phone (optional — used for vendor enrollment)
+- Clinical notes (reason for prescribing, patient goals, contraindication acknowledgement)
+
+On submit, the backend creates a `DtxPrescription` document with status `prescribed` and increments the program's `prescriptionCount`. If the prescription was initiated from a referral detail page, the `linkedReferralId` is automatically captured and an info alert notifies the provider that the prescription will be linked to the open referral.
+
+**For providers — tracking prescriptions**
+
+The **DTx Prescriptions** page (`/app/dtx/prescriptions`) lists all prescriptions the provider has created. Status filter tabs let providers drill to a specific lifecycle stage. Each row shows:
+
+- Patient name and program
+- Category chip
+- Status chip with lifecycle colour coding
+- Prescribe date
+- Engagement score (0–100, entered when completing)
+- Token reward badge (appears once tokens are issued)
+
+Clicking **Update** opens the `UpdateStatusDialog`. Valid transitions are enforced:
+
+```
+prescribed → enrolled → active → completed
+                                └──────────→ dropped
+```
+
+When transitioning to `completed`, the provider enters:
+- Engagement score (0–100 slider)
+- Outcome notes (required)
+
+On save, the backend awards tokens via `processTokenTransaction` and sets `tokenRewardIssued: true` on the prescription document.
+
+**Referral → DTx linkage**
+
+On any active referral's detail page, a **Prescribe DTx** button appears alongside **Schedule Appointment**. This opens the prescription modal pre-linked to the referral — the provider selects a program from the catalog and the resulting prescription is associated with the referral record, creating a documented referral-to-digital-treatment chain.
+
+**For admins — catalog management**
+
+Administrators manage the DTx catalog at `/admin/dtx` (Admin Panel → DTx Marketplace). The page has three tabs:
+
+**Tab 0 — Program Catalog**
+
+A full table of all programs (active and deactivated) with:
+- Add Program button — opens `ProgramFormDialog` with fields for name, vendor, category, evidence level, delivery format, duration, token reward, conditions list, highlights list, and contraindications
+- Edit button per row — pre-fills the same form
+- Deactivate button — soft-deactivates the program (sets `isActive: false`) so it no longer appears in provider search but historical prescriptions are preserved
+
+**Tab 1 — All Prescriptions**
+
+Cross-provider prescription table with status and category filters, giving admins visibility into which programs are being used, by whom, and for which patient populations.
+
+**Tab 2 — Analytics**
+
+Aggregate statistics including:
+- Active programs, total prescriptions, completion rate, total tokens awarded
+- Prescriptions by category (bar chart breakdown)
+- Top programs by prescription count
+- Status distribution (prescribed / enrolled / active / completed / dropped)
+
+**Dashboard integration**
+
+The provider Dashboard (`/app/dashboard`) surfaces a **Recent DTx Prescriptions** widget showing the five most recent prescriptions with status chips. A **Browse Marketplace** quick-action button provides one-click access to the catalog. If no prescriptions exist, an empty state with a "Browse Marketplace" call-to-action encourages adoption.
+
+**Evidence levels and clinical trustworthiness**
+
+The catalog distinguishes five evidence tiers:
+
+| Level | Meaning |
+|---|---|
+| `fda_cleared` | FDA 510(k) clearance — clinically validated device |
+| `fda_authorized` | FDA De Novo or Breakthrough authorization |
+| `peer_reviewed` | Published in peer-reviewed literature |
+| `evidence_based` | Validated by clinical studies |
+| `clinical_study` | Active or completed clinical study |
+
+Providers see these as colour-coded chips on every card, enabling quick filtering to the level of evidence appropriate for each patient's situation.
+
+**Value it adds**
+
+- **Expands the care toolkit without expanding overhead**: Providers access a vetted, categorised catalog of digital interventions from within the same workflow they use for referrals and documentation — no separate portal, no separate login.
+- **Structured prescription creates accountability**: Every DTx prescription is a traceable record with patient, provider, program, and outcome data — unlike verbal recommendations that disappear after the appointment.
+- **Referral-to-digital-treatment chain**: Linking a DTx prescription to a referral extends the care episode record beyond the specialist visit, which is particularly valuable for value-based care contracts that reward complete care episodes.
+- **Token economy alignment**: Completion tokens reward providers for closing digital care loops, not just opening them — the incentive is on outcomes, not volume.
+- **Admin network intelligence**: The analytics tab shows which program categories are driving adoption, which vendors are most trusted by providers, and where completion rates are low — actionable data for catalog curation and network management.
+- **Supports value-based care models**: Digital therapeutics are increasingly billable (CPT codes for DTx exist for select FDA-cleared programs). The prescription record and outcome data generated in ClinicTrust AI provides the documentation trail needed for reimbursement and quality reporting.
+
+**Admin access**: Admin Panel → DTx Marketplace (Program Catalog, All Prescriptions, Analytics)  
+**Provider access**: Main App → DTx Marketplace (browse catalog), DTx Prescriptions (track outcomes), Referral Detail → Prescribe DTx, Dashboard → Recent DTx Prescriptions widget
+
+---
+
 ## Project Structure
 
 ```
@@ -375,13 +580,20 @@ VibeCoding/
 │       ├── components/              # Reusable UI components
 │       │   ├── admin/               # Admin-specific components
 │       │   ├── analytics/           # Chart and analytics components
+│       │   ├── appointments/        # AppointmentCard (schedule actions + reminders)
 │       │   ├── blockchain/          # Blockchain status and history views
+│       │   ├── dtx/                 # DTx Marketplace components
+│       │   │   ├── DtxProgramCard.js      # Evidence-badged program catalog card
+│       │   │   └── PrescribeDtxModal.js   # Prescription form modal
 │       │   └── referral/            # AIProviderSuggestions (AI matching panel)
 │       ├── pages/                   # Route-level page components (40+)
 │       │   ├── auth/                # Login, register, password reset
-│       │   ├── dashboard/           # Main dashboard
+│       │   ├── dashboard/           # Main dashboard (with DTx widget + quick action)
+│       │   ├── dtx/                 # Digital Therapeutics Marketplace
+│       │   │   ├── DtxMarketplace.js      # Catalog browse + prescribe
+│       │   │   └── DtxPrescriptions.js    # Provider prescription tracker + outcomes
 │       │   ├── patients/            # Patient management
-│       │   ├── referrals/           # Referral creation (with AI matching)
+│       │   ├── referrals/           # Referral creation (with AI matching + DTx prescribe button)
 │       │   ├── tokens/              # Token economy views
 │       │   ├── prior-auth/          # Prior authorization workflow
 │       │   ├── ambient/             # Ambient Clinical Intelligence recorder
@@ -389,11 +601,14 @@ VibeCoding/
 │       │       ├── AdminPriorAuth.js
 │       │       ├── AdminPatientEngagement.js
 │       │       ├── AdminAmbientSessions.js
-│       │       └── AdminReferralMatching.js
+│       │       ├── AdminReferralMatching.js
+│       │       ├── AdminAppointments.js   # All Appointments + Provider Utilization tabs
+│       │       └── AdminDtxManagement.js  # DTx Catalog, All Prescriptions, Analytics tabs
 │       ├── services/                # Axios API service wrappers
 │       │   ├── referralMatchingService.js
 │       │   ├── ambientSessionService.js
-│       │   └── adminEngagementService.js
+│       │   ├── adminEngagementService.js
+│       │   └── dtxService.js              # DTx catalog, prescriptions, admin ops
 │       ├── layouts/                 # Admin, Auth, Landing, Main layouts
 │       ├── utils/                   # Shared utilities
 │       ├── theme.js                 # MUI theme configuration
@@ -413,7 +628,9 @@ VibeCoding/
 │   │   ├── NotificationCampaign.js
 │   │   ├── AmbientSession.js
 │   │   ├── ProviderMatchProfile.js
-│   │   └── MatchSession.js
+│   │   ├── MatchSession.js
+│   │   ├── DtxProgram.js            # DTx catalog program schema
+│   │   └── DtxPrescription.js       # DTx prescription lifecycle schema
 │   ├── routes/                      # Express route handlers
 │   │   ├── auth.js
 │   │   ├── patients.js
@@ -423,6 +640,8 @@ VibeCoding/
 │   │   ├── patientEngagement.js
 │   │   ├── ambientSessions.js
 │   │   ├── referralMatching.js
+│   │   ├── dtx.js                   # Provider DTx routes (catalog browse, prescriptions)
+│   │   ├── adminDtx.js              # Admin DTx routes (catalog mgmt, analytics)
 │   │   ├── syntheticRouter.js       # In-memory fallback for all routes
 │   │   └── admin/
 │   │       ├── referrals.js
@@ -542,6 +761,35 @@ VibeCoding/
 | GET | `/api/admin/ambient-sessions` | Admin | All sessions (admin view) |
 | GET | `/api/admin/ambient-sessions/stats` | Admin | Platform-wide session analytics |
 | PUT | `/api/admin/ambient-sessions/:id` | Admin | Admin update |
+
+### Appointments & Scheduling
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | `/api/appointments` | JWT | List provider's appointments |
+| POST | `/api/appointments` | JWT | Book an appointment |
+| GET | `/api/appointments/:id` | JWT | Get appointment details |
+| PUT | `/api/appointments/:id` | JWT | Update appointment (status, notes) |
+| POST | `/api/appointments/:id/reminder` | JWT | Send patient reminder |
+| GET | `/api/schedules/:providerId/waitlist` | JWT | Get provider waitlist |
+| GET | `/api/admin/appointments` | Admin | All appointments (admin view) |
+| GET | `/api/admin/appointments/provider-utilization` | Admin | Provider fill rate and utilization metrics |
+
+### Digital Therapeutics (DTx)
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | `/api/dtx/programs` | JWT | Browse active DTx catalog (category / evidence / search filters) |
+| GET | `/api/dtx/programs/:id` | JWT | Get program details |
+| POST | `/api/dtx/prescriptions` | JWT | Create a DTx prescription |
+| GET | `/api/dtx/prescriptions` | JWT | List provider's prescriptions |
+| PUT | `/api/dtx/prescriptions/:id/status` | JWT | Update prescription status + capture outcomes (awards tokens on completion) |
+| GET | `/api/admin/dtx/stats` | Admin | Platform-wide DTx aggregate statistics |
+| GET | `/api/admin/dtx/programs` | Admin | Full catalog (active + deactivated) |
+| POST | `/api/admin/dtx/programs` | Admin | Add a program to the catalog |
+| PUT | `/api/admin/dtx/programs/:id` | Admin | Edit a program |
+| DELETE | `/api/admin/dtx/programs/:id` | Admin | Deactivate a program (soft delete) |
+| GET | `/api/admin/dtx/prescriptions` | Admin | All prescriptions across providers |
 
 ### Tokens
 
@@ -728,6 +976,8 @@ Server starts
 - Patient engagement notifications, templates, and campaigns
 - AI Referral Matching with 15 pre-built provider profiles and scoring engine
 - Ambient Clinical Intelligence sessions with mock AI-generated notes
+- Appointment scheduling, status transitions, reminders, waitlist, and provider utilization report
+- DTx catalog (10 programs across 5 categories), prescriptions (7 across all lifecycle statuses), and admin analytics
 - Token transfers and referral status changes work end-to-end
 
 ### Console output
@@ -795,6 +1045,8 @@ All accounts share the password: **`Demo1234!`**
 | Ambient sessions | 10 (all statuses and urgencies) |
 | Provider match profiles | 15 (across 14 specialties) |
 | Match sessions | 5 |
+| DTx programs | 10 (across mental health, metabolic, musculoskeletal, cardiovascular, behavioral) |
+| DTx prescriptions | 7 (spanning all lifecycle statuses) |
 
 ---
 
@@ -927,6 +1179,10 @@ Expected:
 **ProviderMatchProfile** — `providerId`, `specialty`, `subSpecialties[]`, `acceptedInsurance[]`, `city`, `state`, `acceptanceRate`, `avgResponseTimeDays`, `tokenBalance`, `tokenEarned`, `availabilityScore`, `networkParticipation`, `isAcceptingReferrals`, `boardCertified`, `telehealth`
 
 **MatchSession** — `requestedBy`, `specialty`, `patientInsurance`, `urgency`, `resultsCount`, `topMatchScore`, `selectedProviderId`, `suggestions[]`, `linkedReferralId`
+
+**DtxProgram** — `name`, `vendor`, `category` (mental_health / metabolic / musculoskeletal / cardiovascular / behavioral / respiratory / neurology / general), `description`, `conditions[]`, `evidenceLevel` (fda_cleared / fda_authorized / peer_reviewed / evidence_based / clinical_study), `durationWeeks`, `deliveryFormat` (app / web / both / coaching / hybrid), `contentTypes[]`, `highlights[]`, `contraindications[]`, `tokenReward`, `isActive`, `integrationUrl`, `prescriptionCount`, `avgEngagementScore`
+
+**DtxPrescription** — `programId` (ref: DtxProgram), `programName`, `programVendor`, `programCategory`, `providerId` (ref: User), `providerName`, `patientName`, `patientId`, `patientEmail`, `patientPhone`, `status` (prescribed / enrolled / active / completed / dropped), `linkedReferralId` (ref: Referral), `prescribedAt`, `enrolledAt`, `completedAt`, `droppedAt`, `engagementScore` (0–100), `outcomeNotes`, `clinicalNotes`, `tokenRewardIssued`, `tokenRewardAmount`, `statusHistory[]`
 
 ---
 

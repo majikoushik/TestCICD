@@ -37,6 +37,7 @@ import {
   Assignment as AssignmentIcon,
   NotificationsActive as NotificationsActiveIcon,
   Mic as MicIcon,
+  Storefront as StorefrontIcon,
 } from '@mui/icons-material';
 import adminAuthService from '../services/adminAuthService';
 import { isAuthenticated, hasRole } from '../utils/authUtils';
@@ -99,6 +100,7 @@ const getMenuItems = () => [
   { text: 'Ambient AI Sessions', icon: <MicIcon />, path: '/admin/ambient-sessions' },
   { text: 'AI Referral Matching', icon: <AIIcon />, path: '/admin/referral-matching' },
   { text: 'Appointments', icon: <AssignmentIcon />, path: '/admin/appointments' },
+  { text: 'DTx Marketplace', icon: <StorefrontIcon />, path: '/admin/dtx' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/admin/settings' },
   { text: 'Patient Records', icon: <PatientRecordsIcon />, path: '/admin/patient-records' },
   { text: 'Referrals', icon: <ReferralsIcon />, path: '/admin/referrals' },

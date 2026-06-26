@@ -49,8 +49,11 @@ import {
   Psychology as PsychologyIcon,
   EventAvailable as ApptIcon,
   VideoCall as TelehealthIcon,
+  Storefront as StorefrontIcon,
+  LocalPharmacy as RxIcon,
 } from '@mui/icons-material';
 import { getMySchedule } from '../../services/appointmentService';
+import { getMyPrescriptions } from '../../services/dtxService';
 
 // Import recharts for data visualization
 import {
@@ -305,6 +308,8 @@ function Dashboard() {
   const [aiMetricsData, setAiMetricsData] = useState([]);
   const [todayAppointments, setTodayAppointments] = useState([]);
   const [todayLoading, setTodayLoading] = useState(false);
+  const [recentRx, setRecentRx] = useState([]);
+  const [rxLoading, setRxLoading] = useState(false);
 
   // Define fetchDashboardData function outside of useEffect
   const fetchDashboardData = async () => {
@@ -362,11 +367,26 @@ function Dashboard() {
     }
   }, []);
 
+  const fetchRecentRx = useCallback(async () => {
+    setRxLoading(true);
+    try {
+      const res = await getMyPrescriptions({ limit: 5, page: 1 });
+      const payload = res?.data || res || {};
+      const inner = payload.data || payload;
+      setRecentRx(inner.prescriptions || []);
+    } catch {
+      setRecentRx([]);
+    } finally {
+      setRxLoading(false);
+    }
+  }, []);
+
   // Initial data loading
   useEffect(() => {
     fetchDashboardData();
     fetchAdditionalMetrics();
     fetchTodaySchedule();
+    fetchRecentRx();
 
     // Initialize chart data directly with mock data to ensure charts display immediately
     setPatientRiskData(mockPatientRiskData);
@@ -815,6 +835,16 @@ function Dashboard() {
                     <Button
                       fullWidth
                       variant="outlined"
+                      startIcon={<StorefrontIcon />}
+                      onClick={() => navigate('/app/dtx/marketplace')}
+                    >
+                      DTx Marketplace
+                    </Button>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Button
+                      fullWidth
+                      variant="outlined"
                       startIcon={<TokenIcon />}
                       onClick={() => navigate('/app/tokens/transfer')}
                     >
@@ -822,6 +852,42 @@ function Dashboard() {
                     </Button>
                   </Grid>
                 </Grid>
+              </Paper>
+
+              {/* Recent DTx Prescriptions Widget */}
+              <Paper elevation={2} sx={{ p: 3, mt: 3, borderRadius: 2 }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <RxIcon color="primary" fontSize="small" />
+                    <Typography variant="h6">Recent DTx Prescriptions</Typography>
+                  </Box>
+                  <Button size="small" onClick={() => navigate('/app/dtx/prescriptions')}>View All</Button>
+                </Box>
+                {rxLoading ? (
+                  <LinearProgress />
+                ) : recentRx.length === 0 ? (
+                  <Box textAlign="center" py={2}>
+                    <Typography variant="body2" color="text.secondary">No prescriptions yet</Typography>
+                    <Button size="small" variant="outlined" sx={{ mt: 1 }} onClick={() => navigate('/app/dtx/marketplace')}>
+                      Browse Marketplace
+                    </Button>
+                  </Box>
+                ) : (
+                  recentRx.map(rx => (
+                    <Box key={rx._id} display="flex" justifyContent="space-between" alignItems="center" py={0.75} borderBottom="1px solid" sx={{ borderColor: 'divider', '&:last-child': { borderBottom: 'none' } }}>
+                      <Box>
+                        <Typography variant="body2" fontWeight={600}>{rx.patientName}</Typography>
+                        <Typography variant="caption" color="text.secondary">{rx.programName}</Typography>
+                      </Box>
+                      <Chip
+                        label={rx.status}
+                        size="small"
+                        color={rx.status === 'completed' ? 'success' : rx.status === 'active' ? 'primary' : 'default'}
+                        sx={{ textTransform: 'capitalize' }}
+                      />
+                    </Box>
+                  ))
+                )}
               </Paper>
             </Grid>
           </Grid>

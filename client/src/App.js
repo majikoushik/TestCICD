@@ -84,6 +84,11 @@ const BookAppointment = lazy(() => import('./pages/appointments/BookAppointment'
 // Provider Schedule
 const ProviderSchedulePage = lazy(() => import('./pages/schedule/ProviderSchedule'));
 
+// DTx Marketplace
+const DtxMarketplace = lazy(() => import('./pages/dtx/DtxMarketplace'));
+const DtxPrescriptions = lazy(() => import('./pages/dtx/DtxPrescriptions'));
+const AdminDtxManagement = lazy(() => import('./pages/admin/AdminDtxManagement'));
+
 // Ambient Clinical Intelligence (provider)
 const AmbientRecorder = lazy(() => import('./pages/ambient/AmbientRecorder'));
 
@@ -345,6 +350,18 @@ function App() {
             <ProviderSchedulePage />
           </Suspense>
         } />
+
+        {/* DTx Marketplace */}
+        <Route path="dtx/marketplace" element={
+          <Suspense fallback={<PageLoadingFallback />}>
+            <DtxMarketplace />
+          </Suspense>
+        } />
+        <Route path="dtx/prescriptions" element={
+          <Suspense fallback={<PageLoadingFallback />}>
+            <DtxPrescriptions />
+          </Suspense>
+        } />
       </Route>
       
       {/* Admin Routes */}
@@ -441,6 +458,11 @@ function App() {
         <Route path="messaging" element={
           <Suspense fallback={<PageLoadingFallback />}>
             <AdminMessaging />
+          </Suspense>
+        } />
+        <Route path="dtx" element={
+          <Suspense fallback={<PageLoadingFallback />}>
+            <AdminDtxManagement />
           </Suspense>
         } />
       </Route>
