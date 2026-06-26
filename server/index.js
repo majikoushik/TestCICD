@@ -41,10 +41,14 @@ const adminPatientEngagementRoutes = require('./routes/admin/patientEngagement')
 const ambientSessionRoutes = require('./routes/ambientSessions');
 const adminAmbientSessionRoutes = require('./routes/admin/ambientSessions');
 const referralMatchingRoutes = require('./routes/referralMatching');
+const appointmentRoutes = require('./routes/appointments');
+const scheduleRoutes = require('./routes/schedules');
+const adminAppointmentRoutes = require('./routes/admin/appointments');
 const { seedPriorAuths } = require('./seeds/priorAuthSeed');
 const { seedPatientEngagement } = require('./seeds/patientEngagementSeed');
 const { seedAmbientSessions } = require('./seeds/ambientSessionSeed');
 const { seedReferralMatchingProfiles } = require('./seeds/referralMatchingSeed');
+const { seedAppointments } = require('./seeds/appointmentSeed');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -118,8 +122,11 @@ function mountLiveRoutes() {
   app.use('/api/admin/prior-auth', [protect, authorize('admin', 'superadmin'), adminPriorAuthRoutes]);
   app.use('/api/admin/patient-engagement', [protect, authorize('admin', 'superadmin'), adminPatientEngagementRoutes]);
   app.use('/api/admin/ambient-sessions', [protect, authorize('admin', 'superadmin'), adminAmbientSessionRoutes]);
+  app.use('/api/admin/appointments', [protect, authorize('admin', 'superadmin'), adminAppointmentRoutes]);
   app.use('/api/admin', [protect, authorize('admin', 'superadmin'), adminRoutes]);
   app.use('/api/referral-matching', protect, referralMatchingRoutes);
+  app.use('/api/appointments', protect, appointmentRoutes);
+  app.use('/api/schedules', protect, scheduleRoutes);
   app.use('/api/patient-engagement', protect, patientEngagementRoutes);
   app.use('/api/ambient-sessions', protect, ambientSessionRoutes);
 
@@ -171,6 +178,7 @@ async function startServer() {
     await seedPatientEngagement();
     await seedAmbientSessions();
     await seedReferralMatchingProfiles();
+    await seedAppointments();
   } else {
     mountSyntheticRoutes();
   }

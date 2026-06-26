@@ -1918,6 +1918,354 @@ router.put('/referral-matching/providers/:id', protect, (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Patient Self-Scheduling routes (synthetic mode)
+// ---------------------------------------------------------------------------
+
+const APPT_TYPES = [
+  { code: 'new_patient', name: 'New Patient Consultation', defaultDurationMinutes: 60, color: '#2196F3', requiresPriorAuth: false, requiresReferral: false, telehealthEligible: true },
+  { code: 'follow_up', name: 'Follow-Up Visit', defaultDurationMinutes: 30, color: '#4CAF50', requiresPriorAuth: false, requiresReferral: false, telehealthEligible: true },
+  { code: 'telehealth', name: 'Telehealth Visit', defaultDurationMinutes: 30, color: '#9C27B0', requiresPriorAuth: false, requiresReferral: false, telehealthEligible: true },
+  { code: 'urgent', name: 'Urgent Care Visit', defaultDurationMinutes: 45, color: '#F44336', requiresPriorAuth: false, requiresReferral: false, telehealthEligible: false },
+  { code: 'procedure', name: 'Procedure / Treatment', defaultDurationMinutes: 60, color: '#FF9800', requiresPriorAuth: true, requiresReferral: true, telehealthEligible: false },
+];
+
+const now = Date.now();
+const day = 24 * 60 * 60 * 1000;
+
+const syntheticAppointments = [
+  { _id: 'apt001', appointmentId: 'APT-2026-00001', patientId: 'p001', patientName: 'James Wilson', patientEmail: 'james.wilson@email.com', providerId: 'u002', providerName: 'Dr. John Smith', providerSpecialty: 'Cardiology', organizationName: 'Metro Heart Institute', appointmentType: 'follow_up', status: 'completed', scheduledDate: new Date(now - 10 * day), startTime: '09:00', endTime: '09:30', durationMinutes: 30, location: 'in_person', chiefComplaint: 'Hypertension management follow-up', reasonForVisit: 'Routine follow-up for blood pressure control', tokenRewardIssued: true, createdBy: 'patient', createdAt: new Date(now - 15 * day) },
+  { _id: 'apt002', appointmentId: 'APT-2026-00002', patientId: 'p002', patientName: 'Emily Rodriguez', patientEmail: 'emily.rodriguez@email.com', providerId: 'u003', providerName: 'Dr. Michael Chen', providerSpecialty: 'Neurology', organizationName: 'Neuroscience Medical Center', appointmentType: 'new_patient', status: 'completed', scheduledDate: new Date(now - 7 * day), startTime: '10:00', endTime: '11:00', durationMinutes: 60, location: 'in_person', chiefComplaint: 'Persistent migraines and dizziness', reasonForVisit: 'Initial neurological consultation for chronic migraines', tokenRewardIssued: true, createdBy: 'patient', createdAt: new Date(now - 14 * day) },
+  { _id: 'apt003', appointmentId: 'APT-2026-00003', patientId: 'p003', patientName: 'Thomas Brown', patientEmail: 'thomas.brown@email.com', providerId: 'u002', providerName: 'Dr. John Smith', providerSpecialty: 'Cardiology', organizationName: 'Metro Heart Institute', appointmentType: 'urgent', status: 'completed', scheduledDate: new Date(now - 5 * day), startTime: '14:00', endTime: '14:45', durationMinutes: 45, location: 'in_person', chiefComplaint: 'Chest pain and palpitations', reasonForVisit: 'Urgent evaluation for new-onset chest pain', tokenRewardIssued: true, createdBy: 'patient', createdAt: new Date(now - 5 * day) },
+  { _id: 'apt004', appointmentId: 'APT-2026-00004', patientId: 'p001', patientName: 'James Wilson', patientEmail: 'james.wilson@email.com', providerId: 'u003', providerName: 'Dr. Michael Chen', providerSpecialty: 'Neurology', organizationName: 'Neuroscience Medical Center', appointmentType: 'telehealth', status: 'no_show', scheduledDate: new Date(now - 8 * day), startTime: '11:00', endTime: '11:30', durationMinutes: 30, location: 'telehealth', telehealthLink: 'https://telehealth.clinictrustai.com/room/abc123demo', chiefComplaint: 'Headache follow-up', reasonForVisit: 'Telehealth follow-up for headache management', tokenRewardIssued: false, createdBy: 'patient', createdAt: new Date(now - 12 * day) },
+  { _id: 'apt005', appointmentId: 'APT-2026-00005', patientId: 'p002', patientName: 'Emily Rodriguez', patientEmail: 'emily.rodriguez@email.com', providerId: 'u002', providerName: 'Dr. John Smith', providerSpecialty: 'Cardiology', organizationName: 'Metro Heart Institute', appointmentType: 'follow_up', status: 'cancelled', scheduledDate: new Date(now - 3 * day), startTime: '15:00', endTime: '15:30', durationMinutes: 30, location: 'in_person', chiefComplaint: 'Post-procedure check', cancellationReason: 'Patient unavailable', cancelledAt: new Date(now - 4 * day), cancelledBy: 'patient', tokenRewardIssued: false, createdBy: 'patient', createdAt: new Date(now - 10 * day) },
+  { _id: 'apt006', appointmentId: 'APT-2026-00006', patientId: 'p001', patientName: 'James Wilson', patientEmail: 'james.wilson@email.com', providerId: 'u002', providerName: 'Dr. John Smith', providerSpecialty: 'Cardiology', organizationName: 'Metro Heart Institute', appointmentType: 'follow_up', status: 'scheduled', scheduledDate: new Date(now + 3 * day), startTime: '09:30', endTime: '10:00', durationMinutes: 30, location: 'in_person', chiefComplaint: 'Medication review', reasonForVisit: 'Review current cardiac medications', tokenRewardIssued: false, createdBy: 'patient', createdAt: new Date(now - 2 * day) },
+  { _id: 'apt007', appointmentId: 'APT-2026-00007', patientId: 'p002', patientName: 'Emily Rodriguez', patientEmail: 'emily.rodriguez@email.com', providerId: 'u003', providerName: 'Dr. Michael Chen', providerSpecialty: 'Neurology', organizationName: 'Neuroscience Medical Center', appointmentType: 'follow_up', status: 'confirmed', scheduledDate: new Date(now + 5 * day), startTime: '10:30', endTime: '11:00', durationMinutes: 30, location: 'in_person', chiefComplaint: 'MRI review and treatment plan', reasonForVisit: 'Review MRI results and adjust treatment', tokenRewardIssued: false, createdBy: 'patient', createdAt: new Date(now - 3 * day) },
+  { _id: 'apt008', appointmentId: 'APT-2026-00008', patientId: 'p003', patientName: 'Thomas Brown', patientEmail: 'thomas.brown@email.com', providerId: 'u002', providerName: 'Dr. John Smith', providerSpecialty: 'Cardiology', organizationName: 'Metro Heart Institute', appointmentType: 'telehealth', status: 'confirmed', scheduledDate: new Date(now + 2 * day), startTime: '14:00', endTime: '14:30', durationMinutes: 30, location: 'telehealth', telehealthLink: 'https://telehealth.clinictrustai.com/room/xyz789demo', chiefComplaint: 'Telehealth cardiology check', reasonForVisit: 'Virtual follow-up for arrhythmia monitoring', tokenRewardIssued: false, createdBy: 'patient', createdAt: new Date(now - 1 * day) },
+  { _id: 'apt009', appointmentId: 'APT-2026-00009', patientId: 'p001', patientName: 'James Wilson', patientEmail: 'james.wilson@email.com', providerId: 'u003', providerName: 'Dr. Michael Chen', providerSpecialty: 'Neurology', organizationName: 'Neuroscience Medical Center', appointmentType: 'new_patient', status: 'scheduled', scheduledDate: new Date(now + 7 * day), startTime: '09:00', endTime: '10:00', durationMinutes: 60, location: 'in_person', chiefComplaint: 'Memory concerns and cognitive changes', reasonForVisit: 'Initial evaluation for memory issues', tokenRewardIssued: false, createdBy: 'patient', createdAt: new Date(now) },
+  { _id: 'apt010', appointmentId: 'APT-2026-00010', patientId: 'p002', patientName: 'Emily Rodriguez', patientEmail: 'emily.rodriguez@email.com', providerId: 'u002', providerName: 'Dr. John Smith', providerSpecialty: 'Cardiology', organizationName: 'Metro Heart Institute', appointmentType: 'procedure', status: 'scheduled', scheduledDate: new Date(now + 10 * day), startTime: '08:00', endTime: '09:00', durationMinutes: 60, location: 'in_person', chiefComplaint: 'Echocardiogram procedure', reasonForVisit: 'Scheduled echocardiogram for structural heart evaluation', tokenRewardIssued: false, createdBy: 'provider', createdAt: new Date(now - 5 * day) },
+];
+
+const syntheticSchedules = [
+  { _id: 'sch001', providerId: 'u002', providerName: 'Dr. John Smith', dayOfWeek: 1, startTime: '09:00', endTime: '17:00', slotDurationMinutes: 30, bufferMinutes: 5, maxDailyAppointments: 16, isActive: true },
+  { _id: 'sch002', providerId: 'u002', providerName: 'Dr. John Smith', dayOfWeek: 2, startTime: '09:00', endTime: '17:00', slotDurationMinutes: 30, bufferMinutes: 5, maxDailyAppointments: 16, isActive: true },
+  { _id: 'sch003', providerId: 'u002', providerName: 'Dr. John Smith', dayOfWeek: 3, startTime: '09:00', endTime: '17:00', slotDurationMinutes: 30, bufferMinutes: 5, maxDailyAppointments: 16, isActive: true },
+  { _id: 'sch004', providerId: 'u002', providerName: 'Dr. John Smith', dayOfWeek: 4, startTime: '09:00', endTime: '17:00', slotDurationMinutes: 30, bufferMinutes: 5, maxDailyAppointments: 16, isActive: true },
+  { _id: 'sch005', providerId: 'u002', providerName: 'Dr. John Smith', dayOfWeek: 5, startTime: '09:00', endTime: '17:00', slotDurationMinutes: 30, bufferMinutes: 5, maxDailyAppointments: 16, isActive: true },
+  { _id: 'sch006', providerId: 'u003', providerName: 'Dr. Michael Chen', dayOfWeek: 1, startTime: '08:00', endTime: '16:00', slotDurationMinutes: 30, bufferMinutes: 5, maxDailyAppointments: 14, isActive: true },
+  { _id: 'sch007', providerId: 'u003', providerName: 'Dr. Michael Chen', dayOfWeek: 2, startTime: '08:00', endTime: '16:00', slotDurationMinutes: 30, bufferMinutes: 5, maxDailyAppointments: 14, isActive: true },
+  { _id: 'sch008', providerId: 'u003', providerName: 'Dr. Michael Chen', dayOfWeek: 3, startTime: '08:00', endTime: '16:00', slotDurationMinutes: 30, bufferMinutes: 5, maxDailyAppointments: 14, isActive: true },
+  { _id: 'sch009', providerId: 'u003', providerName: 'Dr. Michael Chen', dayOfWeek: 4, startTime: '08:00', endTime: '16:00', slotDurationMinutes: 30, bufferMinutes: 5, maxDailyAppointments: 14, isActive: true },
+  { _id: 'sch010', providerId: 'u003', providerName: 'Dr. Michael Chen', dayOfWeek: 5, startTime: '08:00', endTime: '16:00', slotDurationMinutes: 30, bufferMinutes: 5, maxDailyAppointments: 14, isActive: true },
+];
+
+// Helper: generate available slots from schedule
+function generateSyntheticSlots(providerId, dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const dow = d.getDay();
+  const sched = syntheticSchedules.find(s => s.providerId === providerId && s.dayOfWeek === dow && s.isActive);
+  if (!sched) return [];
+  const parseT = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+  const toT = m => String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0');
+  const booked = syntheticAppointments.filter(a =>
+    a.providerId === providerId &&
+    new Date(a.scheduledDate).toISOString().startsWith(dateStr) &&
+    !['cancelled','no_show'].includes(a.status)
+  );
+  const slots = [];
+  let cur = parseT(sched.startTime);
+  const end = parseT(sched.endTime);
+  while (cur + sched.slotDurationMinutes <= end) {
+    const st = toT(cur), et = toT(cur + sched.slotDurationMinutes);
+    const busy = booked.some(b => parseT(b.startTime) < parseT(et) && parseT(b.endTime) > parseT(st));
+    slots.push({ startTime: st, endTime: et, available: !busy, booked: busy });
+    cur += sched.slotDurationMinutes + sched.bufferMinutes;
+  }
+  return slots;
+}
+
+// GET available slots
+router.get('/appointments/available-slots', protect, (req, res) => {
+  const { providerId, startDate, endDate } = req.query;
+  if (!providerId) return res.status(400).json({ success: false, message: 'providerId required' });
+  const start = startDate ? new Date(startDate) : new Date();
+  const end = endDate ? new Date(endDate) : new Date(Date.now() + 30 * day);
+  const results = [];
+  const cur = new Date(start);
+  while (cur <= end && results.length < 60) {
+    const dateStr = cur.toISOString().split('T')[0];
+    const slots = generateSyntheticSlots(providerId, dateStr);
+    if (slots.some(s => s.available)) {
+      results.push({ date: dateStr, slots, availableCount: slots.filter(s => s.available).length });
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+  res.json({ success: true, data: { slots: results, providerId } });
+});
+
+// GET patient's own appointments
+router.get('/appointments/stats', protect, (req, res) => {
+  const uid = req.user ? req.user._id : null;
+  const mine = syntheticAppointments.filter(a => a.patientId === uid || a.providerId === uid);
+  const now2 = new Date();
+  const completed = mine.filter(a => a.status === 'completed').length;
+  const noShow = mine.filter(a => a.status === 'no_show').length;
+  const cancelled = mine.filter(a => a.status === 'cancelled').length;
+  const upcoming = mine.filter(a => new Date(a.scheduledDate) >= now2 && !['cancelled','no_show'].includes(a.status)).length;
+  res.json({ success: true, data: { total: mine.length, completed, noShow, cancelled, upcoming, noShowRate: completed + noShow > 0 ? Math.round((noShow / (completed + noShow)) * 100 * 10) / 10 : 0 } });
+});
+
+router.get('/appointments/my-schedule', protect, (req, res) => {
+  const uid = req.user ? req.user._id : null;
+  const { startDate, endDate } = req.query;
+  const s = startDate ? new Date(startDate) : new Date();
+  const e = endDate ? new Date(endDate) : new Date(Date.now() + 7 * day);
+  const appts = syntheticAppointments.filter(a =>
+    a.providerId === uid &&
+    new Date(a.scheduledDate) >= s &&
+    new Date(a.scheduledDate) <= e &&
+    !['cancelled','no_show'].includes(a.status)
+  ).sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate));
+  res.json({ success: true, data: { appointments: appts } });
+});
+
+router.get('/appointments', protect, (req, res) => {
+  const { upcoming, past, status, page = 1, limit = 10 } = req.query;
+  const now2 = new Date();
+  let results = [...syntheticAppointments];
+  if (upcoming === 'true') results = results.filter(a => new Date(a.scheduledDate) >= now2 && !['cancelled','no_show'].includes(a.status));
+  if (past === 'true') results = results.filter(a => new Date(a.scheduledDate) < now2 || ['completed','no_show','cancelled'].includes(a.status));
+  if (status) results = results.filter(a => a.status === status);
+  if (upcoming === 'true') results.sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate));
+  else results.sort((a, b) => new Date(b.scheduledDate) - new Date(a.scheduledDate));
+  const pageNum = parseInt(page, 10) || 1;
+  const limitNum = parseInt(limit, 10) || 10;
+  const paged = results.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+  res.json({ success: true, data: { appointments: paged, total: results.length, page: pageNum, limit: limitNum } });
+});
+
+router.post('/appointments', protect, (req, res) => {
+  const { providerId, startTime, endTime, scheduledDate } = req.body;
+  const dateStr = new Date(scheduledDate).toISOString().split('T')[0];
+  const slots = generateSyntheticSlots(providerId, dateStr);
+  const slot = slots.find(s => s.startTime === startTime);
+  if (slot && slot.booked) {
+    return res.status(409).json({ success: false, message: 'This time slot is no longer available. Please select another slot.' });
+  }
+  const newAppt = {
+    _id: 'apt' + Date.now(),
+    appointmentId: 'APT-2026-' + String(syntheticAppointments.length + 1).padStart(5, '0'),
+    ...req.body,
+    status: 'scheduled',
+    tokenRewardIssued: false,
+    createdBy: 'patient',
+    createdAt: new Date(),
+    scheduledDate: new Date(scheduledDate),
+    remindersSent: [],
+    rescheduleHistory: [],
+    intakeResponses: req.body.intakeResponses || {},
+  };
+  if (req.body.appointmentType === 'telehealth') {
+    newAppt.telehealthLink = 'https://telehealth.clinictrustai.com/room/' + Math.random().toString(36).slice(2, 10);
+  }
+  syntheticAppointments.push(newAppt);
+  res.status(201).json({ success: true, data: newAppt });
+});
+
+router.get('/appointments/:id', protect, (req, res) => {
+  const appt = syntheticAppointments.find(a => a._id === req.params.id);
+  if (!appt) return res.status(404).json({ success: false, message: 'Appointment not found' });
+  res.json({ success: true, data: appt });
+});
+
+router.put('/appointments/:id/cancel', protect, (req, res) => {
+  const appt = syntheticAppointments.find(a => a._id === req.params.id);
+  if (!appt) return res.status(404).json({ success: false, message: 'Appointment not found' });
+  appt.status = 'cancelled';
+  appt.cancellationReason = req.body.cancellationReason || '';
+  appt.cancelledAt = new Date();
+  appt.cancelledBy = 'patient';
+  res.json({ success: true, data: appt });
+});
+
+router.put('/appointments/:id/reschedule', protect, (req, res) => {
+  const appt = syntheticAppointments.find(a => a._id === req.params.id);
+  if (!appt) return res.status(404).json({ success: false, message: 'Appointment not found' });
+  if (!appt.rescheduleHistory) appt.rescheduleHistory = [];
+  appt.rescheduleHistory.push({ fromDate: appt.scheduledDate, fromStartTime: appt.startTime, toDate: req.body.newDate, toStartTime: req.body.newStartTime, reason: req.body.reason, changedBy: 'patient', changedAt: new Date() });
+  appt.scheduledDate = new Date(req.body.newDate);
+  appt.startTime = req.body.newStartTime;
+  appt.endTime = req.body.newEndTime;
+  appt.status = 'scheduled';
+  res.json({ success: true, data: appt });
+});
+
+router.put('/appointments/:id/status', protect, (req, res) => {
+  const appt = syntheticAppointments.find(a => a._id === req.params.id);
+  if (!appt) return res.status(404).json({ success: false, message: 'Appointment not found' });
+  appt.status = req.body.status;
+  if (req.body.notes) appt.notes = req.body.notes;
+  if (req.body.status === 'completed' && !appt.tokenRewardIssued) appt.tokenRewardIssued = true;
+  res.json({ success: true, data: appt });
+});
+
+router.post('/appointments/:id/check-in', protect, (req, res) => {
+  const appt = syntheticAppointments.find(a => a._id === req.params.id);
+  if (!appt) return res.status(404).json({ success: false, message: 'Appointment not found' });
+  appt.status = 'checked_in';
+  res.json({ success: true, data: appt });
+});
+
+router.post('/appointments/:id/reminder', protect, (req, res) => {
+  const appt = syntheticAppointments.find(a => a._id === req.params.id);
+  if (!appt) return res.status(404).json({ success: false, message: 'Appointment not found' });
+  appt.reminderSentAt = new Date().toISOString();
+  if (!appt.remindersSent) appt.remindersSent = [];
+  appt.remindersSent.push({ sentAt: appt.reminderSentAt, channel: 'email', status: 'sent' });
+  res.json({ success: true, data: appt, message: 'Reminder sent successfully' });
+});
+
+// Admin appointments routes
+router.get('/admin/appointments/stats', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const total = syntheticAppointments.length;
+  const completed = syntheticAppointments.filter(a => a.status === 'completed').length;
+  const cancelled = syntheticAppointments.filter(a => a.status === 'cancelled').length;
+  const noShow = syntheticAppointments.filter(a => a.status === 'no_show').length;
+  const upcoming = syntheticAppointments.filter(a => new Date(a.scheduledDate) >= new Date() && !['cancelled','no_show'].includes(a.status)).length;
+  const noShowRate = completed + noShow > 0 ? Math.round((noShow / (completed + noShow)) * 100 * 10) / 10 : 0;
+  const byType = {};
+  syntheticAppointments.forEach(a => { byType[a.appointmentType] = (byType[a.appointmentType] || 0) + 1; });
+  const appointmentsByType = Object.entries(byType).map(([type, count]) => ({ type, count }));
+  const topProviders = [
+    { providerName: 'Dr. John Smith', count: syntheticAppointments.filter(a => a.providerId === 'u002').length },
+    { providerName: 'Dr. Michael Chen', count: syntheticAppointments.filter(a => a.providerId === 'u003').length },
+  ];
+  res.json({ success: true, data: { total, completed, cancelled, noShow, upcoming, noShowRate, avgUtilizationPct: Math.round((completed / Math.max(total - cancelled, 1)) * 100), topProviders, appointmentsByType, recentTrend: [] } });
+});
+
+router.get('/admin/appointments/no-show-report', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const noShows = syntheticAppointments.filter(a => a.status === 'no_show');
+  res.json({ success: true, data: { report: noShows, total: noShows.length } });
+});
+
+router.get('/admin/appointments', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const { status, appointmentType, search, page = 1, limit = 15 } = req.query;
+  let results = [...syntheticAppointments];
+  if (status && status !== 'all') results = results.filter(a => a.status === status);
+  if (appointmentType && appointmentType !== 'all') results = results.filter(a => a.appointmentType === appointmentType);
+  if (search) { const q = search.toLowerCase(); results = results.filter(a => (a.patientName || '').toLowerCase().includes(q) || (a.providerName || '').toLowerCase().includes(q) || (a.appointmentId || '').toLowerCase().includes(q)); }
+  results.sort((a, b) => new Date(b.scheduledDate) - new Date(a.scheduledDate));
+  const pageNum = parseInt(page, 10) || 1;
+  const limitNum = parseInt(limit, 10) || 15;
+  const paged = results.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+  res.json({ success: true, data: { appointments: paged, total: results.length, page: pageNum, limit: limitNum } });
+});
+
+router.get('/admin/appointments/provider-utilization', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const range = req.query.range || '30d';
+  const rangeDays = { '7d': 7, '30d': 30, '90d': 90, 'ytd': new Date().getMonth() * 30 + 1 }[range] || 30;
+
+  const providers = [
+    { providerId: 'u002', providerName: 'Dr. John Smith',    specialty: 'Family Medicine',  totalSlots: rangeDays * 8, bookedSlots: Math.round(rangeDays * 8 * 0.87), completed: Math.round(rangeDays * 5.8), noShow: Math.round(rangeDays * 0.6), cancelled: Math.round(rangeDays * 0.4), avgDuration: 22, tokensEarned: Math.round(rangeDays * 5.8) * 15 },
+    { providerId: 'u003', providerName: 'Dr. Michael Chen',  specialty: 'Cardiology',       totalSlots: rangeDays * 6, bookedSlots: Math.round(rangeDays * 6 * 0.72), completed: Math.round(rangeDays * 3.6), noShow: Math.round(rangeDays * 0.5), cancelled: Math.round(rangeDays * 0.7), avgDuration: 35, tokensEarned: Math.round(rangeDays * 3.6) * 15 },
+    { providerId: 'u004', providerName: 'Dr. Sarah Patel',   specialty: 'Neurology',        totalSlots: rangeDays * 5, bookedSlots: Math.round(rangeDays * 5 * 0.91), completed: Math.round(rangeDays * 3.8), noShow: Math.round(rangeDays * 0.3), cancelled: Math.round(rangeDays * 0.3), avgDuration: 40, tokensEarned: Math.round(rangeDays * 3.8) * 15 },
+    { providerId: 'u005', providerName: 'Dr. Amanda Torres', specialty: 'Orthopedics',      totalSlots: rangeDays * 7, bookedSlots: Math.round(rangeDays * 7 * 0.55), completed: Math.round(rangeDays * 2.9), noShow: Math.round(rangeDays * 0.8), cancelled: Math.round(rangeDays * 0.9), avgDuration: 28, tokensEarned: Math.round(rangeDays * 2.9) * 15 },
+    { providerId: 'u006', providerName: 'Dr. James Liu',     specialty: 'Pulmonology',      totalSlots: rangeDays * 4, bookedSlots: Math.round(rangeDays * 4 * 0.63), completed: Math.round(rangeDays * 2.1), noShow: Math.round(rangeDays * 0.4), cancelled: Math.round(rangeDays * 0.2), avgDuration: 30, tokensEarned: Math.round(rangeDays * 2.1) * 15 },
+  ].map(p => {
+    const fillRate = Math.round((p.bookedSlots / p.totalSlots) * 100);
+    const cancelRate = Math.round((p.cancelled / Math.max(p.bookedSlots, 1)) * 100);
+    return { ...p, fillRate, cancelRate };
+  });
+
+  const sortedByFill = [...providers].sort((a, b) => b.fillRate - a.fillRate);
+  const avgFillRate = Math.round(providers.reduce((s, p) => s + p.fillRate, 0) / providers.length);
+  const topPerformer = sortedByFill[0]?.providerName || '—';
+  const belowThreshold = providers.filter(p => p.fillRate < 60).length;
+
+  const peakHours = [
+    { hour: 8,  label: '8:00 – 9:00 AM',   count: Math.round(rangeDays * 1.8) },
+    { hour: 9,  label: '9:00 – 10:00 AM',  count: Math.round(rangeDays * 3.2) },
+    { hour: 10, label: '10:00 – 11:00 AM', count: Math.round(rangeDays * 4.1) },
+    { hour: 11, label: '11:00 – 12:00 PM', count: Math.round(rangeDays * 3.7) },
+    { hour: 13, label: '1:00 – 2:00 PM',   count: Math.round(rangeDays * 3.9) },
+    { hour: 14, label: '2:00 – 3:00 PM',   count: Math.round(rangeDays * 4.4) },
+    { hour: 15, label: '3:00 – 4:00 PM',   count: Math.round(rangeDays * 3.1) },
+    { hour: 16, label: '4:00 – 5:00 PM',   count: Math.round(rangeDays * 1.5) },
+  ];
+
+  res.json({
+    success: true,
+    data: {
+      range,
+      rangeDays,
+      summary: { totalProviders: providers.length, avgFillRate, topPerformer, belowThreshold },
+      providers: sortedByFill,
+      peakHours,
+    }
+  });
+});
+
+router.get('/admin/appointments/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const appt = syntheticAppointments.find(a => a._id === req.params.id);
+  if (!appt) return res.status(404).json({ success: false, message: 'Appointment not found' });
+  res.json({ success: true, data: appt });
+});
+
+router.put('/admin/appointments/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const idx = syntheticAppointments.findIndex(a => a._id === req.params.id);
+  if (idx === -1) return res.status(404).json({ success: false, message: 'Appointment not found' });
+  Object.assign(syntheticAppointments[idx], req.body, { _id: syntheticAppointments[idx]._id });
+  res.json({ success: true, data: syntheticAppointments[idx] });
+});
+
+// Provider Schedule routes
+router.get('/schedules/:providerId/availability', protect, (req, res) => {
+  const schedules = syntheticSchedules.filter(s => s.providerId === req.params.providerId);
+  res.json({ success: true, data: { schedules } });
+});
+
+router.post('/schedules/:providerId/availability', protect, (req, res) => {
+  const updates = Array.isArray(req.body) ? req.body : [req.body];
+  updates.forEach(upd => {
+    const idx = syntheticSchedules.findIndex(s => s.providerId === req.params.providerId && s.dayOfWeek === upd.dayOfWeek);
+    if (idx >= 0) Object.assign(syntheticSchedules[idx], upd);
+    else syntheticSchedules.push({ _id: 'sch' + Date.now(), providerId: req.params.providerId, ...upd });
+  });
+  res.json({ success: true, data: { schedules: syntheticSchedules.filter(s => s.providerId === req.params.providerId) } });
+});
+
+router.get('/schedules/:providerId/slots', protect, (req, res) => {
+  const { startDate, endDate } = req.query;
+  const start = startDate ? new Date(startDate) : new Date();
+  const end = endDate ? new Date(endDate) : new Date(Date.now() + 30 * day);
+  const results = [];
+  const cur = new Date(start);
+  while (cur <= end && results.length < 60) {
+    const dateStr = cur.toISOString().split('T')[0];
+    const slots = generateSyntheticSlots(req.params.providerId, dateStr);
+    if (slots.some(s => s.available)) results.push({ date: dateStr, slots, availableCount: slots.filter(s => s.available).length });
+    cur.setDate(cur.getDate() + 1);
+  }
+  res.json({ success: true, data: { slots: results, providerId: req.params.providerId } });
+});
+
+router.get('/schedules/:providerId/exceptions', protect, (req, res) => {
+  res.json({ success: true, data: { exceptions: [] } });
+});
+
+router.post('/schedules/:providerId/exceptions', protect, (req, res) => {
+  res.status(201).json({ success: true, data: { _id: 'exc' + Date.now(), providerId: req.params.providerId, ...req.body, createdAt: new Date() } });
+});
+
+router.get('/schedules/:providerId/waitlist', protect, (req, res) => {
+  const syntheticWaitlist = [
+    { _id: 'wl-001', providerId: req.params.providerId, patientName: 'Alice Thompson', patientId: 'PT-100006', patientPhone: '+15556789012', patientEmail: 'alice.thompson@email.com', appointmentType: 'follow_up', chiefComplaint: 'Chronic back pain', preferredDates: ['Monday', 'Wednesday'], preferredTimeOfDay: 'morning', requestedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), priority: 'normal', status: 'waiting', notes: 'Patient available on short notice' },
+    { _id: 'wl-002', providerId: req.params.providerId, patientName: 'Robert Kim', patientId: 'PT-100007', patientPhone: '+15557890123', patientEmail: 'robert.kim@email.com', appointmentType: 'urgent', chiefComplaint: 'Persistent chest discomfort', preferredDates: ['Any'], preferredTimeOfDay: 'any', requestedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), priority: 'high', status: 'waiting', notes: 'Flagged by referring physician' },
+    { _id: 'wl-003', providerId: req.params.providerId, patientName: 'Sandra Patel', patientId: 'PT-100008', patientPhone: '+15558901234', patientEmail: 'sandra.patel@email.com', appointmentType: 'new_patient', chiefComplaint: 'Annual physical, new to practice', preferredDates: ['Tuesday', 'Thursday', 'Friday'], preferredTimeOfDay: 'afternoon', requestedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), priority: 'normal', status: 'waiting', notes: '' },
+  ];
+  res.json({ success: true, data: { waitlist: syntheticWaitlist, total: syntheticWaitlist.length } });
+});
+
+// ---------------------------------------------------------------------------
 // FHIR R4 API routes (synthetic mode — transforms in-memory data)
 // ---------------------------------------------------------------------------
 

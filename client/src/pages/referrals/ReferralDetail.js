@@ -19,7 +19,8 @@ import {
   Schedule as ScheduleIcon,
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
-  Done as DoneIcon
+  Done as DoneIcon,
+  EventAvailable as BookApptIcon,
 } from '@mui/icons-material';
 
 // Import components
@@ -230,17 +231,32 @@ export default function ReferralDetail() {
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       {/* Referral Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate('/app/referrals')}
-          sx={{ mr: 2 }}
-        >
-          Back
-        </Button>
-        <Typography variant="h4" component="h1">
-          Referral Details
-        </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Button
+            startIcon={<ArrowBackIcon />}
+            onClick={() => navigate('/app/referrals')}
+            sx={{ mr: 2 }}
+          >
+            Back
+          </Button>
+          <Typography variant="h4" component="h1">
+            Referral Details
+          </Typography>
+        </Box>
+        {referral && !['completed', 'rejected', 'cancelled'].includes(referral.status) && (
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<BookApptIcon />}
+            onClick={() => {
+              const providerId = referral.receivingProvider?._id || referral.receivingDoctor?._id || '';
+              navigate(`/app/appointments/book?referralId=${id}&providerId=${providerId}`);
+            }}
+          >
+            Schedule Appointment
+          </Button>
+        )}
       </Box>
       
       {/* Referral Summary */}

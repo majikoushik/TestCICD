@@ -20,6 +20,8 @@ import notificationService from './notificationService';
 import adminEngagementService from './adminEngagementService';
 import ambientSessionService from './ambientSessionService';
 import referralMatchingService from './referralMatchingService';
+import appointmentService from './appointmentService';
+import scheduleService from './scheduleService';
 import mockData from './mockData';
 
 // Export individual services
@@ -48,6 +50,8 @@ export {
   adminEngagementService,
   ambientSessionService,
   referralMatchingService,
+  appointmentService,
+  scheduleService,
 
   // Mock Data Service
   mockData
@@ -69,6 +73,8 @@ export const Services = {
   adminEngagementService,
   ambientSessionService,
   referralMatchingService,
+  appointmentService,
+  scheduleService,
   notificationService,
   mockData
 };

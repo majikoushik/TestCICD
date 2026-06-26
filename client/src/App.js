@@ -75,6 +75,14 @@ const AdminPriorAuth = lazy(() => import('./pages/admin/AdminPriorAuth'));
 const AdminPatientEngagement = lazy(() => import('./pages/admin/AdminPatientEngagement'));
 const AdminAmbientSessions = lazy(() => import('./pages/admin/AdminAmbientSessions'));
 const AdminReferralMatching = lazy(() => import('./pages/admin/AdminReferralMatching'));
+const AdminAppointments = lazy(() => import('./pages/admin/AdminAppointments'));
+
+// Appointments (patient self-scheduling)
+const MyAppointments = lazy(() => import('./pages/appointments/MyAppointments'));
+const BookAppointment = lazy(() => import('./pages/appointments/BookAppointment'));
+
+// Provider Schedule
+const ProviderSchedulePage = lazy(() => import('./pages/schedule/ProviderSchedule'));
 
 // Ambient Clinical Intelligence (provider)
 const AmbientRecorder = lazy(() => import('./pages/ambient/AmbientRecorder'));
@@ -318,6 +326,25 @@ function App() {
             <AmbientRecorder />
           </Suspense>
         } />
+
+        {/* Patient Self-Scheduling */}
+        <Route path="appointments" element={
+          <Suspense fallback={<PageLoadingFallback />}>
+            <MyAppointments />
+          </Suspense>
+        } />
+        <Route path="appointments/book" element={
+          <Suspense fallback={<PageLoadingFallback />}>
+            <BookAppointment />
+          </Suspense>
+        } />
+
+        {/* Provider Schedule Management */}
+        <Route path="schedule" element={
+          <Suspense fallback={<PageLoadingFallback />}>
+            <ProviderSchedulePage />
+          </Suspense>
+        } />
       </Route>
       
       {/* Admin Routes */}
@@ -384,6 +411,11 @@ function App() {
         <Route path="referral-matching" element={
           <Suspense fallback={<PageLoadingFallback />}>
             <AdminReferralMatching />
+          </Suspense>
+        } />
+        <Route path="appointments" element={
+          <Suspense fallback={<PageLoadingFallback />}>
+            <AdminAppointments />
           </Suspense>
         } />
         <Route path="patient-records" element={

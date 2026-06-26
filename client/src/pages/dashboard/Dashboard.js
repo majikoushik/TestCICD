@@ -46,8 +46,11 @@ import {
   TrendingDown as TrendingDownIcon,
   Speed as SpeedIcon,
   Favorite as FavoriteIcon,
-  Psychology as PsychologyIcon
+  Psychology as PsychologyIcon,
+  EventAvailable as ApptIcon,
+  VideoCall as TelehealthIcon,
 } from '@mui/icons-material';
+import { getMySchedule } from '../../services/appointmentService';
 
 // Import recharts for data visualization
 import {
@@ -300,6 +303,8 @@ function Dashboard() {
   const [referralEfficiency, setReferralEfficiency] = useState([]);
   const [patientRiskData, setPatientRiskData] = useState([]);
   const [aiMetricsData, setAiMetricsData] = useState([]);
+  const [todayAppointments, setTodayAppointments] = useState([]);
+  const [todayLoading, setTodayLoading] = useState(false);
 
   // Define fetchDashboardData function outside of useEffect
   const fetchDashboardData = async () => {
@@ -339,22 +344,42 @@ function Dashboard() {
     setActiveTab(newValue);
   };
   
+  // Fetch today's schedule
+  const fetchTodaySchedule = useCallback(async () => {
+    setTodayLoading(true);
+    try {
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      const res = await getMySchedule({ startDate: todayStr, endDate: todayStr });
+      const payload = res?.data || res || {};
+      const inner = payload.data || payload;
+      const appts = inner.appointments || [];
+      setTodayAppointments(appts.sort((a, b) => (a.startTime || '').localeCompare(b.startTime || '')));
+    } catch {
+      setTodayAppointments([]);
+    } finally {
+      setTodayLoading(false);
+    }
+  }, []);
+
   // Initial data loading
   useEffect(() => {
     fetchDashboardData();
     fetchAdditionalMetrics();
-    
+    fetchTodaySchedule();
+
     // Initialize chart data directly with mock data to ensure charts display immediately
     setPatientRiskData(mockPatientRiskData);
     setClinicalMetrics(mockClinicalMetricsData);
     setReferralEfficiency(mockReferralEfficiencyData);
     setAiMetricsData(mockAIPerformanceMetrics);
-    
+
     // Initialize AI metrics with mock data
     setDashboardData(prev => ({
       ...prev,
       aiMetrics: mockAIPerformanceMetrics
     }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchAdditionalMetrics = useCallback(async () => {
@@ -396,8 +421,9 @@ function Dashboard() {
     } catch (err) {
       console.error('Error fetching additional metrics:', err);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  
+
   // Generate AI insights based on data
   const generateAIInsights = useCallback((aiData) => {
     const insights = [
@@ -640,6 +666,62 @@ function Dashboard() {
               <ReferralEfficiencyChart data={referralEfficiency} />
             </Grid>
           
+            {/* Today's Schedule */}
+            <Grid item xs={12}>
+              <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <ApptIcon color="primary" />
+                    <Typography variant="h6">Today's Schedule</Typography>
+                    <Chip label={new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} size="small" variant="outlined" />
+                  </Box>
+                  <Button size="small" variant="outlined" onClick={() => navigate('/app/schedule')}>
+                    Full Schedule
+                  </Button>
+                </Box>
+                {todayLoading ? (
+                  <LinearProgress />
+                ) : todayAppointments.length === 0 ? (
+                  <Box sx={{ py: 3, textAlign: 'center' }}>
+                    <ApptIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
+                    <Typography variant="body2" color="text.secondary">No appointments scheduled for today</Typography>
+                    <Button size="small" variant="contained" sx={{ mt: 1.5 }} onClick={() => navigate('/app/appointments/book')}>
+                      Schedule a Patient
+                    </Button>
+                  </Box>
+                ) : (
+                  <Grid container spacing={2}>
+                    {todayAppointments.slice(0, 6).map((appt) => {
+                      const statusColor = { scheduled: 'info', confirmed: 'primary', checked_in: 'warning', in_progress: 'secondary', completed: 'success', cancelled: 'error', no_show: 'error' };
+                      const isVirtual = appt.appointmentType === 'telehealth' || appt.location === 'telehealth';
+                      return (
+                        <Grid item xs={12} sm={6} md={4} key={appt._id}>
+                          <Paper variant="outlined" sx={{ p: 1.5, borderLeft: 4, borderColor: `${statusColor[appt.status] || 'default'}.main`, borderRadius: 1 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                              <Typography variant="subtitle2" fontWeight={700} noWrap sx={{ maxWidth: '60%' }}>
+                                {appt.patientName || '—'}
+                              </Typography>
+                              <Chip label={appt.status?.replace('_', ' ')} size="small" color={statusColor[appt.status] || 'default'} sx={{ fontSize: '0.65rem', height: 20 }} />
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                              <AccessTimeIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                              <Typography variant="caption" color="text.secondary">
+                                {appt.startTime} – {appt.endTime}
+                              </Typography>
+                              {isVirtual && <TelehealthIcon sx={{ fontSize: 14, color: 'secondary.main' }} />}
+                            </Box>
+                            <Typography variant="caption" color="text.secondary" noWrap display="block">
+                              {appt.appointmentType?.replace('_', ' ')} {appt.chiefComplaint ? `· ${appt.chiefComplaint}` : ''}
+                            </Typography>
+                          </Paper>
+                        </Grid>
+                      );
+                    })}
+                  </Grid>
+                )}
+              </Paper>
+            </Grid>
+
             {/* Recent Activity */}
             <Grid item xs={12} md={8}>
               <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
@@ -717,6 +799,16 @@ function Dashboard() {
                       onClick={() => navigate('/app/analytics/create')}
                     >
                       New Analysis
+                    </Button>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      startIcon={<ApptIcon />}
+                      onClick={() => navigate('/app/appointments/book')}
+                    >
+                      Schedule Patient
                     </Button>
                   </Grid>
                   <Grid item xs={6}>
