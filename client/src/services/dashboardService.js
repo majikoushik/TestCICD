@@ -68,43 +68,8 @@ const dashboardService = {
         return mockDashboardData;
       }
 
-      // Use GraphQL to fetch dashboard data
-      const query = `
-        query GetDashboardData {
-          dashboardData {
-            patients {
-              total
-              highRisk
-            }
-            referrals {
-              pending
-              completed
-            }
-            analytics {
-              recent {
-                id
-                title
-                type
-                summary
-                createdAt
-              }
-            }
-            recentActivity {
-              id
-              type
-              description
-              timestamp
-              status
-            }
-          }
-        }
-      `;
-      
-      const response = await executeGraphQLQuery(query);
-      return {
-        success: true,
-        data: response.data.dashboardData
-      };
+      // Use REST API to fetch dashboard data (server returns plain object, not { success, data })
+      return await get('/dashboard');
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       throw error;
@@ -228,27 +193,11 @@ const dashboardService = {
         };
       }
 
-      // Use GraphQL to fetch referral statistics
-      const query = `
-        query GetReferralStatistics {
-          referralStatistics {
-            total
-            pending
-            completed
-            rejected
-            averageCompletionTime
-            bySpecialty {
-              specialty
-              count
-            }
-          }
-        }
-      `;
-      
-      const response = await executeGraphQLQuery(query);
+      // Use REST API to fetch referral statistics (controller returns plain JSON, no wrapper)
+      const response = await get('/dashboard/referral-statistics');
       return {
         success: true,
-        data: response.data.referralStatistics
+        data: response.success ? response.data : response,
       };
     } catch (error) {
       console.error('Error fetching referral statistics:', error);
@@ -401,36 +350,11 @@ const dashboardService = {
         };
       }
 
-      // Use GraphQL to fetch provider performance
-      const query = `
-        query GetProviderPerformance {
-          providerPerformance {
-            providers {
-              id
-              name
-              referralCount
-              acceptanceRate
-              completionRate
-              averageResponseTime
-            }
-            topPerformers {
-              id
-              name
-              referralCount
-              acceptanceRate
-              completionRate
-              averageResponseTime
-            }
-            averageAcceptanceRate
-            averageCompletionTime
-          }
-        }
-      `;
-      
-      const response = await executeGraphQLQuery(query);
+      // Use REST API to fetch provider performance
+      const response = await get('/dashboard/provider-performance');
       return {
         success: true,
-        data: response.data.providerPerformance
+        data: response.success ? response.data : response,
       };
     } catch (error) {
       console.error('Error fetching provider performance:', error);
@@ -458,28 +382,11 @@ const dashboardService = {
         };
       }
 
-      // Use GraphQL to fetch token economy stats
-      const query = `
-        query GetTokenEconomyStats($period: String) {
-          tokenEconomyStats(period: $period) {
-            totalIssued
-            totalRedeemed
-            inCirculation
-            trends {
-              periods
-              issued
-              redeemed
-              circulation
-            }
-          }
-        }
-      `;
-      
-      const variables = { period };
-      const response = await executeGraphQLQuery(query, variables);
+      // Use REST API to fetch token economy stats
+      const response = await get(`/dashboard/token-economy?period=${period}`);
       return {
         success: true,
-        data: response.data.tokenEconomyStats
+        data: response.success ? response.data : response,
       };
     } catch (error) {
       console.error('Error fetching token economy stats:', error);
@@ -506,35 +413,11 @@ const dashboardService = {
         };
       }
 
-      // Use GraphQL to fetch AI analytics stats
-      const query = `
-        query GetAIAnalyticsStats {
-          aiAnalyticsStats {
-            usageByFeature {
-              feature
-              count
-              periods
-              usage
-            }
-            accuracyMetrics {
-              riskAssessment
-              summaryGeneration
-              recommendations
-              overall
-            }
-            feedbackMetrics {
-              falsePositives
-              falseNegatives
-              improvementRate
-            }
-          }
-        }
-      `;
-      
-      const response = await executeGraphQLQuery(query);
+      // Use REST API to fetch AI analytics stats
+      const response = await get('/dashboard/ai-analytics');
       return {
         success: true,
-        data: response.data.aiAnalyticsStats
+        data: response.success ? response.data : response,
       };
     } catch (error) {
       console.error('Error fetching AI analytics stats:', error);

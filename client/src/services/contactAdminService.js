@@ -1,9 +1,11 @@
 import axios from 'axios';
+import { authStorage } from '../utils/storageUtils';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:5000').replace(/\/api$/, '');
 
 const getHeaders = () => {
-  const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
+  const raw = authStorage.get('token', false);
+  const token = raw ? raw.replace(/^"|"$/g, '') : '';
   return { Authorization: `Bearer ${token}` };
 };
 

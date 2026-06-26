@@ -336,6 +336,19 @@ function Dashboard() {
       }
       
       setDashboardData(data);
+
+      // Compute patient risk chart directly from fetched data (avoids stale-state race)
+      if (data?.patients) {
+        const total = data.patients.total || 100;
+        const highRisk = data.patients.highRisk || 0;
+        const mediumRiskCount = Math.floor(total * 0.3);
+        const lowRiskCount = Math.max(0, total - highRisk - mediumRiskCount);
+        setPatientRiskData([
+          { name: 'High Risk', value: highRisk },
+          { name: 'Medium Risk', value: mediumRiskCount },
+          { name: 'Low Risk', value: lowRiskCount },
+        ]);
+      }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       setError('Failed to load dashboard data. Please try again later.');
@@ -388,17 +401,6 @@ function Dashboard() {
     fetchTodaySchedule();
     fetchRecentRx();
 
-    // Initialize chart data directly with mock data to ensure charts display immediately
-    setPatientRiskData(mockPatientRiskData);
-    setClinicalMetrics(mockClinicalMetricsData);
-    setReferralEfficiency(mockReferralEfficiencyData);
-    setAiMetricsData(mockAIPerformanceMetrics);
-
-    // Initialize AI metrics with mock data
-    setDashboardData(prev => ({
-      ...prev,
-      aiMetrics: mockAIPerformanceMetrics
-    }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -416,27 +418,32 @@ function Dashboard() {
       // Fetch AI analytics metrics
       const aiResponse = await dashboardService.getAIAnalyticsStats();
       if (aiResponse.success) {
+        const accuracy = aiResponse.data.accuracyMetrics || {};
         setDashboardData(prev => ({
           ...prev,
-          aiMetrics: aiResponse.data.accuracyMetrics
+          aiMetrics: accuracy
         }));
-        
-        // Generate AI insights based on data
+        // Convert 0-1 fractions to 0-100 percentages for the chart component
+        setAiMetricsData({
+          riskAssessment: Math.round((accuracy.riskAssessment || 0) * 100),
+          summaryGeneration: Math.round((accuracy.summaryGeneration || 0) * 100),
+          recommendations: Math.round((accuracy.recommendations || 0) * 100),
+          overall: Math.round((accuracy.overall || 0) * 100),
+        });
         generateAIInsights(aiResponse.data);
       }
-      
+
       // Fetch token economy stats
       const tokenResponse = await dashboardService.getTokenEconomyStats();
       if (tokenResponse.success) {
-        // Generate clinical metrics data
         generateClinicalMetrics(tokenResponse.data);
       }
-      
-      // Generate patient risk data for chart
-      generatePatientRiskData();
-      
-      // Generate referral efficiency data
-      generateReferralEfficiencyData();
+
+      // Fetch referral statistics for efficiency chart
+      const referralStatsResponse = await dashboardService.getReferralStatistics();
+      if (referralStatsResponse.success) {
+        generateReferralEfficiencyData(referralStatsResponse.data);
+      }
       
     } catch (err) {
       console.error('Error fetching additional metrics:', err);
@@ -487,10 +494,21 @@ function Dashboard() {
     setAiInsights(insights);
   }, [dashboardData, navigate]);
   
-  // Generate clinical metrics data for chart
+  // Generate clinical metrics data for chart from token economy trends
   const generateClinicalMetrics = useCallback((tokenData) => {
-    // Use mock data directly to ensure we have data for the chart
-    setClinicalMetrics(mockClinicalMetricsData);
+    if (!tokenData?.trends?.periods?.length) {
+      setClinicalMetrics(mockClinicalMetricsData);
+      return;
+    }
+    const { periods, issued, redeemed } = tokenData.trends;
+    const totalIssued = tokenData.totalIssued || 1;
+    const overallRate = Math.round((tokenData.totalRedeemed / totalIssued) * 100);
+    const data = periods.map((period, i) => ({
+      month: period,
+      actual: Math.min(100, Math.round(((redeemed[i] || 0) / (issued[i] || 1)) * 100)),
+      average: overallRate,
+    }));
+    setClinicalMetrics(data);
   }, []);
   
   // Generate patient risk data for chart
@@ -517,16 +535,19 @@ function Dashboard() {
     setPatientRiskData(data);
   }, [dashboardData]);
   
-  // Generate referral efficiency data
-  const generateReferralEfficiencyData = useCallback(() => {
-    const data = [
-      { name: 'Response Time', current: 24, target: 18 },
-      { name: 'Acceptance Rate', current: 85, target: 90 },
-      { name: 'Completion Rate', current: 78, target: 85 },
-      { name: 'Patient Satisfaction', current: 92, target: 95 },
-    ];
-    
-    setReferralEfficiency(data);
+  // Generate referral efficiency data from real referral statistics
+  const generateReferralEfficiencyData = useCallback((referralStats) => {
+    if (!referralStats || !referralStats.total) {
+      setReferralEfficiency(mockReferralEfficiencyData);
+      return;
+    }
+    const { total, pending, completed, rejected, averageCompletionTime } = referralStats;
+    const accepted = Math.max(0, total - pending - completed - (rejected || 0));
+    setReferralEfficiency([
+      { name: 'Response Time', current: averageCompletionTime || 36, target: 18 },
+      { name: 'Acceptance Rate', current: total > 0 ? Math.round(((accepted + completed) / total) * 100) : 0, target: 90 },
+      { name: 'Completion Rate', current: total > 0 ? Math.round((completed / total) * 100) : 0, target: 85 },
+    ]);
   }, []);
 
   // Format date for display - memoized with useCallback
@@ -711,11 +732,11 @@ function Dashboard() {
                   </Box>
                 ) : (
                   <Grid container spacing={2}>
-                    {todayAppointments.slice(0, 6).map((appt) => {
+                    {todayAppointments.slice(0, 6).map((appt, idx) => {
                       const statusColor = { scheduled: 'info', confirmed: 'primary', checked_in: 'warning', in_progress: 'secondary', completed: 'success', cancelled: 'error', no_show: 'error' };
                       const isVirtual = appt.appointmentType === 'telehealth' || appt.location === 'telehealth';
                       return (
-                        <Grid item xs={12} sm={6} md={4} key={appt._id}>
+                        <Grid item xs={12} sm={6} md={4} key={appt._id || appt.id || idx}>
                           <Paper variant="outlined" sx={{ p: 1.5, borderLeft: 4, borderColor: `${statusColor[appt.status] || 'default'}.main`, borderRadius: 1 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                               <Typography variant="subtitle2" fontWeight={700} noWrap sx={{ maxWidth: '60%' }}>
@@ -755,8 +776,8 @@ function Dashboard() {
                   />
                 </Box>
                 <List>
-                  {dashboardData?.recentActivity?.map((activity) => (
-                    <ListItem key={activity.id} divider>
+                  {dashboardData?.recentActivity?.map((activity, idx) => (
+                    <ListItem key={activity.id || activity._id || idx} divider>
                       <ListItemAvatar>
                         <Avatar sx={{ bgcolor: activity.status === 'completed' ? 'success.light' : 'info.light' }}>
                           {getActivityIcon(activity.type)}
@@ -873,8 +894,8 @@ function Dashboard() {
                     </Button>
                   </Box>
                 ) : (
-                  recentRx.map(rx => (
-                    <Box key={rx._id} display="flex" justifyContent="space-between" alignItems="center" py={0.75} borderBottom="1px solid" sx={{ borderColor: 'divider', '&:last-child': { borderBottom: 'none' } }}>
+                  recentRx.map((rx, idx) => (
+                    <Box key={rx._id || rx.id || idx} display="flex" justifyContent="space-between" alignItems="center" py={0.75} borderBottom="1px solid" sx={{ borderColor: 'divider', '&:last-child': { borderBottom: 'none' } }}>
                       <Box>
                         <Typography variant="body2" fontWeight={600}>{rx.patientName}</Typography>
                         <Typography variant="caption" color="text.secondary">{rx.programName}</Typography>

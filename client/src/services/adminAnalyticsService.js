@@ -121,7 +121,7 @@ const getProviderPerformance = async () => {
       return { success: true, data: MOCK_PROVIDER_PERFORMANCE };
     }
     const response = await get('/admin/analytics/provider-performance');
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error fetching provider performance:', error);
     return { success: false, error: error.message };
@@ -135,7 +135,7 @@ const getReferralConversionRates = async (period = 'last6months') => {
       return { success: true, data: MOCK_REFERRAL_CONVERSION.data, meta: MOCK_REFERRAL_CONVERSION.meta };
     }
     const response = await get(`/admin/analytics/referral-conversion?period=${period}`);
-    return { success: true, data: response.data?.data || response.data, meta: response.data?.meta };
+    return { success: true, data: response.data, meta: response.meta };
   } catch (error) {
     console.error('Error fetching referral conversion rates:', error);
     return { success: false, error: error.message };
@@ -149,7 +149,7 @@ const getTokenEconomyTrends = async (period = 'last6months') => {
       return { success: true, data: MOCK_TOKEN_ECONOMY.data, meta: MOCK_TOKEN_ECONOMY.meta };
     }
     const response = await get(`/admin/analytics/token-economy?period=${period}`);
-    return { success: true, data: response.data?.data || response.data, meta: response.data?.meta };
+    return { success: true, data: response.data, meta: response.meta };
   } catch (error) {
     console.error('Error fetching token economy trends:', error);
     return { success: false, error: error.message };
@@ -163,7 +163,7 @@ const getAIAnalytics = async () => {
       return { success: true, data: MOCK_AI_ANALYTICS };
     }
     const response = await get('/admin/analytics/ai-performance');
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error fetching AI analytics:', error);
     return { success: false, error: error.message };
@@ -207,7 +207,7 @@ const getScheduledReports = async () => {
       return { success: true, data: mockScheduledReports };
     }
     const response = await get('/admin/reports/scheduled');
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error fetching scheduled reports:', error);
     return { success: false, error: error.message };
@@ -228,8 +228,8 @@ const scheduleReport = async (reportData) => {
       
       return { success: true, data: newReport };
     }
-    const response = await post('/admin/reports/schedule', reportData);    
-    return response.data;
+    const response = await post('/admin/reports/schedule', reportData);
+    return response;
   } catch (error) {
     console.error('Error scheduling report:', error);
     return { success: false, error: error.message };
@@ -245,8 +245,8 @@ const updateScheduledReport = async (reportId, reportData) => {
         message: `Report ${reportId} updated successfully`
       };
     }
-    const response = await put(`/admin/reports/schedule/${reportId}`, reportData);  
-    return response.data;
+    const response = await put(`/admin/reports/schedule/${reportId}`, reportData);
+    return response;
   } catch (error) {
     console.error('Error updating scheduled report:', error);
     return { success: false, error: error.message };
@@ -263,7 +263,7 @@ const deleteScheduledReport = async (reportId) => {
       };
     }
     const response = await del(`/admin/reports/schedule/${reportId}`);
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error deleting scheduled report:', error);
     return { success: false, error: error.message };
@@ -284,7 +284,7 @@ const getAdminEmails = async () => {
       };
     }
     const response = await get('/admin/users/emails');
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error fetching admin emails:', error);
     return { success: false, error: error.message };
@@ -297,7 +297,7 @@ const getPlatformHealth = async () => {
       return { success: true, data: MOCK_PLATFORM_HEALTH };
     }
     const response = await get('/admin/analytics/platform-health');
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error fetching platform health:', error);
     return { success: false, error: error.message };
@@ -310,7 +310,7 @@ const getAlerts = async () => {
       return { success: true, data: MOCK_ALERTS };
     }
     const response = await get('/admin/analytics/alerts');
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error fetching alerts:', error);
     return { success: false, error: error.message };
@@ -323,7 +323,7 @@ const getCareFunnel = async () => {
       return { success: true, data: MOCK_CARE_FUNNEL };
     }
     const response = await get('/admin/analytics/care-funnel');
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error fetching care funnel:', error);
     return { success: false, error: error.message };
@@ -336,7 +336,7 @@ const getActivityFeed = async (limit = 20) => {
       return { success: true, data: MOCK_ACTIVITY_FEED.slice(0, limit) };
     }
     const response = await get(`/admin/analytics/activity-feed?limit=${limit}`);
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error fetching activity feed:', error);
     return { success: false, error: error.message };
@@ -349,7 +349,7 @@ const getPlatformOverview = async () => {
       return { success: true, data: MOCK_PLATFORM_OVERVIEW };
     }
     const response = await get('/admin/analytics/platform-overview');
-    return response.data;
+    return response;
   } catch (error) {
     console.error('Error fetching platform overview:', error);
     return { success: false, error: error.message };

@@ -22,8 +22,7 @@ export const getAllProviders = async () => {
     }
     
     // Make API call using apiUtils
-    const response = await get('/admin/providers');
-    return response.data;
+    return await get('/admin/providers');
   } catch (error) {
     console.error('Error fetching providers:', error);
     return { success: false, error: error.message || 'Failed to fetch providers' };
@@ -51,9 +50,7 @@ export const getProviderById = async (providerId) => {
     }
     
     // Make API call using apiUtils
-    const response = await get(`/admin/providers/${providerId}`);
-    
-    return response.data;
+    return await get(`/admin/providers/${providerId}`);
   } catch (error) {
     console.error(`Error fetching provider ${providerId}:`, error);
     return { success: false, error: error.message || 'Failed to fetch provider' };
@@ -90,9 +87,7 @@ export const updateProvider = async (providerId, providerData) => {
     }
     
     // Make API call using apiUtils
-    const response = await put(`/admin/providers/${providerId}`, providerData);
-    
-    return response.data;
+    return await put(`/admin/providers/${providerId}`, providerData);
   } catch (error) {
     console.error(`Error updating provider ${providerId}:`, error);
     return { success: false, error: error.message || 'Failed to update provider' };
@@ -128,9 +123,7 @@ export const approveProvider = async (providerId) => {
     }
     
     // Make API call using apiUtils
-    const response = await put(`/admin/providers/${providerId}/approve`, {});
-    
-    return response.data;
+    return await put(`/admin/providers/${providerId}/approve`, {});
   } catch (error) {
     console.error(`Error approving provider ${providerId}:`, error);
     return { success: false, error: error.message || 'Failed to approve provider' };
@@ -168,9 +161,7 @@ export const rejectProvider = async (providerId, reason) => {
     }
     
     // Make API call using apiUtils
-    const response = await put(`/admin/providers/${providerId}/reject`, { reason });
-    
-    return response.data;
+    return await put(`/admin/providers/${providerId}/reject`, { reason });
   } catch (error) {
     console.error(`Error rejecting provider ${providerId}:`, error);
     return { success: false, error: error.message || 'Failed to reject provider' };
@@ -208,9 +199,7 @@ export const suspendProvider = async (providerId, reason) => {
     }
     
     // Make API call using apiUtils
-    const response = await put(`/admin/providers/${providerId}/suspend`, { reason });
-    
-    return response.data;
+    return await put(`/admin/providers/${providerId}/suspend`, { reason });
   } catch (error) {
     console.error(`Error suspending provider ${providerId}:`, error);
     return { success: false, error: error.message || 'Failed to suspend provider' };
@@ -246,9 +235,7 @@ export const reactivateProvider = async (providerId) => {
     }
     
     // Make API call using apiUtils
-    const response = await put(`/admin/providers/${providerId}/reactivate`, {});
-    
-    return response.data;
+    return await put(`/admin/providers/${providerId}/activate`, {});
   } catch (error) {
     console.error(`Error reactivating provider ${providerId}:`, error);
     return { success: false, error: error.message || 'Failed to reactivate provider' };
@@ -280,9 +267,7 @@ export const deleteProvider = async (providerId) => {
     }
     
     // Make API call using apiUtils
-    const response = await del(`/admin/providers/${providerId}`);
-    
-    return response.data;
+    return await del(`/admin/providers/${providerId}`);
   } catch (error) {
     console.error(`Error deleting provider ${providerId}:`, error);
     return { success: false, error: error.message || 'Failed to delete provider' };
@@ -321,9 +306,7 @@ export const getProviderStatistics = async () => {
     }
     
     // Make API call using apiUtils
-    const response = await get('/admin/providers/statistics');
-    
-    return response.data;
+    return await get('/admin/providers/statistics');
   } catch (error) {
     console.error('Error fetching provider statistics:', error);
     return { success: false, error: error.message || 'Failed to fetch provider statistics' };

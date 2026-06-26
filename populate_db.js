@@ -48,6 +48,9 @@ await db.collection('providerMatchProfiles').drop().catch(() => {});
 await db.collection('notificationtemplates').drop().catch(() => {});
 await db.collection('patientnotifications').drop().catch(() => {});
 await db.collection('notificationcampaigns').drop().catch(() => {});
+await db.collection('tokentransactions').drop().catch(() => {});
+await db.collection('matchsessions').drop().catch(() => {});
+await db.collection('ambientsessions').drop().catch(() => {});
 
 // Create users collection
 // Password hash for "Demo1234!" with bcrypt cost 10
@@ -179,6 +182,83 @@ const users = [
     blockchainId: "0x5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x",
     verificationStatus: "verified",
     tokenBalance: 290
+  },
+  // Pending provider — shows up in Pending Approval tab
+  {
+    _id: "user-6",
+    name: "Dr. Jon Aagaard",
+    firstName: "Jon",
+    lastName: "Aagaard",
+    email: "jon.aagaard@clinictrustai.com",
+    password: DEMO_PASSWORD_HASH,
+    role: "doctor",
+    organization: "Northside Medical Group",
+    specialty: "Orthopedics",
+    walletAddress: "0xA1B2C3D4E5F6789012345678901234567890ABCD",
+    isActive: false,
+    accountStatus: "pending",
+    kycVerified: false,
+    emailVerified: false,
+    onboardingStatus: "pending_email",
+    loginAttempts: 0,
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+    lastLogin: null,
+    profileImage: null,
+    blockchainId: null,
+    verificationStatus: "pending",
+    tokenBalance: 0
+  },
+  // Rejected provider
+  {
+    _id: "user-7",
+    name: "Dr. Lisa Park",
+    firstName: "Lisa",
+    lastName: "Park",
+    email: "lisa.park@clinictrustai.com",
+    password: DEMO_PASSWORD_HASH,
+    role: "doctor",
+    organization: "Eastside Dermatology",
+    specialty: "Dermatology",
+    walletAddress: "0xB2C3D4E5F6789012345678901234567890ABCDE1",
+    isActive: false,
+    accountStatus: "rejected",
+    kycVerified: false,
+    emailVerified: true,
+    onboardingStatus: "rejected",
+    loginAttempts: 0,
+    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+    lastLogin: null,
+    profileImage: null,
+    blockchainId: null,
+    verificationStatus: "rejected",
+    tokenBalance: 0,
+    kycRejectionReason: "Incomplete license documentation submitted"
+  },
+  // Suspended provider
+  {
+    _id: "user-8",
+    name: "Dr. Marcus Hill",
+    firstName: "Marcus",
+    lastName: "Hill",
+    email: "marcus.hill@clinictrustai.com",
+    password: DEMO_PASSWORD_HASH,
+    role: "doctor",
+    organization: "Downtown Health Clinic",
+    specialty: "General Practice",
+    walletAddress: "0xC3D4E5F6789012345678901234567890ABCDEF12",
+    isActive: false,
+    accountStatus: "suspended",
+    kycVerified: true,
+    emailVerified: true,
+    onboardingStatus: "verified",
+    loginAttempts: 0,
+    createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
+    lastLogin: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
+    profileImage: null,
+    blockchainId: "0x8f9g0h1i2j3k4l5m6n7o8p9q0r1s2t3u4v5w6x7y",
+    verificationStatus: "verified",
+    tokenBalance: 120,
+    suspensionReason: "Multiple billing discrepancies under investigation"
   }
 ];
 await db.collection('users').insertMany(users);
@@ -4552,6 +4632,360 @@ await db.collection('dtxprescriptions').insertMany([
   }
 ]);
 console.log("DTx prescriptions created: " + (await db.collection('dtxprescriptions').countDocuments()));
+
+// ── ANALYTICS SEED ────────────────────────────────────────────────────────────
+// Populates all collections the Admin Dashboard analytics routes read from.
+// These helpers are scoped here and prefixed with _ to avoid name collisions.
+{
+  const _crypto = require('crypto');
+  const _uid    = (n = 6) => _crypto.randomBytes(n).toString('hex');
+  const _rand   = (lo, hi) => Math.floor(Math.random() * (hi - lo + 1)) + lo;
+  const _pick   = arr => arr[_rand(0, arr.length - 1)];
+  const _hoursAgo = h => new Date(Date.now() - h * 3_600_000);
+  const _daysAgo  = d => new Date(Date.now() - d * 86_400_000);
+  const _monthRange = mo => {
+    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - mo);
+    return {
+      start: new Date(d.getFullYear(), d.getMonth(), 1),
+      end: mo === 0 ? new Date() : new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59),
+    };
+  };
+  const _randDate = (s, e) => new Date(s.getTime() + Math.random() * (e.getTime() - s.getTime()));
+
+  const _PIDS   = Array.from({ length: 10 }, (_, i) => `patient-${i + 1}`);
+  const _PNAMES = ['Alice Johnson','Bob Williams','Carol Davis','David Brown','Eva Martinez','Frank Wilson','Grace Taylor','Henry Anderson','Iris Thompson','James Garcia'];
+  const _SPECS  = ['Cardiology','Neurology','Orthopedics','Behavioral Health','General Practice','Dermatology','Oncology','Endocrinology','Gastroenterology','Pulmonology'];
+  const _REJ    = ['Insurance not accepted','At capacity','Incomplete referral info','Out of specialty scope','Patient declined','Geographic constraint'];
+  const _SVC    = ['Cardiology Consultation','Neurology Evaluation','Orthopedic Assessment','Mental Health Evaluation','General Physical','Dermatology Consultation','Lab Work - Comprehensive','Imaging - MRI','Imaging - CT Scan'];
+  const _CC     = ['Chest pain and shortness of breath','Persistent headaches and dizziness','Lower back pain radiating to legs','Anxiety and depression symptoms','Routine annual examination','Skin lesion evaluation','Unexplained weight loss','Diabetes management follow-up'];
+  const _DTX    = ['MindPath CBT','AnxietyFree ACT','HeartWell Cardiac Rehab','DiabetesCare Management','SleepWell Insomnia Program'];
+  const _DTXCAT = ['Mental Health','Cardiac Rehab','Diabetes Management','Sleep Disorders'];
+  const _EARN   = ['Referral completed - specialist consultation','Referral accepted by receiving provider','Appointment completed successfully','DTx prescription - digital health program','Clinical consultation completed'];
+  const _SPEND  = ['AI analysis credit - risk assessment','Priority referral processing','Advanced referral matching service'];
+  const _INS    = ['Blue Cross','Aetna','United Health','Cigna','Medicare','Medicaid'];
+  const _CITIES = ['Boston','Chicago','Houston','Los Angeles','New York','Phoenix','Seattle'];
+  const _STATES = ['MA','IL','TX','CA','NY','AZ','WA'];
+  const _FN     = ['Adams','Baker','Clark','Davis','Evans','Foster','Grant','Hill'];
+  const _LN     = ['Smith','Johnson','Williams','Brown','Jones','Lee','Harris','Martin'];
+
+  // Load provider users created above
+  const _provUsers = await db.collection('users').find(
+    { role: { $in: ['doctor','clinic','hospital','lab','provider','nurse'] } },
+    { projection: { _id: 1, name: 1, specialty: 1 } }
+  ).toArray();
+
+  const _provs = _provUsers.map(u => ({
+    id: String(u._id),
+    name: u.name || 'Unknown Provider',
+    specialty: u.specialty || 'General Practice',
+  }));
+
+  console.log(`\nSeeding analytics data for ${_provs.length} provider(s)...`);
+
+  // 1. Token Transactions — 6 months earn/spend per provider
+  {
+    const col  = db.collection('tokentransactions');
+    const docs = [];
+    for (const prov of _provs) {
+      let balance = _rand(50, 150);
+      for (let m = 5; m >= 0; m--) {
+        const { start, end } = _monthRange(m);
+        for (let i = 0; i < _rand(6, 14); i++) {
+          const amount = _pick([10, 15, 20, 25, 30, 50]);
+          balance += amount;
+          docs.push({ user: prov.id, type: 'earn', amount, reason: _pick(_EARN), status: 'completed', balanceAfter: balance, createdAt: _randDate(start, end) });
+        }
+        for (let i = 0; i < _rand(1, 4); i++) {
+          const amount = _pick([5, 10, 15, 20]);
+          balance = Math.max(0, balance - amount);
+          docs.push({ user: prov.id, type: 'spend', amount, reason: _pick(_SPEND), status: 'completed', balanceAfter: balance, createdAt: _randDate(start, end) });
+        }
+      }
+    }
+    await col.insertMany(docs);
+    console.log(`  tokentransactions: ${docs.length} docs`);
+  }
+
+  // 2. Match Sessions — 6 months of AI referral-matching sessions
+  {
+    const col  = db.collection('matchsessions');
+    const docs = [];
+    for (let m = 5; m >= 0; m--) {
+      const { start, end } = _monthRange(m);
+      const count = m === 0 ? _rand(10, 18) : _rand(6, 14);
+      for (let i = 0; i < count; i++) {
+        const prov = _pick(_provs);
+        const hasSel   = Math.random() > 0.15;
+        const topScore = _rand(65, 98) / 100;
+        docs.push({
+          requestedBy: prov.id, requestedByName: prov.name,
+          specialty: _pick(_SPECS), patientInsurance: _pick(_INS),
+          patientCity: _pick(_CITIES), patientState: _pick(_STATES),
+          urgency: _pick(['routine','routine','routine','urgent']),
+          resultsCount: _rand(3, 12), topMatchScore: topScore,
+          selectedProviderId: hasSel ? new mongoose.Types.ObjectId() : null,
+          selectedProviderName: hasSel ? `Dr. ${_pick(_FN)} ${_pick(_LN)}` : null,
+          selectedMatchScore: hasSel ? Math.max(topScore - _rand(0, 8) / 100, 0.6) : null,
+          linkedReferralId: null, createdAt: _randDate(start, end),
+        });
+      }
+    }
+    await col.insertMany(docs);
+    console.log(`  matchsessions: ${docs.length} docs`);
+  }
+
+  // 3. Referrals — 10-18/month for 6 months with proper schema fields
+  {
+    const col  = db.collection('referrals');
+    const docs = [];
+    for (let m = 5; m >= 0; m--) {
+      const { start, end } = _monthRange(m);
+      for (let i = 0; i < _rand(10, 18); i++) {
+        const from   = _pick(_provs);
+        const to     = _pick(_provs.filter(p => p.id !== from.id));
+        const pIdx   = _rand(0, _PIDS.length - 1);
+        const roll   = Math.random();
+        const status = roll < 0.45 ? 'completed' : roll < 0.70 ? 'accepted' : roll < 0.88 ? 'pending' : 'rejected';
+        const createdAt = _randDate(start, end);
+        const updatedAt = status === 'pending' ? createdAt : _randDate(createdAt, end.getTime() > Date.now() ? new Date() : end);
+        const doc = {
+          patient: _PIDS[pIdx], referringProvider: from.id, receivingProvider: to.id,
+          reason: `${_pick(_SPECS)} evaluation`, specialty: _pick(_SPECS),
+          urgency: _pick(['routine','routine','routine','urgent']),
+          status, notes: 'Analytics seed referral.',
+          billing: { amount: _rand(150, 600), currency: 'USD', status: 'pending' },
+          createdAt, updatedAt,
+        };
+        if (status === 'rejected') doc.rejectionReason = _pick(_REJ);
+        if (status === 'completed') { doc.completionDate = updatedAt; doc.diagnosis = 'Confirmed diagnosis.'; }
+        docs.push(doc);
+      }
+    }
+    await col.insertMany(docs);
+    console.log(`  referrals (analytics): ${docs.length} docs added`);
+  }
+
+  // 4. Appointments — this-week schedule + last 30 days
+  {
+    const col  = db.collection('appointments');
+    const docs = [];
+    const now  = new Date();
+    const sow  = new Date(now); sow.setDate(now.getDate() - now.getDay()); sow.setHours(0, 0, 0, 0);
+    let seq = 0;
+    const apptId = () => `APT-SEED-${_uid(4).toUpperCase()}-${++seq}`;
+
+    for (let day = 0; day <= now.getDay(); day++) {
+      const dayDate = new Date(sow); dayDate.setDate(sow.getDate() + day);
+      for (let i = 0; i < _rand(3, 6); i++) {
+        const prov  = _pick(_provs); const pIdx = _rand(0, _PIDS.length - 1);
+        const past  = dayDate < now || (dayDate.toDateString() === now.toDateString() && i < 2);
+        const status = past ? _pick(['completed','completed','completed','no_show','cancelled']) : _pick(['scheduled','confirmed']);
+        const hr    = _rand(8, 17);
+        const apptDate = new Date(dayDate); apptDate.setHours(hr, 0, 0, 0);
+        docs.push({
+          appointmentId: apptId(), patientId: _PIDS[pIdx], patientName: _PNAMES[pIdx],
+          patientEmail: `${_PNAMES[pIdx].toLowerCase().replace(' ', '.')}@patient.example`,
+          providerId: prov.id, providerName: prov.name, providerSpecialty: prov.specialty,
+          appointmentType: _pick(['new_patient','follow_up','follow_up','telehealth']),
+          status, scheduledDate: apptDate,
+          startTime: `${String(hr).padStart(2,'0')}:00`, endTime: `${String(hr).padStart(2,'0')}:30`,
+          durationMinutes: 30, location: _pick(['in_person','in_person','telehealth']),
+          chiefComplaint: _pick(_CC), createdAt: _daysAgo(_rand(1, 7)), updatedAt: status === 'completed' ? apptDate : new Date(),
+        });
+      }
+    }
+    for (let d = 7; d <= 30; d++) {
+      if (Math.random() > 0.5) continue;
+      const prov = _pick(_provs); const pIdx = _rand(0, _PIDS.length - 1);
+      const hr   = _rand(8, 17);
+      const apptDate = _daysAgo(d); apptDate.setHours(hr, 0, 0, 0);
+      docs.push({
+        appointmentId: apptId(), patientId: _PIDS[pIdx], patientName: _PNAMES[pIdx],
+        patientEmail: `${_PNAMES[pIdx].toLowerCase().replace(' ', '.')}@patient.example`,
+        providerId: prov.id, providerName: prov.name, providerSpecialty: prov.specialty,
+        appointmentType: _pick(['new_patient','follow_up','follow_up']),
+        status: _pick(['completed','completed','completed','no_show','cancelled']),
+        scheduledDate: apptDate, startTime: `${String(hr).padStart(2,'0')}:00`,
+        endTime: `${String(hr).padStart(2,'0')}:30`, durationMinutes: 30, location: 'in_person',
+        chiefComplaint: _pick(_CC), createdAt: new Date(apptDate.getTime() - _rand(1, 5) * 86_400_000), updatedAt: apptDate,
+      });
+    }
+    await col.insertMany(docs);
+    console.log(`  appointments (analytics): ${docs.length} docs added`);
+  }
+
+  // 5. Ambient Sessions — last 2 days (activity feed) + 6-month trend
+  {
+    const col  = db.collection('ambientsessions');
+    const docs = [];
+    let seq = 0;
+    const sessId = () => `AMB-SEED-${_uid(5).toUpperCase()}-${++seq}`;
+
+    for (let i = 0; i < 10; i++) {
+      const prov = _pick(_provs); const pIdx = _rand(0, _PIDS.length - 1);
+      const status = _pick(['approved','approved','approved','rejected','reviewing']);
+      const createdAt = _hoursAgo(_rand(1, 47));
+      docs.push({
+        sessionId: sessId(), providerId: prov.id, providerName: prov.name,
+        patientId: _PIDS[pIdx], patientName: _PNAMES[pIdx],
+        chiefComplaint: _pick(_CC), recordingDuration: _rand(300, 1800),
+        clinicalSummary: `Patient presented with ${_pick(_CC).toLowerCase()}. Assessment documented.`,
+        status, urgencyClassification: _pick(['routine','routine','urgent']),
+        recommendedSpecialty: _pick(_SPECS), createdAt, updatedAt: new Date(createdAt.getTime() + _rand(0, 3_600_000)),
+      });
+    }
+    for (let m = 5; m >= 0; m--) {
+      const { start, end } = _monthRange(m);
+      const effEnd = m === 0 ? _daysAgo(2) : end;
+      if (effEnd <= start) continue;
+      for (let i = 0; i < _rand(4, 12); i++) {
+        const prov = _pick(_provs); const pIdx = _rand(0, _PIDS.length - 1);
+        const status = _pick(['approved','approved','approved','rejected','reviewing','submitted']);
+        const createdAt = _randDate(start, effEnd);
+        docs.push({
+          sessionId: sessId(), providerId: prov.id, providerName: prov.name,
+          patientId: _PIDS[pIdx], patientName: _PNAMES[pIdx],
+          chiefComplaint: _pick(_CC), recordingDuration: _rand(300, 2400),
+          status, urgencyClassification: 'routine', recommendedSpecialty: _pick(_SPECS), createdAt, updatedAt: createdAt,
+        });
+      }
+    }
+    await col.insertMany(docs);
+    console.log(`  ambientsessions: ${docs.length} docs`);
+  }
+
+  // 6. Prior Authorizations — this-month with reviewedAt + overdue alerts
+  {
+    const col  = db.collection('priorauthorizations');
+    const { start: som } = _monthRange(0);
+    const docs = [];
+    for (let i = 0; i < 18; i++) {
+      const prov = _pick(_provs); const pIdx = _rand(0, _PIDS.length - 1);
+      const roll = Math.random();
+      const status = roll < 0.30 ? 'Approved' : roll < 0.45 ? 'Denied' : roll < 0.65 ? 'Pending' : 'Under Review';
+      const createdAt  = _randDate(som, new Date());
+      const hasReview  = status === 'Approved' || status === 'Denied';
+      const reviewedAt = hasReview ? new Date(createdAt.getTime() + _rand(1, 5) * 86_400_000) : null;
+      docs.push({
+        patientId: _PIDS[pIdx], patientName: _PNAMES[pIdx],
+        requestingProviderId: prov.id, requestingProviderName: prov.name,
+        serviceType: _pick(_SVC), clinicalNotes: `Authorization required for ${_pick(_SVC)}.`,
+        urgency: _pick(['Routine','Routine','Urgent']), status,
+        reviewedAt, reviewedBy: hasReview ? 'user-1' : null,
+        approvedDate: status === 'Approved' ? reviewedAt : null,
+        deniedDate:   status === 'Denied'   ? reviewedAt : null,
+        createdAt, updatedAt: reviewedAt || createdAt,
+      });
+    }
+    for (let i = 0; i < 3; i++) {
+      const prov = _pick(_provs); const pIdx = _rand(0, _PIDS.length - 1);
+      const createdAt = _daysAgo(_rand(8, 20));
+      docs.push({
+        patientId: _PIDS[pIdx], patientName: _PNAMES[pIdx],
+        requestingProviderId: prov.id, requestingProviderName: prov.name,
+        serviceType: _pick(_SVC), clinicalNotes: 'Urgent prior auth pending review.',
+        urgency: 'Urgent', status: 'Pending',
+        reviewedAt: null, createdAt, updatedAt: createdAt,
+      });
+    }
+    await col.insertMany(docs);
+    console.log(`  priorauthorizations (analytics): ${docs.length} docs added`);
+  }
+
+  // 7. Patient Notifications — this-month engagement data
+  {
+    const col  = db.collection('patientnotifications');
+    const { start: som } = _monthRange(0);
+    const docs = [];
+    const NTYPES = ['appointment_reminder','referral_update','test_results','care_plan_update','follow_up'];
+    for (let i = 0; i < 30; i++) {
+      const pIdx    = _rand(0, _PIDS.length - 1);
+      const status  = _pick(['sent','sent','delivered','delivered','delivered','failed']);
+      const createdAt = _randDate(som, new Date());
+      docs.push({
+        patientId: _PIDS[pIdx], patientName: _PNAMES[pIdx],
+        type: _pick(NTYPES), message: `Your ${_pick(['appointment','referral','test results','care plan update'])} information is available.`,
+        channel: _pick(['email','sms','push']), status, sentAt: createdAt, createdAt, updatedAt: createdAt,
+      });
+    }
+    await col.insertMany(docs);
+    console.log(`  patientnotifications (analytics): ${docs.length} docs added`);
+  }
+
+  // 8. DTx Prescriptions — this-month prescriptions with varied statuses
+  {
+    const col  = db.collection('dtxprescriptions');
+    const { start: som } = _monthRange(0);
+    const docs = [];
+    for (let i = 0; i < 14; i++) {
+      const prov = _pick(_provs); const pIdx = _rand(0, _PIDS.length - 1);
+      const status = _pick(['prescribed','enrolled','active','active','completed','dropped']);
+      const prescribedAt = _randDate(som, new Date());
+      const tokenDone = status === 'completed';
+      docs.push({
+        programName: _pick(_DTX), programCategory: _pick(_DTXCAT),
+        providerId: prov.id, providerName: prov.name,
+        patientName: _PNAMES[pIdx], patientId: _PIDS[pIdx], status, prescribedAt,
+        enrolledAt:  status !== 'prescribed' ? new Date(prescribedAt.getTime() + 86_400_000) : null,
+        completedAt: tokenDone ? new Date(prescribedAt.getTime() + _rand(14, 30) * 86_400_000) : null,
+        tokenRewardIssued: tokenDone, tokenRewardAmount: tokenDone ? _rand(20, 50) : null,
+        engagementScore: (status === 'active' || status === 'completed') ? _rand(65, 100) : null,
+        createdAt: prescribedAt, updatedAt: prescribedAt,
+      });
+    }
+    await col.insertMany(docs);
+    console.log(`  dtxprescriptions (analytics): ${docs.length} docs added`);
+  }
+
+  console.log('Analytics seed complete.\n');
+}
+// ── END ANALYTICS SEED ────────────────────────────────────────────────────────
+
+// ── LOGIN HISTORY SEED ────────────────────────────────────────────────────────
+// Populates loginHistory on each user so the Admin Login Audit page has data.
+{
+  const USER_AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15',
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
+    'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0',
+  ];
+  const IPS = ['192.168.1.101', '10.0.0.45', '172.16.0.23', '192.168.0.88', '10.10.1.55', '203.0.113.42', '198.51.100.7'];
+
+  const _r = (lo, hi) => Math.floor(Math.random() * (hi - lo + 1)) + lo;
+  const _p = arr => arr[_r(0, arr.length - 1)];
+  const _da = d => new Date(Date.now() - d * 86_400_000);
+
+  const providerUsers = await db.collection('users').find({}, { projection: { _id: 1 } }).toArray();
+
+  for (const u of providerUsers) {
+    const entries = [];
+    // 30 days of history — 2-5 logins per day, occasional failures
+    for (let day = 30; day >= 0; day--) {
+      const count = _r(1, 4);
+      for (let i = 0; i < count; i++) {
+        const base = _da(day);
+        base.setHours(_r(6, 22), _r(0, 59), _r(0, 59), 0);
+        const successful = Math.random() > 0.08; // ~8% failure rate
+        entries.push({
+          timestamp: base,
+          ipAddress: _p(IPS),
+          userAgent: _p(USER_AGENTS),
+          successful,
+        });
+      }
+    }
+    await db.collection('users').updateOne(
+      { _id: u._id },
+      { $set: { loginHistory: entries } }
+    );
+  }
+  console.log(`Login history seeded for ${providerUsers.length} users (last 30 days).`);
+}
+// ── END LOGIN HISTORY SEED ────────────────────────────────────────────────────
 
   console.log('\nDatabase population complete!');
   const collections = await db.listCollections().toArray();

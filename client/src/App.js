@@ -1,5 +1,5 @@
-import React, { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React, { lazy, Suspense, useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './contexts';
 import { ModernLoadingIndicator } from './components/common';
 
@@ -12,6 +12,14 @@ import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import ForgotPassword from './pages/auth/ForgotPassword';
 import AdminLogin from './pages/admin/AdminLogin';
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
 
 // Landing Page
 const LandingPage = lazy(() => import('./pages/landing/LandingPage'));
@@ -158,7 +166,9 @@ const PageLoadingFallback = () => (
 
 function App() {
   return (
-    <Routes>
+    <>
+      <ScrollToTop />
+      <Routes>
       {/* Landing Routes */}
       <Route path="/" element={<LandingLayout />}>
         <Route index element={
@@ -495,6 +505,7 @@ function App() {
         </Suspense>
       } />
     </Routes>
+    </>
   );
 }
 

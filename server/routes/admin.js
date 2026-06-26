@@ -471,11 +471,20 @@ router.post('/initialize', protect, authorize('admin'), async (req, res) => {
  */
 router.get('/providers', protect, authorize('admin', 'superadmin'), async (req, res) => {
   try {
+    const PROVIDER_ROLES = ['doctor', 'clinic', 'hospital', 'lab', 'provider', 'nurse'];
     const providers = await User.find({
-      role: 'provider'
-    }).select('-password');
-    
-    res.json({ success: true, count: providers.length, data: providers });
+      role: { $in: PROVIDER_ROLES }
+    }).select('-password').sort({ createdAt: -1 });
+
+    // Normalize fields that may be absent on seeded/legacy documents
+    const data = providers.map(p => {
+      const obj = p.toObject();
+      if (!obj.accountStatus) obj.accountStatus = 'pending';
+      if (!obj.onboardingStatus) obj.onboardingStatus = 'pending_email';
+      return obj;
+    });
+
+    res.json({ success: true, count: data.length, data });
   } catch (error) {
     console.error('Error fetching providers:', error);
     res.status(500).json({ success: false, error: 'Server error' });
@@ -489,10 +498,11 @@ router.get('/providers', protect, authorize('admin', 'superadmin'), async (req, 
  */
 router.get('/providers/pending', protect, authorize('admin', 'superadmin', 'reviewer'), async (req, res) => {
   try {
+    const PROVIDER_ROLES = ['doctor', 'clinic', 'hospital', 'lab', 'provider', 'nurse'];
     const pendingProviders = await User.find({
-      role: 'provider',
+      role: { $in: PROVIDER_ROLES },
       accountStatus: 'pending'
-    }).select('-password');
+    }).select('-password').sort({ createdAt: -1 });
     
     res.json({ success: true, count: pendingProviders.length, data: pendingProviders });
   } catch (error) {
@@ -514,12 +524,17 @@ router.put('/providers/:id/approve', protect, authorize('admin', 'superadmin', '
       return res.status(404).json({ success: false, error: 'Provider not found' });
     }
     
-    if (provider.role !== 'provider') {
+    const PROVIDER_ROLES = ['doctor', 'clinic', 'hospital', 'lab', 'provider', 'nurse'];
+    if (!PROVIDER_ROLES.includes(provider.role)) {
       return res.status(400).json({ success: false, error: 'User is not a provider' });
     }
-    
+
     provider.accountStatus = 'approved';
     provider.kycVerified = true;
+    provider.onboardingStatus = 'verified';
+    provider.verificationStatus = 'verified';
+    provider.isActive = true;
+    if (!provider.kycDocuments) provider.kycDocuments = {};
     provider.kycDocuments.verifiedAt = Date.now();
     provider.kycDocuments.verifiedBy = req.user.id;
     
@@ -550,12 +565,16 @@ router.put('/providers/:id/reject', protect, authorize('admin', 'superadmin', 'r
       return res.status(404).json({ success: false, error: 'Provider not found' });
     }
     
-    if (provider.role !== 'provider') {
+    const PROVIDER_ROLES_R = ['doctor', 'clinic', 'hospital', 'lab', 'provider', 'nurse'];
+    if (!PROVIDER_ROLES_R.includes(provider.role)) {
       return res.status(400).json({ success: false, error: 'User is not a provider' });
     }
-    
+
     provider.accountStatus = 'rejected';
-    provider.rejectionReason = reason || 'Application did not meet requirements';
+    provider.isActive = false;
+    provider.onboardingStatus = 'rejected';
+    provider.verificationStatus = 'rejected';
+    provider.kycRejectionReason = reason || 'Application did not meet requirements';
     
     await provider.save();
     
@@ -629,6 +648,45 @@ router.put('/providers/:id/activate', protect, authorize('admin', 'superadmin'),
     });
   } catch (error) {
     console.error('Error activating provider:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+/**
+ * @route   PUT /api/admin/providers/:id
+ * @desc    Update provider fields (admin full edit)
+ * @access  Admin only
+ */
+router.put('/providers/:id', protect, authorize('admin', 'superadmin'), async (req, res) => {
+  try {
+    const provider = await User.findById(req.params.id);
+    if (!provider) {
+      return res.status(404).json({ success: false, error: 'Provider not found' });
+    }
+
+    const editable = [
+      'firstName', 'lastName', 'email', 'role', 'organization', 'specialty',
+      'isActive', 'accountStatus', 'kycVerified', 'emailVerified',
+      'onboardingStatus', 'profileImage', 'verificationStatus', 'tokenBalance',
+    ];
+
+    for (const field of editable) {
+      if (req.body[field] !== undefined) {
+        provider[field] = field === 'tokenBalance' ? Number(req.body[field]) : req.body[field];
+      }
+    }
+
+    // Keep name in sync with firstName / lastName
+    if (req.body.firstName !== undefined || req.body.lastName !== undefined) {
+      provider.name = `${provider.firstName || ''} ${provider.lastName || ''}`.trim();
+    }
+
+    await provider.save();
+    const updated = provider.toObject();
+    delete updated.password;
+    res.json({ success: true, message: 'Provider updated successfully', data: updated });
+  } catch (error) {
+    console.error('Error updating provider:', error);
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });

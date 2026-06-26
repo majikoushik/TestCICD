@@ -1,0 +1,14 @@
+# List all collections with doc counts
+npm run get_data_from_db
+
+# Fetch all documents from a collection
+npm run get_data_from_db users
+npm run get_data_from_db providerprofiles
+npm run get_data_from_db patients
+
+# Limit results
+npm run get_data_from_db users --limit 3
+
+# Filter by field value
+npm run get_data_from_db users --filter "{\"role\":\"doctor\"}"
+npm run get_data_from_db users --filter "{\"accountStatus\":\"pending\"}"

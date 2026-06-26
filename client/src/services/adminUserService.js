@@ -24,14 +24,10 @@ const adminUserService = {
       }
 
       // Make API call using apiUtils
-      const response = await get('/admin/users');        
-      return {
-        success: true,
-        data: response
-      };   
+      return await get('/admin/users');
     } catch (error) {
       console.error('Error fetching users:', error);
-      throw error;
+      return { success: false, error: error.message || 'Failed to fetch users' };
     }
   },
 
@@ -61,11 +57,10 @@ const adminUserService = {
       }
 
       // Make API call using apiUtils
-      const response = await get(`/admin/users/${userId}`);      
-      return response.data;
+      return await get(`/admin/users/${userId}`);
     } catch (error) {
       console.error(`Error fetching user with ID ${userId}:`, error);
-      throw error;
+      return { success: false, error: error.message || 'Failed to fetch user' };
     }
   },
 
@@ -95,8 +90,7 @@ const adminUserService = {
         };
       } else {
         // Make API call using apiUtils
-        const response = await post('/admin/users', userData);        
-        return response.data;
+        return await post('/admin/users', userData);
       }
     } catch (error) {
       console.error('Error creating user:', error);
@@ -142,11 +136,10 @@ const adminUserService = {
       }
 
       // Make API call using apiUtils
-      const response = await put(`/admin/users/${userId}`, userData);      
-      return response.data;
+      return await put(`/admin/users/${userId}`, userData);
     } catch (error) {
       console.error(`Error updating user with ID ${userId}:`, error);
-      throw error;
+      return { success: false, error: error.message || 'Failed to update user' };
     }
   },
 
@@ -176,11 +169,10 @@ const adminUserService = {
       }
 
       // Make API call using apiUtils
-      const response = await del(`/admin/users/${userId}`);      
-      return response.data;
+      return await del(`/admin/users/${userId}`);
     } catch (error) {
       console.error(`Error deleting user with ID ${userId}:`, error);
-      throw error;
+      return { success: false, error: error.message || 'Failed to delete user' };
     }
   },
 
@@ -215,12 +207,11 @@ const adminUserService = {
         };
       }
 
-      // Make API call using apiUtils
-      const response = await post(`/admin/users/${userId}/reset-password`, {});      
-      return response.data;
+      // Make API call using apiUtils — server route is PUT
+      return await put(`/admin/users/${userId}/reset-password`, {});
     } catch (error) {
       console.error(`Error resetting password for user with ID ${userId}:`, error);
-      throw error;
+      return { success: false, error: error.message || 'Failed to reset password' };
     }
   },
 
@@ -250,11 +241,10 @@ const adminUserService = {
       }
 
       // Make API call using apiUtils
-      const response = await put(`/admin/users/${userId}/unlock`, {});      
-      return response.data;
+      return await put(`/admin/users/${userId}/unlock`, {});
     } catch (error) {
       console.error(`Error unlocking account for user with ID ${userId}:`, error);
-      throw error;
+      return { success: false, error: error.message || 'Failed to unlock account' };
     }
   }
 };

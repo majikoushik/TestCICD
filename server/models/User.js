@@ -112,6 +112,12 @@ const UserSchema = new mongoose.Schema({
     default: 'pending_email',
   },
   kycRejectionReason: { type: String, default: '' },
+  profileImage: { type: String, default: null },
+  verificationStatus: {
+    type: String,
+    enum: ['pending', 'verified', 'rejected', 'unverified'],
+    default: 'pending',
+  },
 });
 
 // Encrypt password using bcrypt

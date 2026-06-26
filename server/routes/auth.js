@@ -150,18 +150,39 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Please provide email and password' });
     }
 
+    // Capture request metadata for audit
+    const ipAddress = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+      || req.socket?.remoteAddress
+      || req.ip
+      || 'unknown';
+    const userAgent = req.headers['user-agent'] || 'unknown';
+    const timestamp = new Date();
+
     // select('+password') is required because the field has select:false in the schema
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
+      // Unknown email — nothing to attach audit to, just reject
       return res.status(401).json({ success: false, error: 'Invalid credentials' });
     }
 
     const isMatch = await user.matchPassword(password);
+
+    // Always record the attempt (success or failure) on the user document
+    user.loginHistory.push({ timestamp, ipAddress, userAgent, successful: isMatch });
+    // Keep only the 500 most recent entries to prevent unbounded growth
+    if (user.loginHistory.length > 500) {
+      user.loginHistory = user.loginHistory.slice(-500);
+    }
+
     if (!isMatch) {
+      user.loginAttempts = (user.loginAttempts || 0) + 1;
+      await user.save();
       return res.status(401).json({ success: false, error: 'Invalid credentials' });
     }
 
-    user.lastLogin = new Date();
+    // Successful login — update metadata and reset failure counter
+    user.lastLogin = timestamp;
+    user.loginAttempts = 0;
     await user.save();
 
     const token = jwt.sign(

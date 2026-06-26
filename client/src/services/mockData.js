@@ -2090,6 +2090,8 @@ export const adminMockData = {
       specialty: 'Cardiology',
       isActive: true,
       status: 'approved',
+      accountStatus: 'approved',
+      onboardingStatus: 'verified',
       kycVerified: true,
       createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
       kycDocuments: {
@@ -2107,6 +2109,8 @@ export const adminMockData = {
       specialty: 'Neurology',
       isActive: true,
       status: 'approved',
+      accountStatus: 'approved',
+      onboardingStatus: 'verified',
       kycVerified: true,
       createdAt: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(),
       kycDocuments: {
@@ -2124,6 +2128,8 @@ export const adminMockData = {
       specialty: 'Pediatrics',
       isActive: false,
       status: 'suspended',
+      accountStatus: 'suspended',
+      onboardingStatus: 'under_review',
       kycVerified: true,
       createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
       suspensionReason: 'License verification issue',
@@ -2142,6 +2148,8 @@ export const adminMockData = {
       specialty: 'Orthopedics',
       isActive: true,
       status: 'pending',
+      accountStatus: 'pending',
+      onboardingStatus: 'pending_docs',
       kycVerified: false,
       createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
       kycDocuments: {
@@ -2158,6 +2166,8 @@ export const adminMockData = {
       specialty: 'Family Medicine',
       isActive: true,
       status: 'pending',
+      accountStatus: 'pending',
+      onboardingStatus: 'pending_email',
       kycVerified: false,
       createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
       kycDocuments: {
@@ -2174,6 +2184,8 @@ export const adminMockData = {
       specialty: 'Dermatology',
       isActive: true,
       status: 'rejected',
+      accountStatus: 'rejected',
+      onboardingStatus: 'rejected',
       kycVerified: false,
       createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
       rejectionReason: 'Incomplete documentation',

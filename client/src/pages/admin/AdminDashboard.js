@@ -185,8 +185,10 @@ function AlertsPanel({ alerts, loading }) {
             >
               <ListItemIcon sx={{ minWidth: 36, color: `${meta.color}.main` }}>{meta.icon}</ListItemIcon>
               <ListItemText
-                primary={<Typography variant="body2">{a.message}</Typography>}
+                primary={a.message}
+                primaryTypographyProps={{ variant: 'body2' }}
                 secondary={<Chip label={a.severity} size="small" color={meta.color} variant="outlined" sx={{ height: 16, fontSize: 10, mt: 0.3 }} />}
+                secondaryTypographyProps={{ component: 'div' }}
               />
             </ListItem>
             {i < alerts.length - 1 && <Divider />}

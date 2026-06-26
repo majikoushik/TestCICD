@@ -92,6 +92,32 @@ router.post('/', protect, authorize('doctor', 'clinic', 'hospital'), ehiAudit('R
   }
 });
 
+// @route   GET api/referrals/status-counts
+// @desc    Get referral counts grouped by status for the current provider
+// @access  Private
+router.get('/status-counts', protect, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const baseQuery = {
+      $or: [{ referringProvider: userId }, { receivingProvider: userId }],
+    };
+
+    const [all, pending, accepted, completed, rejected, cancelled] = await Promise.all([
+      Referral.countDocuments(baseQuery),
+      Referral.countDocuments({ ...baseQuery, status: 'pending' }),
+      Referral.countDocuments({ ...baseQuery, status: 'accepted' }),
+      Referral.countDocuments({ ...baseQuery, status: 'completed' }),
+      Referral.countDocuments({ ...baseQuery, status: 'rejected' }),
+      Referral.countDocuments({ ...baseQuery, status: 'cancelled' }),
+    ]);
+
+    res.status(200).json({ success: true, data: { all, pending, accepted, completed, rejected, cancelled } });
+  } catch (error) {
+    console.error('Status counts error:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
 // @route   GET api/referrals
 // @desc    Get all referrals for the provider (sent or received)
 // @access  Private (all healthcare providers)

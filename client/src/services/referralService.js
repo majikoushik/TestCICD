@@ -580,8 +580,9 @@ export const getReferralStatusCounts = async () => {
       return await mockResponse(counts, 300);
     }
     
-    // Real API call
-    return await get('/referrals/status-counts');
+    // Real API call — unwrap the nested data object
+    const response = await get('/referrals/status-counts');
+    return response.data || response;
   } catch (error) {
     console.error('Get referral status counts error:', error);
     // Return empty counts to prevent UI issues
