@@ -7,13 +7,14 @@ const User = require('../models/User');
 const appointmentSlotService = require('../services/appointmentSlotService');
 const { processTokenTransaction } = require('../blockchain/contracts');
 const { sendPatientNotification } = require('../services/patientEngagementService');
+const logger = require('../utils/logger');
 
 const PROVIDER_TOKEN_REWARD = 15;
 
 // GET /available-slots
 router.get('/available-slots', async (req, res) => {
   try {
-    const { providerId, startDate, endDate, appointmentType } = req.query;
+    const { providerId, startDate, endDate } = req.query;
 
     if (!providerId) {
       return res.status(400).json({ success: false, message: 'providerId is required' });
@@ -112,7 +113,6 @@ router.get('/', async (req, res) => {
   try {
     const { status, page = 1, limit = 10, upcoming, past } = req.query;
 
-    const patientId = req.user._id || req.user.patientId;
     const filter = {
       $or: [{ patientId: req.user._id }, { patientId: req.user.patientId }]
     };
@@ -227,7 +227,7 @@ router.post('/', async (req, res) => {
       try {
         await Referral.findByIdAndUpdate(linkedReferralId, { status: 'accepted' });
       } catch (refErr) {
-        console.error('Referral status update error:', refErr);
+        logger.error('Referral status update error', logger.reqCtx(req, refErr));
       }
     }
 
@@ -497,7 +497,7 @@ router.put('/:id/status', async (req, res) => {
           appointment.tokenRewardIssued = true;
           appointment.tokenRewardAmount = PROVIDER_TOKEN_REWARD;
         } catch (tokenErr) {
-          console.error('Token reward error:', tokenErr);
+          logger.error('Token reward error', logger.reqCtx(req, tokenErr));
         }
       }
 
@@ -509,7 +509,7 @@ router.put('/:id/status', async (req, res) => {
             completionDate: new Date()
           });
         } catch (refErr) {
-          console.error('Referral closure error:', refErr);
+          logger.error('Referral closure error', logger.reqCtx(req, refErr));
         }
       }
     }
@@ -553,7 +553,7 @@ router.post('/:id/reminder', async (req, res) => {
         channels: ['email', 'sms']
       });
     } catch (notifyErr) {
-      console.error('Reminder notification error:', notifyErr);
+      logger.error('Reminder notification error', logger.reqCtx(req, notifyErr));
     }
 
     appointment.reminderSentAt = new Date();

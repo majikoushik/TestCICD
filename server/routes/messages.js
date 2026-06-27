@@ -4,6 +4,7 @@ const router = express.Router();
 const { protect } = require('../middleware/auth');
 const Message = require('../models/Message');
 const Referral = require('../models/Referral');
+const logger = require('../utils/logger');
 
 // ── GET /api/messages/threads ─────────────────────────────────────────────────
 // Returns one summary row per referral the current user is party to,
@@ -50,7 +51,7 @@ router.get('/threads', protect, async (req, res) => {
 
     res.json({ success: true, data: threads });
   } catch (err) {
-    console.error('GET /messages/threads:', err);
+    logger.error('GET /messages/threads error', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -92,7 +93,7 @@ router.get('/threads/:referralId', protect, async (req, res) => {
 
     res.json({ success: true, data: { referral, messages } });
   } catch (err) {
-    console.error('GET /messages/threads/:referralId:', err);
+    logger.error('GET /messages/threads/:referralId error', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -146,7 +147,7 @@ router.post('/threads/:referralId', protect, async (req, res) => {
 
     res.status(201).json({ success: true, data: message });
   } catch (err) {
-    console.error('POST /messages/threads/:referralId:', err);
+    logger.error('POST /messages/threads/:referralId error', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -162,7 +163,7 @@ router.patch('/read/:referralId', protect, async (req, res) => {
     );
     res.json({ success: true });
   } catch (err) {
-    console.error('PATCH /messages/read:', err);
+    logger.error('PATCH /messages/read error', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -200,7 +201,7 @@ router.get('/admin/threads', protect, async (req, res) => {
 
     res.json({ success: true, data: threads });
   } catch (err) {
-    console.error('GET /messages/admin/threads:', err);
+    logger.error('GET /messages/admin/threads error', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });

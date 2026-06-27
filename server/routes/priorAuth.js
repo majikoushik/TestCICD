@@ -3,6 +3,7 @@ const router = express.Router();
 const PriorAuthorization = require('../models/PriorAuthorization');
 const { protect } = require('../middleware/auth');
 const { analyzePriorAuthorization } = require('../services/azureAIService');
+const logger = require('../utils/logger');
 
 // GET /api/prior-auth - Get all PAs for the authenticated provider
 router.get('/', protect, async (req, res) => {
@@ -19,7 +20,7 @@ router.get('/', protect, async (req, res) => {
 
     res.json({ success: true, data: { priorAuths: pas, total } });
   } catch (err) {
-    console.error('Get prior auths error:', err);
+    logger.error('Get prior auths error', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -75,11 +76,11 @@ router.post('/', protect, async (req, res) => {
       pa.aiAnalyzedAt = new Date();
       pa.status = 'Under Review';
       await pa.save();
-    }).catch(err => console.error('AI analysis error:', err));
+    }).catch(err => logger.error('AI analysis error', logger.reqCtx(req, err)));
 
     res.status(201).json({ success: true, data: pa });
   } catch (err) {
-    console.error('Create prior auth error:', err);
+    logger.error('Create prior auth error', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });

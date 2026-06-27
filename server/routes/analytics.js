@@ -3,10 +3,11 @@ const router = express.Router();
 const Analytics = require('../models/Analytics');
 const User = require('../models/User');
 const Patient = require('../models/Patient');
-const { protect, authorize } = require('../middleware/auth');
+const { protect } = require('../middleware/auth');
 const { processTokenTransaction } = require('../blockchain/contracts');
 const { ehiAudit } = require('../middleware/ehiAudit');
 const { oncDeny } = require('../config/oncExceptions');
+const logger = require('../utils/logger');
 
 // @route   POST api/analytics
 // @desc    Create a new analytics job
@@ -45,7 +46,7 @@ router.post('/', protect, async (req, res) => {
       data: analytics
     });
   } catch (error) {
-    console.error('Create analytics job error:', error);
+    logger.error('Create analytics job error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -69,7 +70,7 @@ router.get('/', protect, async (req, res) => {
       data: analytics
     });
   } catch (error) {
-    console.error('Get analytics jobs error:', error);
+    logger.error('Get analytics jobs error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -103,7 +104,7 @@ router.get('/:id', protect, async (req, res) => {
       data: analytics
     });
   } catch (error) {
-    console.error('Get analytics job error:', error);
+    logger.error('Get analytics job error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -159,7 +160,7 @@ router.post('/:id/share', protect, async (req, res) => {
       data: analytics.sharedWith
     });
   } catch (error) {
-    console.error('Share analytics job error:', error);
+    logger.error('Share analytics job error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -236,7 +237,7 @@ router.get('/insights/patient/:patientId', protect, ehiAudit('Analytics', 'READ'
       }
     });
   } catch (error) {
-    console.error('Get patient insights error:', error);
+    logger.error('Get patient insights error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -280,7 +281,7 @@ router.get('/dashboard', protect, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get dashboard data error:', error);
+    logger.error('Get dashboard data error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -295,7 +296,7 @@ async function processAnalyticsJob(analyticsId) {
     const analytics = await Analytics.findById(analyticsId);
     
     if (!analytics) {
-      console.error('Analytics job not found:', analyticsId);
+      logger.error('Analytics job not found', { analyticsId });
       return;
     }
 
@@ -347,7 +348,7 @@ async function processAnalyticsJob(analyticsId) {
         { $inc: { tokenBalance: tokenAmount } }
       );
     } catch (tokenError) {
-      console.error('Token reward error:', tokenError);
+      logger.error('Token reward error', { analyticsId, error: tokenError, stack: tokenError.stack });
       analytics.tokenReward = {
         status: 'failed',
         error: tokenError.message
@@ -356,10 +357,10 @@ async function processAnalyticsJob(analyticsId) {
 
     await analytics.save();
     
-    console.log(`Analytics job ${analyticsId} completed`);
+    logger.info(`Analytics job ${analyticsId} completed`);
   } catch (error) {
-    console.error('Process analytics job error:', error);
-    
+    logger.error('Process analytics job error', { analyticsId, error, stack: error.stack });
+
     // Update job status to failed
     try {
       await Analytics.findByIdAndUpdate(analyticsId, {
@@ -367,7 +368,7 @@ async function processAnalyticsJob(analyticsId) {
         error: error.message
       });
     } catch (updateError) {
-      console.error('Failed to update analytics job status:', updateError);
+      logger.error('Failed to update analytics job status', { analyticsId, error: updateError, stack: updateError.stack });
     }
   }
 }

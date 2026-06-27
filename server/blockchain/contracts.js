@@ -6,7 +6,8 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { getBlockchainIdentity } = require('./identity');
+require('./identity');
+const logger = require('../utils/logger');
 
 // Path to store simulated blockchain transactions
 const transactionsPath = path.resolve(__dirname, '../blockchain-data/transactions');
@@ -49,7 +50,7 @@ async function createConsentRecord(patientId, providerId, accessLevel, dataEleme
       status: 'completed'
     };
   } catch (error) {
-    console.error('Error creating consent record:', error);
+    logger.error('Error creating consent record', { error: error.message, stack: error.stack });
     throw new Error(`Failed to create consent record: ${error.message}`);
   }
 }
@@ -90,7 +91,7 @@ async function verifyConsent(patientId, providerId, dataElement) {
              (record.data.dataElements && record.data.dataElements.includes(dataElement));
     });
   } catch (error) {
-    console.error('Error verifying consent:', error);
+    logger.error('Error verifying consent', { error: error.message, stack: error.stack });
     return false;
   }
 }
@@ -131,7 +132,7 @@ async function createReferralContract(referralData) {
       status: 'created'
     };
   } catch (error) {
-    console.error('Error creating referral contract:', error);
+    logger.error('Error creating referral contract', { error: error.message, stack: error.stack });
     throw new Error(`Failed to create referral contract: ${error.message}`);
   }
 }
@@ -172,7 +173,7 @@ async function updateReferralContract(transactionId, status, updateData = {}) {
       status: 'completed'
     };
   } catch (error) {
-    console.error('Error updating referral contract:', error);
+    logger.error('Error updating referral contract', { error: error.message, stack: error.stack });
     throw new Error(`Failed to update referral contract: ${error.message}`);
   }
 }
@@ -210,7 +211,7 @@ async function processTokenTransaction(fromUserId, toUserId, amount, reason, met
       amount
     };
   } catch (error) {
-    console.error('Error processing token transaction:', error);
+    logger.error('Error processing token transaction', { error: error.message, stack: error.stack });
     throw new Error(`Failed to process token transaction: ${error.message}`);
   }
 }
@@ -266,7 +267,7 @@ async function getTransaction(transactionId) {
     const transactionData = fs.readFileSync(transactionPath, 'utf8');
     return JSON.parse(transactionData);
   } catch (error) {
-    console.error('Error getting transaction:', error);
+    logger.error('Error getting transaction', { error: error.message, stack: error.stack });
     return null;
   }
 }
@@ -298,7 +299,7 @@ async function getTransactionsByType(type) {
     
     return transactions;
   } catch (error) {
-    console.error('Error getting transactions by type:', error);
+    logger.error('Error getting transactions by type', { error: error.message, stack: error.stack });
     return [];
   }
 }

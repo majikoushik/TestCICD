@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const logger = require('../utils/logger');
 
 let transporter = null;
 let transporterVerified = false;
@@ -26,34 +27,34 @@ async function verifyTransporter(t) {
   try {
     await t.verify();
     transporterVerified = true;
-    console.log('[EmailService] Gmail connection verified — emails will be delivered.');
+    logger.info('[EmailService] Gmail connection verified — emails will be delivered.');
   } catch (err) {
     transporterVerified = true; // don't retry on every send
-    console.error('[EmailService] Gmail connection FAILED:', err.message);
-    console.error('[EmailService] Check that GMAIL_USER and GMAIL_APP_PASSWORD in .env are correct.');
-    console.error('[EmailService] App passwords: myaccount.google.com/apppasswords (requires 2FA).');
+    logger.error('[EmailService] Gmail connection FAILED', { error: err.message, stack: err.stack });
+    logger.error('[EmailService] Check that GMAIL_USER and GMAIL_APP_PASSWORD in .env are correct.');
+    logger.error('[EmailService] App passwords: myaccount.google.com/apppasswords (requires 2FA).');
   }
 }
 
 async function sendEmail({ to, subject, html }) {
   const t = getTransporter();
   if (!t) {
-    console.log(`\n📧  [DEV EMAIL — not sent]\n   To: ${to}\n   Subject: ${subject}\n`);
+    logger.info('[EmailService] DEV EMAIL — not sent', { to, subject });
     // Extract and log verification link for dev convenience
     const linkMatch = html && html.match(/href="(http[^"]+verify[^"]+)"/);
-    if (linkMatch) console.log(`   Verify link: ${linkMatch[1]}\n`);
+    if (linkMatch) logger.info('[EmailService] Verify link (dev)', { link: linkMatch[1] });
     return { messageId: 'dev-mode' };
   }
   await verifyTransporter(t);
   try {
     const info = await t.sendMail({ from: FROM, to, subject, html });
-    console.log(`[EmailService] Email sent to ${to} — messageId: ${info.messageId}`);
+    logger.info('[EmailService] Email sent', { to, messageId: info.messageId });
     return info;
   } catch (err) {
-    console.error(`[EmailService] Failed to send email to ${to}:`, err.message);
-    // Log verification links to console as a fallback so onboarding isn't blocked
+    logger.error('[EmailService] Failed to send email', { to, error: err.message, stack: err.stack });
+    // Log verification links as a fallback so onboarding isn't blocked
     const linkMatch = html && html.match(/href="(http[^"]+verify[^"]+)"/);
-    if (linkMatch) console.log(`[EmailService] Fallback verify link: ${linkMatch[1]}`);
+    if (linkMatch) logger.info('[EmailService] Fallback verify link', { link: linkMatch[1] });
     throw err;
   }
 }

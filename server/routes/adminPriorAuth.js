@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const PriorAuthorization = require('../models/PriorAuthorization');
 const { analyzePriorAuthorization } = require('../services/azureAIService');
+const logger = require('../utils/logger');
 
 // All routes in this file are already protected by the mount-point middleware in index.js
 
@@ -34,7 +35,7 @@ router.get('/', async (req, res) => {
 
     res.json({ success: true, data: { priorAuths: pas, total, stats: statMap } });
   } catch (err) {
-    console.error('Admin get PAs error:', err);
+    logger.error('Admin get PAs error', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });

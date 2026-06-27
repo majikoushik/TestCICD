@@ -5,6 +5,7 @@ const AdminSetting = require('../models/Admin');
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
 const bcrypt = require('bcryptjs');
+const logger = require('../utils/logger');
 
 /**
  * @route   GET /api/admin/settings
@@ -16,7 +17,7 @@ router.get('/settings', protect, authorize('admin'), async (req, res) => {
     const settings = await AdminSetting.find().sort({ category: 1, key: 1 });
     res.json({ success: true, count: settings.length, data: settings });
   } catch (error) {
-    console.error('Error fetching admin settings:', error);
+    logger.error('Error fetching admin settings', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -41,7 +42,7 @@ router.get('/settings/:category', protect, authorize('admin'), async (req, res) 
     
     res.json({ success: true, count: settings.length, data: settings });
   } catch (error) {
-    console.error(`Error fetching ${req.params.category} settings:`, error);
+    logger.error(`Error fetching ${req.params.category} settings`, logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -64,7 +65,7 @@ router.get('/settings/key/:key', protect, authorize('admin'), async (req, res) =
     
     res.json({ success: true, data: setting });
   } catch (error) {
-    console.error(`Error fetching setting with key ${req.params.key}:`, error);
+    logger.error(`Error fetching setting with key ${req.params.key}`, logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -100,7 +101,7 @@ router.post('/settings', protect, authorize('admin'), async (req, res) => {
     
     res.status(201).json({ success: true, data: setting });
   } catch (error) {
-    console.error('Error creating admin setting:', error);
+    logger.error('Error creating admin setting', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -115,7 +116,7 @@ router.put('/settings/:key', protect, authorize('admin'), async (req, res) => {
     const { value, description, isActive } = req.body;
     
     // Find setting by key
-    let setting = await AdminSetting.findOne({ key: req.params.key });
+    const setting = await AdminSetting.findOne({ key: req.params.key });
     
     if (!setting) {
       return res.status(404).json({ 
@@ -135,7 +136,7 @@ router.put('/settings/:key', protect, authorize('admin'), async (req, res) => {
     
     res.json({ success: true, data: setting });
   } catch (error) {
-    console.error(`Error updating setting with key ${req.params.key}:`, error);
+    logger.error(`Error updating setting with key ${req.params.key}`, logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -160,7 +161,7 @@ router.delete('/settings/:key', protect, authorize('admin'), async (req, res) =>
     
     res.json({ success: true, data: {} });
   } catch (error) {
-    console.error(`Error deleting setting with key ${req.params.key}:`, error);
+    logger.error(`Error deleting setting with key ${req.params.key}`, logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -221,7 +222,7 @@ router.post('/users', protect, authorize('admin', 'superadmin'), async (req, res
       message: 'User created successfully'
     });
   } catch (error) {
-    console.error('Error creating user:', error);
+    logger.error('Error creating user', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -248,7 +249,7 @@ router.get('/users', protect, authorize('admin', 'superadmin'), async (req, res)
     const users = await User.find(query).select('-password').sort({ createdAt: -1 });
     res.json({ success: true, count: users.length, data: users });
   } catch (error) {
-    console.error('Error fetching users:', error);
+    logger.error('Error fetching users', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -268,7 +269,7 @@ router.get('/users/:id', protect, authorize('admin', 'superadmin'), async (req, 
     
     res.json({ success: true, data: user });
   } catch (error) {
-    console.error(`Error fetching user with ID ${req.params.id}:`, error);
+    logger.error(`Error fetching user with ID ${req.params.id}`, logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -297,7 +298,7 @@ router.put('/users/:id', protect, authorize('admin'), async (req, res) => {
     
     res.json({ success: true, data: user });
   } catch (error) {
-    console.error(`Error updating user ${req.params.id}:`, error);
+    logger.error(`Error updating user ${req.params.id}`, logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -336,7 +337,7 @@ router.get('/system-status', protect, authorize('admin'), async (req, res) => {
     
     res.json({ success: true, data: systemStatus });
   } catch (error) {
-    console.error('Error fetching system status:', error);
+    logger.error('Error fetching system status', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -459,7 +460,7 @@ router.post('/initialize', protect, authorize('admin'), async (req, res) => {
       data: settings 
     });
   } catch (error) {
-    console.error('Error initializing admin settings:', error);
+    logger.error('Error initializing admin settings', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -486,7 +487,7 @@ router.get('/providers', protect, authorize('admin', 'superadmin'), async (req, 
 
     res.json({ success: true, count: data.length, data });
   } catch (error) {
-    console.error('Error fetching providers:', error);
+    logger.error('Error fetching providers', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -506,7 +507,7 @@ router.get('/providers/pending', protect, authorize('admin', 'superadmin', 'revi
     
     res.json({ success: true, count: pendingProviders.length, data: pendingProviders });
   } catch (error) {
-    console.error('Error fetching pending providers:', error);
+    logger.error('Error fetching pending providers', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -546,7 +547,7 @@ router.put('/providers/:id/approve', protect, authorize('admin', 'superadmin', '
       data: provider 
     });
   } catch (error) {
-    console.error('Error approving provider:', error);
+    logger.error('Error approving provider', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -584,7 +585,7 @@ router.put('/providers/:id/reject', protect, authorize('admin', 'superadmin', 'r
       data: provider 
     });
   } catch (error) {
-    console.error('Error rejecting provider:', error);
+    logger.error('Error rejecting provider', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -615,7 +616,7 @@ router.put('/providers/:id/suspend', protect, authorize('admin', 'superadmin'), 
       data: provider 
     });
   } catch (error) {
-    console.error('Error suspending provider:', error);
+    logger.error('Error suspending provider', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -647,7 +648,7 @@ router.put('/providers/:id/activate', protect, authorize('admin', 'superadmin'),
       data: provider 
     });
   } catch (error) {
-    console.error('Error activating provider:', error);
+    logger.error('Error activating provider', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -686,7 +687,7 @@ router.put('/providers/:id', protect, authorize('admin', 'superadmin'), async (r
     delete updated.password;
     res.json({ success: true, message: 'Provider updated successfully', data: updated });
   } catch (error) {
-    console.error('Error updating provider:', error);
+    logger.error('Error updating provider', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -733,7 +734,7 @@ router.put('/users/:id/role', protect, authorize('admin', 'superadmin'), async (
       data: user 
     });
   } catch (error) {
-    console.error('Error updating user role:', error);
+    logger.error('Error updating user role', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -770,7 +771,7 @@ router.put('/users/:id/reset-password', protect, authorize('admin', 'superadmin'
       tempPassword: tempPassword // In production, this would be sent via email
     });
   } catch (error) {
-    console.error('Error resetting password:', error);
+    logger.error('Error resetting password', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -799,7 +800,7 @@ router.put('/users/:id/unlock', protect, authorize('admin', 'superadmin'), async
       data: user 
     });
   } catch (error) {
-    console.error('Error unlocking account:', error);
+    logger.error('Error unlocking account', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -874,7 +875,7 @@ router.get('/audit/login', protect, authorize('admin', 'superadmin'), async (req
       data: auditLogs 
     });
   } catch (error) {
-    console.error('Error fetching login audit logs:', error);
+    logger.error('Error fetching login audit logs', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -916,7 +917,7 @@ router.delete('/users/:id', protect, authorize('admin', 'superadmin'), async (re
       message: 'User deleted successfully' 
     });
   } catch (error) {
-    console.error('Error deleting user:', error);
+    logger.error('Error deleting user', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -987,7 +988,7 @@ router.get('/audit/ehi', protect, authorize('admin', 'superadmin'), async (req, 
       data: logs,
     });
   } catch (error) {
-    console.error('Error fetching EHI audit logs:', error);
+    logger.error('Error fetching EHI audit logs', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });

@@ -326,7 +326,7 @@ router.delete('/campaigns/:id', async (req, res) => {
 // GET /stats - Engagement statistics (must come before /:id)
 router.get('/stats', async (req, res) => {
   try {
-    const [total, sent, pending, failed, read] = await Promise.all([
+    const [total, sent, _pending, _failed, read] = await Promise.all([
       PatientNotification.countDocuments(),
       PatientNotification.countDocuments({ status: 'sent' }),
       PatientNotification.countDocuments({ status: 'pending' }),

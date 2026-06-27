@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const AmbientSession = require('../models/AmbientSession');
 const ambientIntelligenceService = require('../services/ambientIntelligenceService');
+const logger = require('../utils/logger');
 
 // GET /stats - Stats for the current provider's sessions
 // MUST come before /:id to avoid routing conflict
@@ -31,7 +32,7 @@ router.get('/stats', async (req, res) => {
       }
 
       // Accumulate duration
-      if (session.recordingDuration != null) {
+      if (session.recordingDuration !== null && session.recordingDuration !== undefined) {
         totalDuration += session.recordingDuration;
         durationCount += 1;
       }
@@ -49,7 +50,7 @@ router.get('/stats', async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('GET /stats error:', err);
+    logger.error('GET /stats error', logger.reqCtx(req, err));
     return res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -78,7 +79,7 @@ router.get('/my-sessions', async (req, res) => {
       data: { sessions, total, page, limit },
     });
   } catch (err) {
-    console.error('GET /my-sessions error:', err);
+    logger.error('GET /my-sessions error', logger.reqCtx(req, err));
     return res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -107,7 +108,7 @@ router.get('/', async (req, res) => {
       data: { sessions, total, page, limit },
     });
   } catch (err) {
-    console.error('GET / error:', err);
+    logger.error('GET / error', logger.reqCtx(req, err));
     return res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -172,14 +173,14 @@ router.post('/', async (req, res) => {
 
       await session.save();
     } catch (aiErr) {
-      console.error('AI processing failed for session', sessionId, aiErr);
+      logger.error('AI processing failed for session ' + sessionId, logger.reqCtx(req, aiErr));
       session.processingError = aiErr.message || 'AI processing failed';
       await session.save();
     }
 
     return res.status(201).json({ success: true, data: session });
   } catch (err) {
-    console.error('POST / error:', err);
+    logger.error('POST / error', logger.reqCtx(req, err));
     return res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -203,7 +204,7 @@ router.get('/:id', async (req, res) => {
 
     return res.status(200).json({ success: true, data: session });
   } catch (err) {
-    console.error('GET /:id error:', err);
+    logger.error('GET /:id error', logger.reqCtx(req, err));
     return res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -259,7 +260,7 @@ router.put('/:id/review', async (req, res) => {
 
     return res.status(200).json({ success: true, data: session });
   } catch (err) {
-    console.error('PUT /:id/review error:', err);
+    logger.error('PUT /:id/review error', logger.reqCtx(req, err));
     return res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -308,7 +309,7 @@ router.put('/:id', async (req, res) => {
 
     return res.status(200).json({ success: true, data: session });
   } catch (err) {
-    console.error('PUT /:id error:', err);
+    logger.error('PUT /:id error', logger.reqCtx(req, err));
     return res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -354,7 +355,7 @@ router.post('/:id/reprocess', async (req, res) => {
 
     return res.status(200).json({ success: true, data: session });
   } catch (err) {
-    console.error('POST /:id/reprocess error:', err);
+    logger.error('POST /:id/reprocess error', logger.reqCtx(req, err));
     return res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -387,7 +388,7 @@ router.delete('/:id', async (req, res) => {
 
     return res.status(200).json({ success: true, message: 'Session deleted successfully' });
   } catch (err) {
-    console.error('DELETE /:id error:', err);
+    logger.error('DELETE /:id error', logger.reqCtx(req, err));
     return res.status(500).json({ success: false, message: err.message });
   }
 });

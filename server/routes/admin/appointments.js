@@ -2,8 +2,6 @@ const express = require('express');
 const router = express.Router();
 const Appointment = require('../../models/Appointment');
 const WaitlistEntry = require('../../models/WaitlistEntry');
-const ProviderSchedule = require('../../models/ProviderSchedule');
-const User = require('../../models/User');
 
 // GET /stats - Platform-wide stats
 router.get('/stats', async (req, res) => {

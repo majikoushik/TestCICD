@@ -3,9 +3,10 @@ const router = express.Router();
 const DtxProgram = require('../models/DtxProgram');
 const DtxPrescription = require('../models/DtxPrescription');
 const User = require('../models/User');
-const Referral = require('../models/Referral');
+
 const { protect } = require('../middleware/auth');
 const { processTokenTransaction } = require('../blockchain/contracts');
+const logger = require('../utils/logger');
 
 const DTX_TOKEN_REWARD = 10;
 
@@ -108,7 +109,7 @@ router.put('/prescriptions/:id/status', protect, async (req, res) => {
     if (!prescription) return res.status(404).json({ success: false, error: 'Prescription not found' });
 
     const update = { status };
-    if (engagementScore != null) update.engagementScore = engagementScore;
+    if (engagementScore !== null && engagementScore !== undefined) update.engagementScore = engagementScore;
     if (outcomeNotes) update.outcomeNotes = outcomeNotes;
 
     const now = new Date();
@@ -131,7 +132,7 @@ router.put('/prescriptions/:id/status', protect, async (req, res) => {
         });
         await User.findByIdAndUpdate(prescription.providerId, { $inc: { tokenBalance: reward } });
       } catch (tokenErr) {
-        console.error('DTx token reward failed:', tokenErr.message);
+        logger.error('DTx token reward failed', logger.reqCtx(req, tokenErr));
       }
     }
 

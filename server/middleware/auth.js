@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const logger = require('../utils/logger');
 
 const protect = async (req, res, next) => {
   if (!req.headers.authorization || !req.headers.authorization.startsWith('Bearer')) {
@@ -16,12 +17,24 @@ const protect = async (req, res, next) => {
 
     const user = await User.findById(decoded.id).select('-password');
     if (!user) {
+      logger.warn('Auth: token valid but user not found in DB', {
+        decodedId: decoded.id,
+        method: req.method,
+        path: req.path,
+      });
       return res.status(401).json({ success: false, error: 'User not found' });
     }
 
     req.user = user;
     return next();
   } catch (error) {
+    logger.warn('Auth: token verification failed', {
+      method: req.method,
+      path: req.path,
+      error: error.message,
+      errorType: error.name,
+      stack: error.stack,
+    });
     return res.status(401).json({ success: false, error: 'Not authorized, token failed' });
   }
 };

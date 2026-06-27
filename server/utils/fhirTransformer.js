@@ -4,6 +4,7 @@
  * Complies with: ONC 21st Century Cures Act / CMS-0057-F / US Core R4 profiles
  */
 
+
 const FHIR_VERSION = '4.0.1';
 
 const toFHIRDate = (d) => {

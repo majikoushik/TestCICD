@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const logger = require('../utils/logger');
 
 // @route   POST /api/admin/auth/login
 // @access  Public
@@ -40,7 +41,7 @@ router.post('/login', async (req, res) => {
       user: { id: user._id, name: user.name, email: user.email, role: user.role },
     });
   } catch (err) {
-    console.error('Admin login error:', err.message);
+    logger.error('Admin login error', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -70,7 +71,7 @@ router.get('/verify', async (req, res) => {
       user: { id: user._id, name: user.name, email: user.email, role: user.role },
     });
   } catch (err) {
-    console.error('Admin token verification error:', err.message);
+    logger.error('Admin token verification error', logger.reqCtx(req, err));
     res.status(401).json({ success: false, error: 'Token is not valid' });
   }
 });

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../../middleware/auth');
 const AIReport = require('../../models/AIManagement');
+const logger = require('../../utils/logger');
 
 /**
  * @route   GET /api/admin/ai-management/reports
@@ -35,7 +36,7 @@ router.get('/reports', protect, authorize('admin'), async (req, res) => {
       data: reports
     });
   } catch (error) {
-    console.error('Error fetching AI reports:', error);
+    logger.error('Error fetching AI reports', logger.reqCtx(req, error));
     res.status(500).json({
       success: false,
       message: 'Server error while fetching AI reports',
@@ -69,7 +70,7 @@ router.get('/reports/:id', protect, authorize('admin'), async (req, res) => {
       data: report
     });
   } catch (error) {
-    console.error('Error fetching AI report:', error);
+    logger.error('Error fetching AI report', logger.reqCtx(req, error));
     res.status(500).json({
       success: false,
       message: 'Server error while fetching AI report',
@@ -109,7 +110,7 @@ router.post('/reports', protect, authorize('admin'), async (req, res) => {
       data: savedReport
     });
   } catch (error) {
-    console.error('Error creating AI report:', error);
+    logger.error('Error creating AI report', logger.reqCtx(req, error));
     res.status(500).json({
       success: false,
       message: 'Server error while creating AI report',
@@ -159,7 +160,7 @@ router.put('/reports/:id', protect, authorize('admin'), async (req, res) => {
       data: updatedReport
     });
   } catch (error) {
-    console.error('Error updating AI report:', error);
+    logger.error('Error updating AI report', logger.reqCtx(req, error));
     res.status(500).json({
       success: false,
       message: 'Server error while updating AI report',
@@ -210,7 +211,7 @@ router.put('/reports/:id/review', protect, authorize('admin'), async (req, res) 
       data: updatedReport
     });
   } catch (error) {
-    console.error('Error reviewing AI report:', error);
+    logger.error('Error reviewing AI report', logger.reqCtx(req, error));
     res.status(500).json({
       success: false,
       message: 'Server error while reviewing AI report',
@@ -258,7 +259,7 @@ router.post('/reports/:id/feedback', protect, authorize('admin'), async (req, re
       data: updatedReport
     });
   } catch (error) {
-    console.error('Error adding feedback to AI report:', error);
+    logger.error('Error adding feedback to AI report', logger.reqCtx(req, error));
     res.status(500).json({
       success: false,
       message: 'Server error while adding feedback',
@@ -289,7 +290,7 @@ router.put('/thresholds', protect, authorize('admin'), async (req, res) => {
       data: thresholds
     });
   } catch (error) {
-    console.error('Error updating AI thresholds:', error);
+    logger.error('Error updating AI thresholds', logger.reqCtx(req, error));
     res.status(500).json({
       success: false,
       message: 'Server error while updating thresholds',
@@ -337,7 +338,7 @@ router.post('/reports/:id/schedule', protect, authorize('admin'), async (req, re
       data: updatedReport
     });
   } catch (error) {
-    console.error('Error scheduling report:', error);
+    logger.error('Error scheduling report', logger.reqCtx(req, error));
     res.status(500).json({
       success: false,
       message: 'Server error while scheduling report',
@@ -384,7 +385,7 @@ router.get('/aggregate', protect, authorize('admin'), async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching aggregate AI stats:', error);
+    logger.error('Error fetching aggregate AI stats', logger.reqCtx(req, error));
     res.status(500).json({
       success: false,
       message: 'Server error while fetching aggregate stats',

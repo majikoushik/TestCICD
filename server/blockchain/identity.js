@@ -3,13 +3,15 @@
  * Handles user registration on the blockchain network and wallet management
  */
 
-const { FileSystemWallet, Gateway, X509WalletMixin } = require('fabric-network');
+// fabric-network imports are unused in simulation mode; uncomment when connecting to a live Fabric network
+// const { FileSystemWallet, Gateway, X509WalletMixin } = require('fabric-network');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const logger = require('../utils/logger');
 
-// Path to the Hyperledger Fabric network configuration
-const networkConfigPath = path.resolve(__dirname, '../config/connection-profile.json');
+// Path to the Hyperledger Fabric network configuration (used when live Fabric is connected)
+// const networkConfigPath = path.resolve(__dirname, '../config/connection-profile.json');
 const walletPath = path.resolve(__dirname, '../wallet');
 
 /**
@@ -31,7 +33,7 @@ async function registerBlockchainIdentity(userId, role, organization) {
     const walletAddress = `0x${crypto.randomBytes(20).toString('hex')}`;
     
     // Log the registration (in production, this would be a blockchain transaction)
-    console.log(`Registered user ${userId} on blockchain with ID ${blockchainId} and wallet ${walletAddress}`);
+    logger.info('Registered user on blockchain', { userId, blockchainId, walletAddress });
     
     // In production, we would store the user's credentials in the wallet
     if (!fs.existsSync(walletPath)) {
@@ -55,7 +57,7 @@ async function registerBlockchainIdentity(userId, role, organization) {
     
     return { blockchainId, walletAddress };
   } catch (error) {
-    console.error('Error registering blockchain identity:', error);
+    logger.error('Error registering blockchain identity', { error: error.message, stack: error.stack });
     throw new Error(`Failed to register blockchain identity: ${error.message}`);
   }
 }
@@ -76,7 +78,7 @@ async function getBlockchainIdentity(blockchainId) {
     const identityData = fs.readFileSync(identityPath, 'utf8');
     return JSON.parse(identityData);
   } catch (error) {
-    console.error('Error getting blockchain identity:', error);
+    logger.error('Error getting blockchain identity', { error: error.message, stack: error.stack });
     throw new Error(`Failed to get blockchain identity: ${error.message}`);
   }
 }
@@ -92,7 +94,7 @@ async function verifyBlockchainIdentity(blockchainId, walletAddress) {
     const identity = await getBlockchainIdentity(blockchainId);
     return identity.walletAddress === walletAddress;
   } catch (error) {
-    console.error('Error verifying blockchain identity:', error);
+    logger.error('Error verifying blockchain identity', { error: error.message, stack: error.stack });
     return false;
   }
 }

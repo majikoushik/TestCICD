@@ -10,6 +10,7 @@
  *   router.get('/:id', protect, ehiAudit('Patient', 'READ'), async (req, res) => { ... })
  */
 const AuditLog = require('../models/AuditLog');
+const logger = require('../utils/logger');
 
 const ehiAudit = (resourceType, action) => (req, res, next) => {
   res.on('finish', () => {
@@ -33,8 +34,17 @@ const ehiAudit = (resourceType, action) => (req, res, next) => {
       timestamp:      new Date(),
     };
 
-    AuditLog.create(entry).catch(() => {
-      // Intentionally swallowed — audit log failure must not propagate
+    AuditLog.create(entry).catch((auditErr) => {
+      // Swallowed so audit failure never blocks a clinical request, but logged
+      // so ops teams can detect DB issues with the audit collection.
+      logger.error('EHI audit log write failed', {
+        resourceType,
+        action,
+        endpoint: req.originalUrl,
+        userId: entry.userId,
+        error: auditErr.message,
+        stack: auditErr.stack,
+      });
     });
   });
 

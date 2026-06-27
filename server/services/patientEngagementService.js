@@ -30,6 +30,8 @@
 
 'use strict';
 
+const logger = require('../utils/logger');
+
 // ─── Uncomment these requires once the packages are installed ─────────────────
 // const sgMail = require('@sendgrid/mail');
 // const twilio = require('twilio');
@@ -75,15 +77,10 @@ function processTemplate(templateBody, variables) {
  */
 async function sendEmail(to, subject, htmlBody, textBody) {
   const apiKey = process.env.SENDGRID_API_KEY;
-  const fromEmail = process.env.SENDGRID_FROM_EMAIL || 'noreply@example.com';
+  const _fromEmail = process.env.SENDGRID_FROM_EMAIL || 'noreply@example.com';
 
   if (!apiKey) {
-    console.log('[patientEngagementService][EMAIL STUB]', {
-      to,
-      subject,
-      htmlBody,
-      textBody,
-    });
+    logger.info('[patientEngagementService][EMAIL STUB]', { to, subject, htmlBody, textBody });
     return { success: true, stub: true, provider: 'sendgrid' };
   }
 
@@ -104,12 +101,13 @@ async function sendEmail(to, subject, htmlBody, textBody) {
     // return { success: true, messageId, provider: 'sendgrid' };
     // ─────────────────────────────────────────────────────────────────────────
 
-    // Placeholder return until the above block is uncommented:
-    return { success: true, messageId: null, provider: 'sendgrid' };
   } catch (err) {
-    console.error('[patientEngagementService][sendEmail] Error:', err.message);
+    logger.error('[patientEngagementService][sendEmail] Error', { error: err.message, stack: err.stack });
     return { success: false, error: err.message, provider: 'sendgrid' };
   }
+
+  // Placeholder until SendGrid block above is uncommented
+  return { success: true, messageId: null, provider: 'sendgrid' };
 }
 
 /**
@@ -124,11 +122,11 @@ async function sendEmail(to, subject, htmlBody, textBody) {
  */
 async function sendSMS(to, body) {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const fromPhone = process.env.TWILIO_PHONE_NUMBER;
+  const _authToken = process.env.TWILIO_AUTH_TOKEN;
+  const _fromPhone = process.env.TWILIO_PHONE_NUMBER;
 
   if (!accountSid) {
-    console.log('[patientEngagementService][SMS STUB]', { to, body });
+    logger.info('[patientEngagementService][SMS STUB]', { to, body });
     return { success: true, stub: true, provider: 'twilio' };
   }
 
@@ -145,12 +143,13 @@ async function sendSMS(to, body) {
     // return { success: true, sid: message.sid, provider: 'twilio' };
     // ─────────────────────────────────────────────────────────────────────────
 
-    // Placeholder return until the above block is uncommented:
-    return { success: true, sid: null, provider: 'twilio' };
   } catch (err) {
-    console.error('[patientEngagementService][sendSMS] Error:', err.message);
+    logger.error('[patientEngagementService][sendSMS] Error', { error: err.message, stack: err.stack });
     return { success: false, error: err.message, provider: 'twilio' };
   }
+
+  // Placeholder until Twilio block above is uncommented
+  return { success: true, sid: null, provider: 'twilio' };
 }
 
 /**
@@ -167,15 +166,10 @@ async function sendSMS(to, body) {
  */
 async function sendPushNotification(deviceToken, title, body, data = {}) {
   const connectionString = process.env.AZURE_NOTIFICATION_HUB_CONNECTION_STRING;
-  const hubName = process.env.AZURE_NOTIFICATION_HUB_NAME;
+  const _hubName = process.env.AZURE_NOTIFICATION_HUB_NAME;
 
   if (!connectionString) {
-    console.log('[patientEngagementService][PUSH STUB]', {
-      deviceToken,
-      title,
-      body,
-      data,
-    });
+    logger.info('[patientEngagementService][PUSH STUB]', { deviceToken, title, body, data });
     return { success: true, stub: true, provider: 'azure' };
   }
 
@@ -199,12 +193,13 @@ async function sendPushNotification(deviceToken, title, body, data = {}) {
     // return { success: true, provider: 'azure' };
     // ─────────────────────────────────────────────────────────────────────────
 
-    // Placeholder return until the above block is uncommented:
-    return { success: true, provider: 'azure' };
   } catch (err) {
-    console.error('[patientEngagementService][sendPushNotification] Error:', err.message);
+    logger.error('[patientEngagementService][sendPushNotification] Error', { error: err.message, stack: err.stack });
     return { success: false, error: err.message, provider: 'azure' };
   }
+
+  // Placeholder until Azure Notification Hubs block above is uncommented
+  return { success: true, provider: 'azure' };
 }
 
 /**
@@ -277,9 +272,7 @@ async function sendPatientNotification(notification) {
       }
 
       default:
-        console.warn(
-          `[patientEngagementService][sendPatientNotification] Unknown channel: ${channel}`
-        );
+        logger.warn(`[patientEngagementService][sendPatientNotification] Unknown channel: ${channel}`);
         results[channel] = { success: false, error: `Unknown channel: ${channel}` };
     }
   }
@@ -408,9 +401,7 @@ async function triggerAutomaticNotification(type, relatedData, patient) {
       break;
 
     default:
-      console.warn(
-        `[patientEngagementService][triggerAutomaticNotification] Unknown type: ${type}`
-      );
+      logger.warn(`[patientEngagementService][triggerAutomaticNotification] Unknown type: ${type}`);
       title = 'Notification';
       message = `You have a new notification regarding your care.`;
   }

@@ -7,6 +7,7 @@ const { protect } = require('../middleware/auth');
 const User = require('../models/User');
 const ProviderProfile = require('../models/ProviderProfile');
 const { sendEmail, colleagueInviteHtml } = require('../services/emailService');
+const logger = require('../utils/logger');
 
 // Multer setup — store KYC docs in server/uploads/kyc/
 const uploadDir = path.join(__dirname, '../uploads/kyc');
@@ -115,7 +116,7 @@ router.post('/documents', protect, upload.single('document'), async (req, res) =
 
     res.json({ success: true, data: profile, message: 'Documents submitted. Our team will review within 1-2 business days.' });
   } catch (err) {
-    console.error('Document upload error:', err);
+    logger.error('Document upload error', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: err.message || 'Upload failed' });
   }
 });
@@ -156,7 +157,7 @@ router.post('/invite', protect, async (req, res) => {
       });
     } catch (emailErr) {
       emailSent = false;
-      console.error('[ONBOARDING] Invite email failed:', emailErr.message);
+      logger.error('[ONBOARDING] Invite email failed', logger.reqCtx(req, emailErr));
     }
 
     // Record invite + mark step regardless of email delivery
@@ -175,7 +176,7 @@ router.post('/invite', protect, async (req, res) => {
         : `Invite recorded but email delivery failed — check server logs.`,
     });
   } catch (err) {
-    console.error('[ONBOARDING] Invite error:', err.message);
+    logger.error('[ONBOARDING] Invite error', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: 'Failed to send invite' });
   }
 });

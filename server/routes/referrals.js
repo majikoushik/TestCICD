@@ -8,6 +8,7 @@ const { createReferralContract, updateReferralContract, verifyConsent } = requir
 const { processTokenTransaction } = require('../blockchain/contracts');
 const { ehiAudit } = require('../middleware/ehiAudit');
 const { oncDeny } = require('../config/oncExceptions');
+const logger = require('../utils/logger');
 
 // @route   POST api/referrals
 // @desc    Create a new referral
@@ -87,7 +88,7 @@ router.post('/', protect, authorize('doctor', 'clinic', 'hospital'), ehiAudit('R
       blockchainTransaction: blockchainReferral
     });
   } catch (error) {
-    console.error('Create referral error:', error);
+    logger.error('Create referral error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -113,7 +114,7 @@ router.get('/status-counts', protect, async (req, res) => {
 
     res.status(200).json({ success: true, data: { all, pending, accepted, completed, rejected, cancelled } });
   } catch (error) {
-    console.error('Status counts error:', error);
+    logger.error('Status counts error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -124,7 +125,7 @@ router.get('/status-counts', protect, async (req, res) => {
 router.get('/', protect, authorize('doctor', 'clinic', 'hospital', 'lab'), ehiAudit('Referral', 'READ'), async (req, res) => {
   try {
     const { type, status } = req.query;
-    let query = {};
+    const query = {};
 
     // Filter by type (sent or received)
     if (type === 'sent') {
@@ -157,7 +158,7 @@ router.get('/', protect, authorize('doctor', 'clinic', 'hospital', 'lab'), ehiAu
       data: referrals
     });
   } catch (error) {
-    console.error('Get referrals error:', error);
+    logger.error('Get referrals error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -192,7 +193,7 @@ router.get('/:id', protect, ehiAudit('Referral', 'READ'), async (req, res) => {
       data: referral
     });
   } catch (error) {
-    console.error('Get referral error:', error);
+    logger.error('Get referral error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -296,7 +297,7 @@ router.put('/:id/status', protect, ehiAudit('Referral', 'UPDATE'), async (req, r
           receiving: receivingTokens.transactionId
         };
       } catch (tokenError) {
-        console.error('Token reward error:', tokenError);
+        logger.warn('Token reward error (non-fatal)', { error: tokenError.message, stack: tokenError.stack });
         // Continue even if token rewards fail
       }
     }
@@ -309,7 +310,7 @@ router.put('/:id/status', protect, ehiAudit('Referral', 'UPDATE'), async (req, r
       blockchainTransaction: blockchainUpdate
     });
   } catch (error) {
-    console.error('Update referral status error:', error);
+    logger.error('Update referral status error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -362,7 +363,7 @@ router.put('/:id/billing', protect, async (req, res) => {
       blockchainTransaction: blockchainUpdate
     });
   } catch (error) {
-    console.error('Update referral billing error:', error);
+    logger.error('Update referral billing error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });

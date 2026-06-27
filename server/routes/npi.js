@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const fetch = require('node-fetch');
 const ProviderProfile = require('../models/ProviderProfile');
+const logger = require('../utils/logger');
 
 // GET /api/npi/lookup/:npi — public
 router.get('/lookup/:npi', async (req, res) => {
@@ -70,7 +71,7 @@ router.get('/lookup/:npi', async (req, res) => {
 
     res.json({ success: true, alreadyRegistered: false, data: profile });
   } catch (err) {
-    console.error('NPI lookup error:', err.message);
+    logger.error('NPI lookup error', logger.reqCtx(req, err));
     if (err.type === 'request-timeout') {
       return res.status(504).json({ success: false, error: 'NPPES registry timed out. Please try again.' });
     }

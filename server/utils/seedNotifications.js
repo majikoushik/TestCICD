@@ -2,51 +2,44 @@ const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const { generateMockNotifications } = require('./mockNotifications');
 const Notification = require('../models/Notification');
+const logger = require('./logger');
 
-// Load environment variables
 dotenv.config();
 
-// Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://test:GTZdy5hZvLmHrML9@clinictrustai.591yw7n.mongodb.net/clinictrustai?retryWrites=true&w=majority&appName=ClinicTrustAI', {
   useNewUrlParser: true,
-  useUnifiedTopology: true
+  useUnifiedTopology: true,
 })
 .then(() => {
-  console.log('MongoDB connected for seeding notifications');
+  logger.info('MongoDB connected for seeding notifications');
   seedNotifications();
 })
-.catch(err => {
-  console.error('MongoDB connection error:', err.message);
+.catch((err) => {
+  logger.error('MongoDB connection error during notification seeding', { error: err.message, stack: err.stack });
   process.exit(1);
 });
 
-// Seed notifications
 const seedNotifications = async () => {
   try {
-    // Clear existing notifications
     await Notification.deleteMany({});
-    console.log('Existing notifications cleared');
-    
-    // Generate mock notifications
+    logger.info('Existing notifications cleared');
+
     const mockNotifications = generateMockNotifications();
-    
-    // Insert mock notifications
+
     await Notification.insertMany(mockNotifications);
-    console.log(`${mockNotifications.length} notifications seeded successfully`);
-    
-    // Disconnect from MongoDB
+    logger.info(`${mockNotifications.length} notifications seeded successfully`);
+
     mongoose.disconnect();
-    console.log('MongoDB disconnected');
+    logger.info('MongoDB disconnected');
   } catch (error) {
-    console.error('Error seeding notifications:', error);
+    logger.error('Error seeding notifications', { error: error.message, stack: error.stack });
     process.exit(1);
   }
 };
 
-// Handle process termination
 process.on('SIGINT', () => {
   mongoose.connection.close(() => {
-    console.log('MongoDB connection closed due to app termination');
+    logger.info('MongoDB connection closed due to app termination');
     process.exit(0);
   });
 });

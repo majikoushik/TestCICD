@@ -1,4 +1,5 @@
 const https = require('https');
+const logger = require('../utils/logger');
 
 const AZURE_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT || '';
 const AZURE_KEY = process.env.AZURE_OPENAI_KEY || '';
@@ -106,7 +107,7 @@ Evaluate medical necessity and provide your recommendation.`;
       suggestedAction: result.suggestedAction || 'Please provide additional clinical documentation.'
     };
   } catch (err) {
-    console.error('Azure AI analysis failed:', err.message);
+    logger.error('Azure AI analysis failed', { error: err.message, stack: err.stack });
     return getFallbackAnalysis(paRequest);
   }
 }

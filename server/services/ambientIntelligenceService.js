@@ -1,6 +1,7 @@
 'use strict';
 
 const axios = require('axios');
+const logger = require('../utils/logger');
 
 // ---------------------------------------------------------------------------
 // Azure Speech – Speech-to-Text
@@ -14,12 +15,12 @@ const axios = require('axios');
  * @param {string} mimeType     MIME type of the audio (e.g. 'audio/wav')
  * @returns {Promise<{success: boolean, stub?: boolean, transcript?: string|null, error?: string}>}
  */
-async function transcribeAudio(audioBuffer, mimeType) {
+async function transcribeAudio(_audioBuffer, _mimeType) {
   const key    = process.env.AZURE_SPEECH_KEY;
   const region = process.env.AZURE_SPEECH_REGION;
 
   if (!key || !region) {
-    console.log('[ambientIntelligenceService] AZURE_SPEECH_KEY / AZURE_SPEECH_REGION not set – returning stub transcript.');
+    logger.info('[ambientIntelligenceService] AZURE_SPEECH_KEY / AZURE_SPEECH_REGION not set – returning stub transcript.');
     return { success: true, stub: true, transcript: null };
   }
 
@@ -40,12 +41,13 @@ async function transcribeAudio(audioBuffer, mimeType) {
     // const transcript = result.text || '';
     // return { success: true, transcript };
 
-    // Placeholder until SDK is wired up
-    return { success: true, transcript: '' };
   } catch (err) {
-    console.error('[ambientIntelligenceService] transcribeAudio error:', err.message);
+    logger.error('[ambientIntelligenceService] transcribeAudio error', { error: err.message, stack: err.stack });
     return { success: false, error: err.message };
   }
+
+  // Placeholder until SDK above is wired up
+  return { success: true, transcript: '' };
 }
 
 // ---------------------------------------------------------------------------
@@ -107,9 +109,7 @@ async function generateClinicalContent(transcript, patientInfo) {
   const deploymentName = process.env.AZURE_OPENAI_DEPLOYMENT_NAME;
 
   if (!endpoint || !apiKey || !deploymentName) {
-    console.log(
-      '[ambientIntelligenceService] Azure OpenAI env vars not set – returning mock clinical content.'
-    );
+    logger.info('[ambientIntelligenceService] Azure OpenAI env vars not set – returning mock clinical content.');
     return buildMockClinicalContent(patientInfo);
   }
 
@@ -175,7 +175,7 @@ async function generateClinicalContent(transcript, patientInfo) {
       recommendedSpecialty:   parsed.recommendedSpecialty   || '',
     };
   } catch (err) {
-    console.error('[ambientIntelligenceService] generateClinicalContent error:', err.message);
+    logger.error('[ambientIntelligenceService] generateClinicalContent error', { error: err.message, stack: err.stack });
     return { success: false, error: err.message };
   }
 }
@@ -196,7 +196,7 @@ async function generateClinicalContent(transcript, patientInfo) {
  */
 async function processAmbientSession(sessionId, transcript, patientInfo) {
   try {
-    console.log('[ambientIntelligenceService] Processing ambient session:', sessionId);
+    logger.info('[ambientIntelligenceService] Processing ambient session', { sessionId });
 
     const result = await generateClinicalContent(transcript, patientInfo);
 
@@ -215,7 +215,7 @@ async function processAmbientSession(sessionId, transcript, patientInfo) {
       ...(result.stub ? { stub: true } : {}),
     };
   } catch (err) {
-    console.error('[ambientIntelligenceService] processAmbientSession error:', err.message);
+    logger.error('[ambientIntelligenceService] processAmbientSession error', { error: err.message, stack: err.stack });
     return { success: false, error: err.message };
   }
 }

@@ -2,6 +2,8 @@
  * Blockchain utility functions for transaction verification
  */
 
+const logger = require('./logger');
+
 /**
  * Verify a blockchain transaction by its hash
  * In a real implementation, this would connect to a blockchain node or API
@@ -39,7 +41,7 @@ const verifyBlockchainTransaction = async (txHash) => {
       gasUsed: Math.floor(Math.random() * 1000000) + 100000
     };
   } catch (error) {
-    console.error('Blockchain verification error:', error);
+    logger.error('Blockchain verification error', { error: error.message, stack: error.stack });
     return {
       verified: false,
       error: error.message || 'Failed to verify transaction'
@@ -71,7 +73,7 @@ const getTransactionDetails = async (txHash) => {
       gasPrice: (Math.random() * 100).toFixed(2) + ' Gwei'
     };
   } catch (error) {
-    console.error('Error getting transaction details:', error);
+    logger.error('Error getting transaction details', { error: error.message, stack: error.stack });
     throw error;
   }
 };

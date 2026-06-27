@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const logger = require('../../utils/logger');
 const User = require('../../models/User');
 const Referral = require('../../models/Referral');
 const PriorAuthorization = require('../../models/PriorAuthorization');
@@ -9,9 +10,9 @@ const MatchSession = require('../../models/MatchSession');
 const { TokenTransaction } = require('../../models/Token');
 
 let Appointment, DtxPrescription, DtxProgram;
-try { Appointment = require('../../models/Appointment'); } catch (_) {}
-try { DtxPrescription = require('../../models/DtxPrescription'); } catch (_) {}
-try { DtxProgram = require('../../models/DtxProgram'); } catch (_) {}
+try { Appointment = require('../../models/Appointment'); } catch (_) { /* optional model */ }
+try { DtxPrescription = require('../../models/DtxPrescription'); } catch (_) { /* optional model */ }
+try { DtxProgram = require('../../models/DtxProgram'); } catch (_) { /* optional model */ }
 
 const ms = (days) => days * 86400000;
 const daysAgo = (n) => new Date(Date.now() - ms(n));
@@ -89,7 +90,7 @@ router.get('/platform-health', async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('admin/analytics/platform-health:', err.message);
+    logger.error('admin/analytics/platform-health', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -147,7 +148,7 @@ router.get('/alerts', async (req, res) => {
 
     res.json({ success: true, data: alerts });
   } catch (err) {
-    console.error('admin/analytics/alerts:', err.message);
+    logger.error('admin/analytics/alerts', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -200,7 +201,7 @@ router.get('/care-funnel', async (req, res) => {
 
     res.json({ success: true, data: stages });
   } catch (err) {
-    console.error('admin/analytics/care-funnel:', err.message);
+    logger.error('admin/analytics/care-funnel', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -230,7 +231,7 @@ router.get('/activity-feed', async (req, res) => {
     events.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     res.json({ success: true, data: events.slice(0, limit) });
   } catch (err) {
-    console.error('admin/analytics/activity-feed:', err.message);
+    logger.error('admin/analytics/activity-feed', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -298,7 +299,7 @@ router.get('/platform-overview', async (req, res) => {
 
     res.json({ success: true, data: { dtx, priorAuth, engagement, ambientAI } });
   } catch (err) {
-    console.error('admin/analytics/platform-overview:', err.message);
+    logger.error('admin/analytics/platform-overview', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -344,7 +345,7 @@ router.get('/provider-performance', async (req, res) => {
 
     res.json({ success: true, data: rows });
   } catch (err) {
-    console.error('admin/analytics/provider-performance:', err.message);
+    logger.error('admin/analytics/provider-performance', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -398,7 +399,7 @@ router.get('/referral-conversion', async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('admin/analytics/referral-conversion:', err.message);
+    logger.error('admin/analytics/referral-conversion', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -454,7 +455,7 @@ router.get('/token-economy', async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('admin/analytics/token-economy:', err.message);
+    logger.error('admin/analytics/token-economy', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -506,7 +507,7 @@ router.get('/ai-performance', async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('admin/analytics/ai-performance:', err.message);
+    logger.error('admin/analytics/ai-performance', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: err.message });
   }
 });

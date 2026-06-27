@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Contact = require('../models/Contact');
 const { protect, authorize } = require('../middleware/auth');
+const logger = require('../utils/logger');
 
 // POST /api/contact — public, no auth required
 router.post('/', async (req, res) => {
@@ -34,7 +35,7 @@ router.post('/', async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('Contact form error:', err);
+    logger.error('Contact form error', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: 'Failed to submit contact form. Please try again.' });
   }
 });
@@ -63,7 +64,7 @@ router.get('/', protect, authorize('admin', 'superadmin'), async (req, res) => {
       meta: { total, page: Number(page), limit: Number(limit), newCount, respondedCount, demoCount },
     });
   } catch (err) {
-    console.error('Contact list error:', err);
+    logger.error('Contact list error', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: 'Failed to fetch contacts.' });
   }
 });
@@ -80,7 +81,7 @@ router.patch('/:id/status', protect, authorize('admin', 'superadmin'), async (re
     if (!contact) return res.status(404).json({ success: false, error: 'Enquiry not found.' });
     res.json({ success: true, data: contact });
   } catch (err) {
-    console.error('Contact status update error:', err);
+    logger.error('Contact status update error', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: 'Failed to update status.' });
   }
 });
@@ -91,7 +92,7 @@ router.delete('/:id', protect, authorize('admin', 'superadmin'), async (req, res
     await Contact.findByIdAndDelete(req.params.id);
     res.json({ success: true, data: {} });
   } catch (err) {
-    console.error('Contact delete error:', err);
+    logger.error('Contact delete error', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: 'Failed to delete enquiry.' });
   }
 });

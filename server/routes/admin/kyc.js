@@ -1,11 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const path = require('path');
 const fs = require('fs');
-const { protect, authorize } = require('../../middleware/auth');
 const User = require('../../models/User');
 const ProviderProfile = require('../../models/ProviderProfile');
 const { sendEmail, kycApprovedHtml, kycRejectedHtml } = require('../../services/emailService');
+const logger = require('../../utils/logger');
 
 // GET /api/admin/kyc — list all providers with KYC info
 router.get('/', async (req, res) => {
@@ -86,7 +85,7 @@ router.patch('/:id', async (req, res) => {
         } else {
           await sendEmail({ to: user.email, subject: 'ClinicTrust AI verification update', html: kycRejectedHtml(user.firstName || user.name, rejectionReason) });
         }
-      } catch (e) { console.error('KYC email error:', e.message); }
+      } catch (e) { logger.error('KYC email error', logger.reqCtx(req, e)); }
     }
 
     res.json({ success: true, data: profile });

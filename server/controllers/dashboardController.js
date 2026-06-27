@@ -3,6 +3,7 @@ const Patient = require('../models/Patient');
 const Referral = require('../models/Referral');
 const Analytics = require('../models/Analytics');
 const { Token, TokenTransaction } = require('../models/Token');
+const logger = require('../utils/logger');
 
 /**
  * Get dashboard data
@@ -56,7 +57,7 @@ exports.getDashboardData = async (req, res) => {
     
     res.status(200).json(dashboardData);
   } catch (error) {
-    console.error('Error fetching dashboard data:', error);
+    logger.error('Error fetching dashboard data', logger.reqCtx(req, error));
     res.status(500).json({ error: 'Failed to fetch dashboard data' });
   }
 };
@@ -108,7 +109,7 @@ exports.getPatientStatistics = async (req, res) => {
     
     res.status(200).json(patientStats);
   } catch (error) {
-    console.error('Error fetching patient statistics:', error);
+    logger.error('Error fetching patient statistics', logger.reqCtx(req, error));
     res.status(500).json({ error: 'Failed to fetch patient statistics' });
   }
 };
@@ -152,7 +153,7 @@ exports.getReferralStatistics = async (req, res) => {
     
     res.status(200).json(referralStats);
   } catch (error) {
-    console.error('Error fetching referral statistics:', error);
+    logger.error('Error fetching referral statistics', logger.reqCtx(req, error));
     res.status(500).json({ error: 'Failed to fetch referral statistics' });
   }
 };
@@ -220,7 +221,7 @@ exports.getRecentActivities = async (req, res) => {
     
     res.status(200).json(limitedActivities);
   } catch (error) {
-    console.error('Error fetching recent activities:', error);
+    logger.error('Error fetching recent activities', logger.reqCtx(req, error));
     res.status(500).json({ error: 'Failed to fetch recent activities' });
   }
 };
@@ -265,7 +266,7 @@ exports.getProviderPerformance = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Provider performance error:', error);
+    logger.error('Provider performance error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Failed to fetch provider performance' });
   }
 };
@@ -306,7 +307,7 @@ exports.getTokenEconomyStats = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Token economy stats error:', error);
+    logger.error('Token economy stats error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Failed to fetch token economy stats' });
   }
 };
@@ -330,7 +331,7 @@ exports.getAIAnalyticsStats = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('AI analytics error:', error);
+    logger.error('AI analytics error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Failed to fetch AI analytics' });
   }
 };
@@ -351,7 +352,7 @@ exports.getRecentAnalytics = async (req, res) => {
     
     res.status(200).json(recentReports);
   } catch (error) {
-    console.error('Error fetching recent analytics reports:', error);
+    logger.error('Error fetching recent analytics reports', logger.reqCtx(req, error));
     res.status(500).json({ error: 'Failed to fetch recent analytics reports' });
   }
 };

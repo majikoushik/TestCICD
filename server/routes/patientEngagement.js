@@ -4,6 +4,7 @@ const PatientNotification = require('../models/PatientNotification');
 const NotificationTemplate = require('../models/NotificationTemplate');
 const Patient = require('../models/Patient');
 const patientEngagementService = require('../services/patientEngagementService');
+const logger = require('../utils/logger');
 
 // GET / - Get notifications sent to patients by this provider
 // Supports filtering by patientId, status, type and pagination
@@ -47,7 +48,7 @@ router.get('/', async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('Error fetching provider notifications:', err);
+    logger.error('Error fetching provider notifications', logger.reqCtx(req, err));
     res.status(500).json({ success: false, message: 'Server error fetching notifications' });
   }
 });
@@ -62,7 +63,7 @@ router.get('/templates', async (req, res) => {
       data: templates,
     });
   } catch (err) {
-    console.error('Error fetching notification templates:', err);
+    logger.error('Error fetching notification templates', logger.reqCtx(req, err));
     res.status(500).json({ success: false, message: 'Server error fetching templates' });
   }
 });
@@ -110,7 +111,7 @@ router.get('/my-patients/notifications', async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('Error fetching patients notifications:', err);
+    logger.error('Error fetching patients notifications', logger.reqCtx(req, err));
     res.status(500).json({ success: false, message: 'Server error fetching patient notifications' });
   }
 });
@@ -206,7 +207,7 @@ router.post('/send', async (req, res) => {
       data: notification,
     });
   } catch (err) {
-    console.error('Error sending patient notification:', err);
+    logger.error('Error sending patient notification', logger.reqCtx(req, err));
     res.status(500).json({ success: false, message: 'Server error sending notification' });
   }
 });
@@ -243,7 +244,7 @@ router.get('/:id', async (req, res) => {
       data: notification,
     });
   } catch (err) {
-    console.error('Error fetching notification:', err);
+    logger.error('Error fetching notification', logger.reqCtx(req, err));
     res.status(500).json({ success: false, message: 'Server error fetching notification' });
   }
 });
@@ -314,7 +315,7 @@ router.post('/:id/resend', async (req, res) => {
       data: resendNotification,
     });
   } catch (err) {
-    console.error('Error resending notification:', err);
+    logger.error('Error resending notification', logger.reqCtx(req, err));
     res.status(500).json({ success: false, message: 'Server error resending notification' });
   }
 });

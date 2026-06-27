@@ -9,12 +9,16 @@ const mongoose = require('mongoose');
 
 dotenv.config();
 
+const logger = require('./utils/logger');
+
 // Fail fast if required secrets are missing
 const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET', 'JWT_REFRESH_SECRET', 'JWT_RESET_SECRET'];
 const missingEnvVars = requiredEnvVars.filter((v) => !process.env[v]);
 if (missingEnvVars.length > 0) {
-  console.error(`FATAL: Missing required environment variables: ${missingEnvVars.join(', ')}`);
-  console.error('Copy .env.example to .env and populate all values before starting the server.');
+  logger.error('FATAL: Missing required environment variables', {
+    missing: missingEnvVars.join(', '),
+    hint: 'Copy .env.example to .env and populate all values before starting the server.',
+  });
   process.exit(1);
 }
 
@@ -73,7 +77,9 @@ app.use(
   })
 );
 
-app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+// Stream Morgan HTTP request logs into Winston so they land in app.log
+const morganStream = { write: (msg) => logger.http(msg.trim()) };
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev', { stream: morganStream }));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -88,8 +94,22 @@ const authLimiter = rateLimit({
 // ── Centralised error handler (must be defined before startServer so the
 //    reference is valid when Express registers it later) ─────────────────────
 const errorHandler = (err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ success: false, error: 'Server Error' });
+  const status = err.statusCode || err.status || 500;
+  logger.error('Unhandled request error', {
+    method: req.method,
+    path: req.path,
+    userId: req.user?.id,
+    statusCode: status,
+    error: err.message,
+    stack: err.stack,
+    errorType: err.name,
+    code: err.code,
+  });
+  if (res.headersSent) return next(err);
+  res.status(status).json({
+    success: false,
+    error: process.env.NODE_ENV === 'production' ? 'Server Error' : err.message,
+  });
 };
 
 // ── Static files (production only) ──────────────────────────────────────────
@@ -186,12 +206,13 @@ async function startServer() {
       ),
     ]);
     dbConnected = true;
-    console.log('✅  MongoDB connected — running in live database mode');
+    logger.info('MongoDB connected — running in live database mode');
   } catch (err) {
-    console.warn(`⚠️  MongoDB unavailable (${err.message})`);
-    console.warn('🔄  Starting in SYNTHETIC DATA mode — all data is in-memory.');
-    console.warn('    Demo accounts: admin@clinictrustai.com / john.smith@clinictrustai.com / etc.');
-    console.warn('    Demo password for all accounts: Demo1234!');
+    logger.warn('MongoDB unavailable — starting in SYNTHETIC DATA mode', {
+      error: err.message,
+      stack: err.stack,
+      hint: 'Demo password for all accounts: Demo1234!',
+    });
   }
 
   if (dbConnected) {
@@ -204,7 +225,7 @@ async function startServer() {
   app.use(errorHandler);
 
   app.listen(PORT, '0.0.0.0', () =>
-    console.log(`🚀  Server running on port ${PORT} [${dbConnected ? 'LIVE DB' : 'SYNTHETIC DATA'}]`)
+    logger.info(`Server running on port ${PORT} [${dbConnected ? 'LIVE DB' : 'SYNTHETIC DATA'}]`)
   );
 }
 

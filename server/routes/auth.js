@@ -4,9 +4,9 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/User');
 const { protect } = require('../middleware/auth');
-const { registerBlockchainIdentity } = require('../blockchain/identity');
 const ProviderProfile = require('../models/ProviderProfile');
 const { sendEmail, verificationEmailHtml } = require('../services/emailService');
+const logger = require('../utils/logger');
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -20,11 +20,11 @@ router.post('/register', async (req, res) => {
             npi, npiData, credential, phone, address } = req.body;
 
     if (!name || !email || !password || !role || !organization) {
-      console.log('[REGISTER] 400: missing fields', { name: !!name, email: !!email, password: !!password, role, organization: !!organization });
+      logger.debug('[REGISTER] 400: missing fields', { name: !!name, email: !!email, password: !!password, role, organization: !!organization });
       return res.status(400).json({ success: false, error: 'Please provide name, email, password, role, and organization' });
     }
     if (password.length < MIN_PASSWORD_LENGTH) {
-      console.log('[REGISTER] 400: password too short');
+      logger.debug('[REGISTER] 400: password too short');
       return res.status(400).json({ success: false, error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` });
     }
     const privilegedRoles = ['admin', 'superadmin'];
@@ -36,7 +36,7 @@ router.post('/register', async (req, res) => {
     if (PROVIDER_ROLES.includes(role) && npi) {
       const existingProfile = await ProviderProfile.findOne({ npi });
       if (existingProfile) {
-        console.log('[REGISTER] 400: NPI already registered', npi);
+        logger.debug('[REGISTER] 400: NPI already registered', { npi });
         const statusMsg = {
           verified: 'This NPI is already registered and verified. Please sign in.',
           under_review: 'This NPI is already registered and under review.',
@@ -54,7 +54,7 @@ router.post('/register', async (req, res) => {
 
     const existing = await User.findOne({ email });
     if (existing) {
-      console.log('[REGISTER] 400: email already registered', email);
+      logger.debug('[REGISTER] 400: email already registered', { email });
       return res.status(400).json({ success: false, error: 'Email already registered' });
     }
 
@@ -81,7 +81,7 @@ router.post('/register', async (req, res) => {
       user.blockchainId = identity.blockchainId;
       user.walletAddress = identity.walletAddress;
     } catch (e) {
-      console.error('Blockchain registration error (non-fatal):', e.message);
+      logger.warn('Blockchain registration error (non-fatal)', { error: e.message, stack: e.stack });
     }
 
     user.lastLogin = new Date();
@@ -103,7 +103,7 @@ router.post('/register', async (req, res) => {
         });
         await profile.save();
       } catch (profileErr) {
-        console.error('ProviderProfile creation error (non-fatal):', profileErr.message);
+        logger.warn('ProviderProfile creation error (non-fatal)', { error: profileErr.message, stack: profileErr.stack });
       }
     }
 
@@ -117,7 +117,7 @@ router.post('/register', async (req, res) => {
       });
     } catch (emailErr) {
       emailSent = false;
-      console.error('[AUTH] Verification email failed:', emailErr.message);
+      logger.warn('Verification email failed (non-fatal)', { error: emailErr.message, stack: emailErr.stack });
     }
 
     const token = jwt.sign(
@@ -135,7 +135,7 @@ router.post('/register', async (req, res) => {
         : 'Registration successful. Verification email could not be sent — check server logs or use Resend Verification.',
     });
   } catch (error) {
-    console.error('Registration error:', error.message);
+    logger.error('Registration error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -197,7 +197,7 @@ router.post('/login', async (req, res) => {
       user: buildUserPayload(user),
     });
   } catch (error) {
-    console.error('Login error:', error.message);
+    logger.error('Login error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -212,7 +212,7 @@ router.get('/me', protect, async (req, res) => {
     }
     res.status(200).json({ success: true, user: buildUserPayload(user) });
   } catch (error) {
-    console.error('Get user error:', error.message);
+    logger.error('Get user error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -255,7 +255,7 @@ router.post('/refresh-token', async (req, res) => {
 
     res.status(200).json({ success: true, token, refreshToken: newRefreshToken });
   } catch (error) {
-    console.error('Token refresh error:', error.message);
+    logger.error('Token refresh error', logger.reqCtx(req, error));
     res.status(401).json({ success: false, error: 'Invalid refresh token' });
   }
 });
@@ -289,7 +289,7 @@ router.post('/request-password-reset', async (req, res) => {
       ...(process.env.NODE_ENV === 'development' && { resetToken }),
     });
   } catch (error) {
-    console.error('Password reset request error:', error.message);
+    logger.error('Password reset request error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -319,7 +319,7 @@ router.post('/reset-password', async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Password reset successful' });
   } catch (error) {
-    console.error('Password reset error:', error.message);
+    logger.error('Password reset error', logger.reqCtx(req, error));
     res.status(400).json({ success: false, error: 'Invalid or expired token' });
   }
 });
@@ -352,7 +352,7 @@ router.post('/change-password', protect, async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Password changed successfully' });
   } catch (error) {
-    console.error('Password change error:', error.message);
+    logger.error('Password change error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -389,7 +389,7 @@ router.get('/verify-email', async (req, res) => {
 
     res.json({ success: true, message: 'Email verified successfully.' });
   } catch (err) {
-    console.error('Email verification error:', err.message);
+    logger.error('Email verification error', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -416,11 +416,11 @@ router.post('/resend-verification', protect, async (req, res) => {
       });
       res.json({ success: true, message: 'Verification email sent.' });
     } catch (emailErr) {
-      console.error('[AUTH] Resend verification email failed:', emailErr.message);
+      logger.warn('Resend verification email failed (non-fatal)', { error: emailErr.message, stack: emailErr.stack });
       res.json({ success: true, message: 'Email delivery failed — check server logs for the verification link.' });
     }
   } catch (err) {
-    console.error('Resend verification error:', err.message);
+    logger.error('Resend verification error', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });

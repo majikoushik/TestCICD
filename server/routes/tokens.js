@@ -5,6 +5,7 @@ const User = require('../models/User');
 const { Token } = require('../models/Token');
 const { protect } = require('../middleware/auth');
 const { processTokenTransaction } = require('../blockchain/contracts');
+const logger = require('../utils/logger');
 
 // @route   GET api/tokens/balance
 // @desc    Get user token balance
@@ -25,7 +26,7 @@ router.get('/balance', protect, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get token balance error:', error);
+    logger.error('Get token balance error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -57,7 +58,7 @@ router.get('/transactions', protect, async (req, res) => {
       data: userTransactions.sort((a, b) => b.createdAt - a.createdAt)
     });
   } catch (error) {
-    console.error('Get token transactions error:', error);
+    logger.error('Get token transactions error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -162,7 +163,7 @@ router.post('/transfer', protect, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Token transfer error:', error);
+    logger.error('Token transfer error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -217,7 +218,7 @@ router.get('/services', protect, async (req, res) => {
       data: services
     });
   } catch (error) {
-    console.error('Get services error:', error);
+    logger.error('Get services error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -344,7 +345,7 @@ router.post('/redeem', protect, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Token redemption error:', error);
+    logger.error('Token redemption error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });

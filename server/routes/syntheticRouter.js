@@ -9,6 +9,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { store } = require('../data/syntheticData');
+const logger = require('../utils/logger');
 const {
   toFHIRPatient,
   toFHIRPractitioner,
@@ -120,7 +121,7 @@ router.post('/auth/register', async (req, res) => {
     const token = buildToken(newUser);
     res.status(201).json({ success: true, token, user: userPayload(newUser) });
   } catch (err) {
-    console.error('Synthetic register error:', err.message);
+    logger.error('Synthetic register error', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -144,7 +145,7 @@ router.post('/auth/login', async (req, res) => {
     const token = buildToken(user);
     res.status(200).json({ success: true, token, user: userPayload(user) });
   } catch (err) {
-    console.error('Synthetic login error:', err.message);
+    logger.error('Synthetic login error', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -211,7 +212,7 @@ router.post('/auth/change-password', protect, async (req, res) => {
     store.users.save(user);
     res.status(200).json({ success: true, message: 'Password changed successfully' });
   } catch (err) {
-    console.error('Synthetic change-password error:', err.message);
+    logger.error('Synthetic change-password error', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -236,7 +237,7 @@ router.post('/admin/auth/login', async (req, res) => {
     const token = buildToken(user);
     res.json({ success: true, token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
   } catch (err) {
-    console.error('Synthetic admin login error:', err.message);
+    logger.error('Synthetic admin login error', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -1923,7 +1924,7 @@ router.put('/referral-matching/providers/:id', protect, (req, res) => {
 // Patient Self-Scheduling routes (synthetic mode)
 // ---------------------------------------------------------------------------
 
-const APPT_TYPES = [
+const _APPT_TYPES = [
   { code: 'new_patient', name: 'New Patient Consultation', defaultDurationMinutes: 60, color: '#2196F3', requiresPriorAuth: false, requiresReferral: false, telehealthEligible: true },
   { code: 'follow_up', name: 'Follow-Up Visit', defaultDurationMinutes: 30, color: '#4CAF50', requiresPriorAuth: false, requiresReferral: false, telehealthEligible: true },
   { code: 'telehealth', name: 'Telehealth Visit', defaultDurationMinutes: 30, color: '#9C27B0', requiresPriorAuth: false, requiresReferral: false, telehealthEligible: true },
@@ -2046,7 +2047,7 @@ router.get('/appointments', protect, (req, res) => {
 });
 
 router.post('/appointments', protect, (req, res) => {
-  const { providerId, startTime, endTime, scheduledDate } = req.body;
+  const { providerId, startTime, scheduledDate } = req.body;
   const dateStr = new Date(scheduledDate).toISOString().split('T')[0];
   const slots = generateSyntheticSlots(providerId, dateStr);
   const slot = slots.find(s => s.startTime === startTime);
@@ -2368,7 +2369,7 @@ router.put('/dtx/prescriptions/:id/status', protect, (req, res) => {
   if (!rx) return res.status(404).json({ success: false, error: 'Prescription not found' });
   const { status, engagementScore, outcomeNotes } = req.body;
   rx.status = status;
-  if (engagementScore != null) rx.engagementScore = engagementScore;
+  if (engagementScore !== null && engagementScore !== undefined) rx.engagementScore = engagementScore;
   if (outcomeNotes) rx.outcomeNotes = outcomeNotes;
   const now = new Date().toISOString();
   if (status === 'enrolled') rx.enrolledAt = now;
@@ -2397,7 +2398,7 @@ router.get('/admin/dtx/stats', protect, authorize('admin', 'superadmin'), (req, 
   syntheticDtxPrescriptions.forEach(r => {
     if (!progMap[r.programId]) progMap[r.programId] = { _id: r.programId, programName: r.programName, count: 0, scores: [] };
     progMap[r.programId].count++;
-    if (r.engagementScore != null) progMap[r.programId].scores.push(r.engagementScore);
+    if (r.engagementScore !== null && r.engagementScore !== undefined) progMap[r.programId].scores.push(r.engagementScore);
   });
   const topPrograms = Object.values(progMap).map(p => ({
     ...p, avgEngagement: p.scores.length ? Math.round(p.scores.reduce((s, x) => s + x, 0) / p.scores.length) : null
@@ -3255,7 +3256,7 @@ router.get('/auth/verify-email', (req, res) => {
 });
 
 router.post('/auth/resend-verification', protect, (req, res) => {
-  console.log(`[SYNTHETIC] Resend verification email to ${req.user.email}`);
+  logger.info(`[SYNTHETIC] Resend verification email to ${req.user.email}`);
   res.json({ success: true, message: 'Verification email sent.' });
 });
 

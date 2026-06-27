@@ -2,9 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../../middleware/auth');
 const Referral = require('../../models/Referral');
+const logger = require('../../utils/logger');
 const ReferralDispute = require('../../models/ReferralDispute');
 const ReferralTransaction = require('../../models/ReferralTransaction');
-const User = require('../../models/User');
 const { verifyBlockchainTransaction } = require('../../utils/blockchain');
 
 // @desc    Get all referrals with optional filtering
@@ -64,7 +64,7 @@ router.get('/', protect, authorize('admin', 'superadmin'), async (req, res) => {
     
     res.json(referrals);
   } catch (err) {
-    console.error('Error fetching referrals:', err);
+    logger.error('Error fetching referrals', logger.reqCtx(req, err));
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -84,7 +84,7 @@ router.get('/:id', protect, authorize('admin', 'superadmin'), async (req, res) =
     
     res.json(referral);
   } catch (err) {
-    console.error('Error fetching referral:', err);
+    logger.error('Error fetching referral', logger.reqCtx(req, err));
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -125,7 +125,7 @@ router.put('/:id/status', protect, authorize('admin', 'superadmin'), async (req,
     
     res.json(referral);
   } catch (err) {
-    console.error('Error updating referral status:', err);
+    logger.error('Error updating referral status', logger.reqCtx(req, err));
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -180,7 +180,7 @@ router.put('/:id/dispute', protect, authorize('admin', 'superadmin'), async (req
     
     res.json({ referral, dispute });
   } catch (err) {
-    console.error('Error handling referral dispute:', err);
+    logger.error('Error handling referral dispute', logger.reqCtx(req, err));
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -232,7 +232,7 @@ router.post('/:id/payment', protect, authorize('admin', 'superadmin'), async (re
     
     res.json({ referral, transaction });
   } catch (err) {
-    console.error('Error processing referral payment:', err);
+    logger.error('Error processing referral payment', logger.reqCtx(req, err));
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -366,7 +366,7 @@ router.get('/stats/overview', protect, authorize('admin', 'superadmin'), async (
       monthlyTrends
     });
   } catch (err) {
-    console.error('Error fetching referral statistics:', err);
+    logger.error('Error fetching referral statistics', logger.reqCtx(req, err));
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -398,7 +398,7 @@ router.get('/verify/:txHash', protect, authorize('admin', 'superadmin'), async (
       databaseRecord: transaction || null
     });
   } catch (err) {
-    console.error('Error verifying transaction:', err);
+    logger.error('Error verifying transaction', logger.reqCtx(req, err));
     res.status(500).json({ message: 'Server error' });
   }
 });
