@@ -41,7 +41,6 @@ import {
   Edit as EditIcon,
   Share as ShareIcon,
   Warning as WarningIcon,
-  Add as AddIcon,
   Delete as DeleteIcon,
   ArrowBack as ArrowBackIcon,
   Download as DownloadIcon,
@@ -212,15 +211,14 @@ export default function PatientDetail() {
 
   // Calculate age from date of birth
   const calculateAge = (dateOfBirth) => {
+    if (!dateOfBirth) return 'N/A';
     const today = new Date();
     const birthDate = new Date(dateOfBirth);
-    let age = today.getFullYear() - birthDate.getFullYear();
+    const year = birthDate.getFullYear();
+    if (isNaN(year) || year < 1900 || birthDate > today) return 'Invalid date';
+    let age = today.getFullYear() - year;
     const monthDiff = today.getMonth() - birthDate.getMonth();
-    
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) age--;
     return age;
   };
 
@@ -575,15 +573,6 @@ export default function PatientDetail() {
             )}
           </Paper>
           
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <Button
-              variant="outlined"
-              startIcon={<AddIcon />}
-              onClick={() => alert('Add medical condition functionality would be implemented here')}
-            >
-              Add Condition
-            </Button>
-          </Box>
         </TabPanel>
         
         {/* Medications Tab */}
@@ -624,15 +613,6 @@ export default function PatientDetail() {
             )}
           </Paper>
           
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <Button
-              variant="outlined"
-              startIcon={<AddIcon />}
-              onClick={() => alert('Add medication functionality would be implemented here')}
-            >
-              Add Medication
-            </Button>
-          </Box>
         </TabPanel>
         
         {/* Consent Records Tab */}

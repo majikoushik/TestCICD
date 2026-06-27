@@ -50,7 +50,11 @@ router.get('/providers', async (req, res) => {
     if (city) filter.city = city;
     if (state) filter.state = state;
     if (isAcceptingReferrals !== undefined) {
-      filter.isAcceptingReferrals = isAcceptingReferrals === 'true';
+      if (isAcceptingReferrals === 'true') {
+        filter.isAcceptingReferrals = { $ne: false };
+      } else {
+        filter.isAcceptingReferrals = false;
+      }
     }
 
     const skip = (page - 1) * limit;

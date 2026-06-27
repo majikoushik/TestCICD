@@ -17,6 +17,7 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   People as PeopleIcon,
+  PlayArrow as RunIcon,
   SwapHoriz as ReferralIcon,
   CalendarMonth as CalendarIcon,
   Assignment as PriorAuthIcon,
@@ -41,6 +42,7 @@ import {
   Legend, ResponsiveContainer, PieChart, Pie, Cell,
 } from 'recharts';
 import { adminAnalyticsService } from '../../services';
+import { post } from '../../utils/apiUtils';
 import { useNavigate } from 'react-router-dom';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -271,6 +273,29 @@ const AdminDashboard = () => {
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
 
+  // Analytics job state
+  const [jobRunning, setJobRunning] = useState(false);
+  const [jobResult, setJobResult] = useState(null);
+  const [jobError, setJobError] = useState(null);
+
+  const handleRunAnalyticsJob = useCallback(async () => {
+    setJobRunning(true);
+    setJobResult(null);
+    setJobError(null);
+    try {
+      const json = await post('/admin/analytics/run-job', {});
+      if (json.success) {
+        setJobResult(json.data);
+      } else {
+        setJobError(json.error || 'Job failed');
+      }
+    } catch (e) {
+      setJobError(e.response?.data?.error || e.message);
+    } finally {
+      setJobRunning(false);
+    }
+  }, []);
+
   // ── always-visible fetches ──────────────────────────────────────────────────
   const fetchHealth = useCallback(async () => {
     setHealthLoading(true);
@@ -431,10 +456,34 @@ const AdminDashboard = () => {
         <Typography variant="h4" component="h1">Admin Dashboard</Typography>
         <Box display="flex" gap={1}>
           <IconButton onClick={handleRefreshAll} title="Refresh all"><RefreshIcon /></IconButton>
+          <Button
+            variant="contained"
+            color="success"
+            startIcon={<RunIcon />}
+            onClick={handleRunAnalyticsJob}
+            disabled={jobRunning}
+          >
+            {jobRunning ? 'Running…' : 'Run Analytics Job'}
+          </Button>
           <Button variant="outlined" startIcon={<DownloadIcon />} onClick={() => adminAnalyticsService.exportReport('dashboard', 'pdf')}>Export PDF</Button>
           <Button variant="outlined" startIcon={<ScheduleIcon />} onClick={() => { setSelectedReport(null); setScheduleDialogOpen(true); }}>Schedule Report</Button>
         </Box>
       </Box>
+
+      {/* ── Analytics Job Result / Error Banner ── */}
+      {jobResult && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setJobResult(null)}>
+          Analytics job completed in {jobResult.durationMs}ms — {jobResult.patientsUpdated} patient risk scores updated.
+          Patient engagement: {jobResult.metrics?.patientEngagement?.value ?? '—'}% &nbsp;|&nbsp;
+          Treatment adherence: {jobResult.metrics?.treatmentAdherence?.value ?? '—'}% &nbsp;|&nbsp;
+          Missed follow-ups: {jobResult.metrics?.missedAppointments?.value ?? '—'}
+        </Alert>
+      )}
+      {jobError && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setJobError(null)}>
+          Analytics job failed: {jobError}
+        </Alert>
+      )}
 
       {/* ── Platform Health Strip ── */}
       <Grid container spacing={2} mb={3}>

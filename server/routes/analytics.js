@@ -75,6 +75,22 @@ router.get('/', protect, async (req, res) => {
   }
 });
 
+// @route   GET api/analytics/patient-summary
+// @desc    Live analytics for the current provider's patient panel.
+//          Computed in-request from real patient data — no stale cache.
+//          Used by the Patients list page top-stats bar.
+// @access  Private (doctors, clinics, hospitals)
+router.get('/patient-summary', protect, async (req, res) => {
+  try {
+    const { getLiveProviderSummary } = require('../services/analyticsCalculationService');
+    const summary = await getLiveProviderSummary(req.user.id);
+    return res.status(200).json({ success: true, data: summary });
+  } catch (err) {
+    logger.error('Patient summary analytics error', logger.reqCtx(req, err));
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // @route   GET api/analytics/:id
 // @desc    Get a single analytics job
 // @access  Private (creator or shared with)

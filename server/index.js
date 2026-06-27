@@ -56,6 +56,10 @@ const contactRoutes = require('./routes/contact');
 const npiRoutes = require('./routes/npi');
 const onboardingRoutes = require('./routes/onboarding');
 const adminKycRoutes = require('./routes/admin/kyc');
+const adminMatchingConfigRoutes = require('./routes/admin/matchingConfig');
+const adminPatientsRoutes = require('./routes/admin/patients');
+const adminAnalyticsJobRoutes = require('./routes/admin/analyticsJob');
+const providerRoutes = require('./routes/providers');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -65,12 +69,17 @@ app.use(helmet());
 
 const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
   .split(',')
-  .map((o) => o.trim());
+  .map((o) => o.trim().replace(/\/$/, ''));
+
+const isDev = process.env.NODE_ENV !== 'production';
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+      if (!origin) return callback(null, true);
+      const normalised = origin.replace(/\/$/, '');
+      if (allowedOrigins.includes(normalised)) return callback(null, true);
+      if (isDev && /^https?:\/\/localhost(:\d+)?$/.test(normalised)) return callback(null, true);
       callback(new Error(`CORS: origin ${origin} not allowed`));
     },
     credentials: true,
@@ -157,6 +166,9 @@ function mountLiveRoutes() {
   app.use('/api/ambient-sessions', protect, ambientSessionRoutes);
   app.use('/api/dtx', dtxRoutes);
 
+  // Provider listing — used by Create Referral screen
+  app.use('/api/providers', providerRoutes);
+
   // NPI lookup (public)
   app.use('/api/npi', npiRoutes);
 
@@ -165,6 +177,9 @@ function mountLiveRoutes() {
 
   // Admin KYC management
   app.use('/api/admin/kyc', [protect, authorize('admin', 'superadmin')], adminKycRoutes);
+  app.use('/api/admin/matching-config', [protect, authorize('admin', 'superadmin')], adminMatchingConfigRoutes);
+  app.use('/api/admin/patients', [protect, authorize('admin', 'superadmin')], adminPatientsRoutes);
+  app.use('/api/admin/analytics', [protect, authorize('admin', 'superadmin')], adminAnalyticsJobRoutes);
 
   // Contact form — POST is public, GET is admin-only
   app.use('/api/contact', contactRoutes);

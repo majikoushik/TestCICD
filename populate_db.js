@@ -13,27 +13,21 @@ async function main() {
   console.log('Connected. Dropping and recreating all collections...\n');
 
 // ── Drop ALL collections for a clean slate ───────────────────────────────
+// Collection names match exactly what Mongoose creates (lowercase + plural).
+// ehi_audit_logs is the explicit name set in AuditLog model schema.
 await db.collection('users').drop().catch(() => {});
 await db.collection('patients').drop().catch(() => {});
 await db.collection('referrals').drop().catch(() => {});
+await db.collection('referraltransactions').drop().catch(() => {});
+await db.collection('referraldisputes').drop().catch(() => {});
 await db.collection('analytics').drop().catch(() => {});
-await db.collection('tokenTransactions').drop().catch(() => {});
-await db.collection('tokenServices').drop().catch(() => {});
-await db.collection('tokenEarnSources').drop().catch(() => {});
-await db.collection('medicalRecords').drop().catch(() => {});
-await db.collection('consentRecords').drop().catch(() => {});
-await db.collection('systemStatus').drop().catch(() => {});
-await db.collection('settings').drop().catch(() => {});
-await db.collection('activities').drop().catch(() => {});
-await db.collection('broadcastMessages').drop().catch(() => {});
-await db.collection('targetedAlerts').drop().catch(() => {});
-await db.collection('escalationWorkflows').drop().catch(() => {});
-await db.collection('adminSettings').drop().catch(() => {});
-await db.collection('referralTransactions').drop().catch(() => {});
-await db.collection('referralDisputes').drop().catch(() => {});
-await db.collection('aiReports').drop().catch(() => {});
+await db.collection('analyticssnapshots').drop().catch(() => {});
+await db.collection('tokentransactions').drop().catch(() => {});
+await db.collection('adminsettings').drop().catch(() => {});
+await db.collection('aireports').drop().catch(() => {});
 await db.collection('ehi_audit_logs').drop().catch(() => {});
 await db.collection('providerprofiles').drop().catch(() => {});
+await db.collection('providermatchprofiles').drop().catch(() => {});
 await db.collection('priorauthorizations').drop().catch(() => {});
 await db.collection('appointments').drop().catch(() => {});
 await db.collection('appointmenttypes').drop().catch(() => {});
@@ -43,14 +37,22 @@ await db.collection('waitlistentries').drop().catch(() => {});
 await db.collection('dtxprescriptions').drop().catch(() => {});
 await db.collection('dtxprograms').drop().catch(() => {});
 await db.collection('contacts').drop().catch(() => {});
-await db.collection('ambientSessions').drop().catch(() => {});
-await db.collection('providerMatchProfiles').drop().catch(() => {});
+await db.collection('ambientsessions').drop().catch(() => {});
 await db.collection('notificationtemplates').drop().catch(() => {});
 await db.collection('patientnotifications').drop().catch(() => {});
 await db.collection('notificationcampaigns').drop().catch(() => {});
-await db.collection('tokentransactions').drop().catch(() => {});
 await db.collection('matchsessions').drop().catch(() => {});
-await db.collection('ambientsessions').drop().catch(() => {});
+await db.collection('matchingconfigs').drop().catch(() => {});
+await db.collection('medicalrecords').drop().catch(() => {});
+await db.collection('consentrecords').drop().catch(() => {});
+await db.collection('tokenservices').drop().catch(() => {});
+await db.collection('tokenearsources').drop().catch(() => {});
+await db.collection('systemstatus').drop().catch(() => {});
+await db.collection('broadcastmessages').drop().catch(() => {});
+await db.collection('targetedalerts').drop().catch(() => {});
+await db.collection('escalationworkflows').drop().catch(() => {});
+await db.collection('settings').drop().catch(() => {});
+await db.collection('activities').drop().catch(() => {});
 
 // Create users collection
 // Password hash for "Demo1234!" with bcrypt cost 10
@@ -755,7 +757,7 @@ const medicalRecords = [
     updatedAt: new Date(2023, 0, 10).toISOString()
   }
 ];
-await db.collection('medicalRecords').insertMany(medicalRecords);
+await db.collection('medicalrecords').insertMany(medicalRecords);
 
 // Create referrals collection
 console.log("Creating referrals collection...");
@@ -1157,7 +1159,7 @@ const tokenTransactions = [
     blockchainTxHash: "0xd3e4f5g6h7i8j9k0l1m2n3o4p5q6r7s8t9u0v1w2"
   }
 ];
-await db.collection('tokenTransactions').insertMany(tokenTransactions);
+await db.collection('tokentransactions').insertMany(tokenTransactions);
 
 // Create token services collection
 console.log("Creating token services collection...");
@@ -1215,7 +1217,7 @@ const tokenServices = [
     ]
   }
 ];
-await db.collection('tokenServices').insertMany(tokenServices);
+await db.collection('tokenservices').insertMany(tokenServices);
 
 // Create token earn sources collection
 console.log("Creating token earn sources collection...");
@@ -1257,7 +1259,7 @@ const tokenEarnSources = [
     requirements: "Outcomes must include treatment efficacy data and follow-up information"
   }
 ];
-await db.collection('tokenEarnSources').insertMany(tokenEarnSources);
+await db.collection('tokenearsources').insertMany(tokenEarnSources);
 
 // Create consent records collection
 console.log("Creating consent records collection...");
@@ -1287,7 +1289,7 @@ const consentRecords = [
     blockchainTransactionId: "tx_c2b3c4d5e6f7g8h9i0"
   }
 ];
-await db.collection('consentRecords').insertMany(consentRecords);
+await db.collection('consentrecords').insertMany(consentRecords);
 
 // Create system status collection
 console.log("Creating system status collection...");
@@ -1315,7 +1317,7 @@ const systemStatus = {
   },
   updatedAt: new Date()
 };
-await db.collection('systemStatus').insertOne(systemStatus);
+await db.collection('systemstatus').insertOne(systemStatus);
 
 // Create settings collection
 console.log("Creating settings collection...");
@@ -1473,7 +1475,7 @@ const broadcastMessages = [
     category: "training"
   }
 ];
-await db.collection('broadcastMessages').insertMany(broadcastMessages);
+await db.collection('broadcastmessages').insertMany(broadcastMessages);
 
 // Create targeted alerts collection
 console.log("Creating targeted alerts collection...");
@@ -1589,7 +1591,7 @@ const targetedAlerts = [
     relatedEntityType: null
   }
 ];
-await db.collection('targetedAlerts').insertMany(targetedAlerts);
+await db.collection('targetedalerts').insertMany(targetedAlerts);
 
 // Create escalation workflows collection
 console.log("Creating escalation workflows collection...");
@@ -1794,7 +1796,7 @@ const escalationWorkflows = [
     ]
   }
 ];
-await db.collection('escalationWorkflows').insertMany(escalationWorkflows);
+await db.collection('escalationworkflows').insertMany(escalationWorkflows);
 
 // Create indexes for better performance
 console.log("Creating indexes...");
@@ -1803,32 +1805,32 @@ console.log("Creating indexes...");
 // db.collection('patients').createIndex({ email: 1 });
 // db.collection('referrals').createIndex({ patientId: 1 });
 // db.collection('referrals').createIndex({ status: 1 });
-// db.collection('medicalRecords').createIndex({ patientId: 1 });
-// db.collection('tokenTransactions').createIndex({ userId: 1 });
-// db.collection('tokenTransactions').createIndex({ timestamp: -1 });
+// db.collection('medicalrecords').createIndex({ patientId: 1 });
+// db.collection('tokentransactions').createIndex({ userId: 1 });
+// db.collection('tokentransactions').createIndex({ timestamp: -1 });
 // db.collection('activities').createIndex({ timestamp: -1 });
 // db.collection('activities').createIndex({ userId: 1 });
 // db.collection('activities').createIndex({ patientId: 1 });
-// db.collection('consentRecords').createIndex({ patientId: 1 });
-// db.collection('consentRecords').createIndex({ providerId: 1 });
+// db.collection('consentrecords').createIndex({ patientId: 1 });
+// db.collection('consentrecords').createIndex({ providerId: 1 });
 
-// db.collection('broadcastMessages').createIndex({ status: 1 });
-// db.collection('broadcastMessages').createIndex({ sentAt: -1 });
-// db.collection('broadcastMessages').createIndex({ priority: 1 });
-// db.collection('broadcastMessages').createIndex({ category: 1 });
+// db.collection('broadcastmessages').createIndex({ status: 1 });
+// db.collection('broadcastmessages').createIndex({ sentAt: -1 });
+// db.collection('broadcastmessages').createIndex({ priority: 1 });
+// db.collection('broadcastmessages').createIndex({ category: 1 });
 
-// db.collection('targetedAlerts').createIndex({ status: 1 });
-// db.collection('targetedAlerts').createIndex({ sentAt: -1 });
-// db.collection('targetedAlerts').createIndex({ priority: 1 });
-// db.collection('targetedAlerts').createIndex({ category: 1 });
-// db.collection('targetedAlerts').createIndex({ "recipients.id": 1 });
+// db.collection('targetedalerts').createIndex({ status: 1 });
+// db.collection('targetedalerts').createIndex({ sentAt: -1 });
+// db.collection('targetedalerts').createIndex({ priority: 1 });
+// db.collection('targetedalerts').createIndex({ category: 1 });
+// db.collection('targetedalerts').createIndex({ "recipients.id": 1 });
 
-// db.collection('escalationWorkflows').createIndex({ status: 1 });
-// db.collection('escalationWorkflows').createIndex({ flaggedAt: -1 });
-// db.collection('escalationWorkflows').createIndex({ priority: 1 });
-// db.collection('escalationWorkflows').createIndex({ category: 1 });
-// db.collection('escalationWorkflows').createIndex({ "assignedTo.id": 1 });
-// db.collection('escalationWorkflows').createIndex({ patientId: 1 });
+// db.collection('escalationworkflows').createIndex({ status: 1 });
+// db.collection('escalationworkflows').createIndex({ flaggedAt: -1 });
+// db.collection('escalationworkflows').createIndex({ priority: 1 });
+// db.collection('escalationworkflows').createIndex({ category: 1 });
+// db.collection('escalationworkflows').createIndex({ "assignedTo.id": 1 });
+// db.collection('escalationworkflows').createIndex({ patientId: 1 });
 
 console.log("Creating referral transactions collection...");
 const referralTransactions = [
@@ -1962,7 +1964,7 @@ const referralTransactions = [
     blockchainTxId: "0xstu901vwx234"
   }
 ];
-await db.collection('referralTransactions').insertMany(referralTransactions);
+await db.collection('referraltransactions').insertMany(referralTransactions);
 
 // Create referral disputes collection
 console.log("Creating referral disputes collection...");
@@ -2116,7 +2118,7 @@ const referralDisputes = [
     }
   }
 ];
-await db.collection('referralDisputes').insertMany(referralDisputes);
+await db.collection('referraldisputes').insertMany(referralDisputes);
 
 // Create admin settings collection
 console.log("Creating admin settings collection...");
@@ -2229,7 +2231,7 @@ const adminSettings = [
     access: ["admin"]
   }
 ];
-await db.collection('adminSettings').insertMany(adminSettings);
+await db.collection('adminsettings').insertMany(adminSettings);
 
 // Create AI reports collection
 console.log("Creating AI reports collection...");
@@ -2391,46 +2393,46 @@ const aiReports = [
     tags: ["documentation", "efficiency", "clinical notes", "time savings"]
   }
 ];
-await db.collection('aiReports').insertMany(aiReports);
+await db.collection('aireports').insertMany(aiReports);
 
 // Create indexes for new collections
 console.log("Creating indexes for new collections...");
 
 // Indexes for adminSettings collection
-// db.collection('adminSettings').createIndex({ category: 1 });
-// db.collection('adminSettings').createIndex({ "access": 1 });
+// db.collection('adminsettings').createIndex({ category: 1 });
+// db.collection('adminsettings').createIndex({ "access": 1 });
 
 // Indexes for referralTransactions collection
-// db.collection('referralTransactions').createIndex({ referralId: 1 });
-// db.collection('referralTransactions').createIndex({ transactionType: 1 });
-// db.collection('referralTransactions').createIndex({ timestamp: -1 });
-// db.collection('referralTransactions').createIndex({ "performedBy.userId": 1 });
-// db.collection('referralTransactions').createIndex({ "details.patientId": 1 });
+// db.collection('referraltransactions').createIndex({ referralId: 1 });
+// db.collection('referraltransactions').createIndex({ transactionType: 1 });
+// db.collection('referraltransactions').createIndex({ timestamp: -1 });
+// db.collection('referraltransactions').createIndex({ "performedBy.userId": 1 });
+// db.collection('referraltransactions').createIndex({ "details.patientId": 1 });
 
 // Indexes for referralDisputes collection
-// db.collection('referralDisputes').createIndex({ referralId: 1 });
-// db.collection('referralDisputes').createIndex({ status: 1 });
-// db.collection('referralDisputes').createIndex({ createdAt: -1 });
-// db.collection('referralDisputes').createIndex({ "initiatedBy.userId": 1 });
-// db.collection('referralDisputes').createIndex({ "respondent.userId": 1 });
-// db.collection('referralDisputes').createIndex({ "reviewedBy.userId": 1 });
+// db.collection('referraldisputes').createIndex({ referralId: 1 });
+// db.collection('referraldisputes').createIndex({ status: 1 });
+// db.collection('referraldisputes').createIndex({ createdAt: -1 });
+// db.collection('referraldisputes').createIndex({ "initiatedBy.userId": 1 });
+// db.collection('referraldisputes').createIndex({ "respondent.userId": 1 });
+// db.collection('referraldisputes').createIndex({ "reviewedBy.userId": 1 });
 
 // Indexes for aiReports collection
-// db.collection('aiReports').createIndex({ type: 1 });
-// db.collection('aiReports').createIndex({ status: 1 });
-// db.collection('aiReports').createIndex({ createdAt: -1 });
-// db.collection('aiReports').createIndex({ "createdBy.userId": 1 });
-// db.collection('aiReports').createIndex({ "reviewedBy.userId": 1 });
-// db.collection('aiReports').createIndex({ tags: 1 });
+// db.collection('aireports').createIndex({ type: 1 });
+// db.collection('aireports').createIndex({ status: 1 });
+// db.collection('aireports').createIndex({ createdAt: -1 });
+// db.collection('aireports').createIndex({ "createdBy.userId": 1 });
+// db.collection('aireports').createIndex({ "reviewedBy.userId": 1 });
+// db.collection('aireports').createIndex({ tags: 1 });
 
 // Enhanced indexes for tokenTransactions collection
-// db.collection('tokenTransactions').createIndex({ userId: 1 });
-// db.collection('tokenTransactions').createIndex({ category: 1 });
-// db.collection('tokenTransactions').createIndex({ status: 1 });
-// db.collection('tokenTransactions').createIndex({ type: 1 });
-// db.collection('tokenTransactions').createIndex({ source: 1 });
-// db.collection('tokenTransactions').createIndex({ serviceId: 1 });
-// db.collection('tokenTransactions').createIndex({ timestamp: -1 });
+// db.collection('tokentransactions').createIndex({ userId: 1 });
+// db.collection('tokentransactions').createIndex({ category: 1 });
+// db.collection('tokentransactions').createIndex({ status: 1 });
+// db.collection('tokentransactions').createIndex({ type: 1 });
+// db.collection('tokentransactions').createIndex({ source: 1 });
+// db.collection('tokentransactions').createIndex({ serviceId: 1 });
+// db.collection('tokentransactions').createIndex({ timestamp: -1 });
 
 // ============================================================
 // EHI Audit Logs — ONC 21st Century Cures Act (45 CFR Part 171)
@@ -4082,7 +4084,7 @@ console.log("Waitlist entries created: " + (await db.collection('waitlistentries
 // AMBIENT SESSIONS (ACI - Ambient Clinical Intelligence)
 // ═══════════════════════════════════════════════════════════════════════════
 console.log("Creating ambientSessions collection...");
-await db.collection('ambientSessions').insertMany([
+await db.collection('ambientsessions').insertMany([
   { sessionId: 'ACI-001', providerName: 'Dr. John Smith', patientId: 'PT-100001', patientName: 'James Wilson', patientDOB: new Date('1968-03-15'), patientInsurance: 'Blue Cross Blue Shield', chiefComplaint: 'Chest pain', recordingDuration: 210, urgencyClassification: 'urgent', audioTranscript: 'Patient James Wilson, 56-year-old male, presents with intermittent chest pain over the past three days. Pain is described as pressure-like, 6 out of 10, radiating to the left arm. No diaphoresis. No prior cardiac history. EKG performed in office shows no acute changes. Troponin pending. Vitals stable, BP 138/88, HR 84.', clinicalSummary: 'S: 56-year-old male with 3-day history of intermittent pressure-like chest pain, 6/10, radiating to left arm. No diaphoresis or syncope.\nO: BP 138/88, HR 84, RR 16, SpO2 98%. EKG: no acute ST changes. Troponin pending.\nA: Chest pain, etiology unclear — rule out ACS.\nP: Troponin follow-up, cardiology referral pending results.', status: 'draft', createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) },
   { sessionId: 'ACI-002', providerName: 'Dr. Sarah Chen', patientId: 'PT-100003', patientName: 'Thomas Brown', patientDOB: new Date('1975-07-22'), patientInsurance: 'Aetna', chiefComplaint: 'Chronic headaches', recordingDuration: 145, urgencyClassification: 'routine', audioTranscript: 'Patient Thomas Brown, 49-year-old male, reports chronic daily headaches for approximately 4 months. Pain is bifrontal, 5 out of 10, worse in the mornings. No visual aura. No nausea or vomiting. Taking OTC ibuprofen with partial relief. Neurological exam grossly intact. Sleep reported as poor.', clinicalSummary: 'S: 49-year-old male with 4-month history of chronic daily bifrontal headaches, 5/10, worse in mornings. OTC ibuprofen provides partial relief.\nO: Neuro exam intact. BP 124/78. No papilledema.\nA: Chronic daily headache, possible tension-type vs. medication overuse.\nP: Neurology referral for further evaluation.', status: 'draft', createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) },
   { sessionId: 'ACI-003', providerName: 'Dr. John Smith', patientId: 'PT-100002', patientName: 'Emily Rodriguez', patientDOB: new Date('1990-11-05'), patientInsurance: 'UnitedHealth', chiefComplaint: 'Blurred vision', recordingDuration: 185, urgencyClassification: 'urgent', audioTranscript: 'Patient Emily Rodriguez, 34-year-old female, presents with sudden onset blurred vision in the right eye, onset 48 hours ago. Denies pain. No floaters or flashes initially but reports a small shadow in peripheral vision since this morning. History of mild myopia. No prior ocular surgery.', clinicalSummary: 'S: 34-year-old female with 48-hour history of blurred vision right eye and new peripheral shadow. No pain.\nO: Visual acuity 20/200 right, 20/20 left. Fundoscopic exam limited without dilation. Pupils equal and reactive.\nA: Right eye visual disturbance, possible retinal pathology — urgent ophthalmology evaluation required.\nP: Same-day ophthalmology referral.', referralNoteDraft: 'Dear Ophthalmology Colleague,\n\nI am referring Ms. Emily Rodriguez, a 34-year-old female, for urgent evaluation of sudden-onset right eye blurred vision with peripheral shadow of 48-hour duration. Visual acuity is 20/200 OD. Given the acute presentation and concern for possible retinal detachment or other urgent retinal pathology, same-day or next-day evaluation is strongly recommended.\n\nThank you for your prompt attention.\n\nSincerely,\nDr. John Smith', urgencyReason: 'Acute visual loss with peripheral shadow raises concern for retinal detachment requiring same-day ophthalmology evaluation.', icdCodes: ['H53.10', 'H33.009', 'H52.10'], recommendedSpecialty: 'Ophthalmology', status: 'reviewing', createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) },
@@ -4094,7 +4096,7 @@ await db.collection('ambientSessions').insertMany([
   { sessionId: 'ACI-009', providerName: 'Dr. John Smith', patientId: 'PT-100005', patientName: 'David Lee', patientDOB: new Date('1955-01-30'), patientInsurance: 'Medicare', chiefComplaint: 'Hypertension follow-up', recordingDuration: 195, urgencyClassification: 'routine', audioTranscript: 'Patient David Lee follow-up for hypertension. Currently on lisinopril 20mg and amlodipine 10mg. BP today 162/98 despite maximal doses. Has been compliant with medications per refill records.', clinicalSummary: 'S: 70-year-old male with resistant hypertension. BP 162/98 on lisinopril 20mg and amlodipine 10mg at max doses.\nO: BP 162/98 bilateral arms. BMP: Cr 1.3, K 4.2. Echo: LVH.\nA: Resistant hypertension — secondary causes to be excluded.\nP: Nephrology referral.', icdCodes: ['I10', 'I51.7', 'N18.3'], recommendedSpecialty: 'Nephrology', status: 'submitted', reviewedAt: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000) },
   { sessionId: 'ACI-010', providerName: 'Dr. Sarah Chen', patientId: 'PT-100004', patientName: 'Maria Garcia', patientDOB: new Date('1982-09-18'), patientInsurance: 'Cigna', chiefComplaint: 'Knee injury', recordingDuration: 240, urgencyClassification: 'emergent', audioTranscript: 'Patient Maria Garcia presents with acute right knee injury sustained during recreational soccer 4 hours ago. Immediate swelling and inability to bear weight. Positive Lachman test and positive anterior drawer. McMurray test positive medial compartment. Radiograph rules out fracture.', clinicalSummary: 'S: 43-year-old female with acute right knee injury 4 hours ago during soccer. Immediate swelling, unable to bear weight.\nO: Significant knee effusion. Positive Lachman, positive anterior drawer, positive McMurray medial. XR: no fracture.\nA: Suspected ACL tear with concomitant medial meniscus injury.\nP: MRI right knee ordered, orthopedic referral same-day.', icdCodes: ['S83.511A', 'S83.201A', 'M23.200'], recommendedSpecialty: 'Orthopedic Surgery', status: 'submitted', reviewedAt: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000) }
 ]);
-console.log("Ambient sessions created: " + (await db.collection('ambientSessions').countDocuments()));
+console.log("Ambient sessions created: " + (await db.collection('ambientsessions').countDocuments()));
 
 // ═══════════════════════════════════════════════════════════════════════════
 // NOTIFICATION TEMPLATES
@@ -4145,7 +4147,7 @@ console.log("Notification campaigns created: " + (await db.collection('notificat
 // PROVIDER MATCH PROFILES (Referral Matching)
 // ═══════════════════════════════════════════════════════════════════════════
 console.log("Creating providerMatchProfiles collection...");
-await db.collection('providerMatchProfiles').insertMany([
+await db.collection('providermatchprofiles').insertMany([
   { providerId: new ObjectId(), providerName: 'Dr. James Hartwell', specialty: 'Cardiology', acceptedInsurance: ['Blue Cross Blue Shield', 'Medicare', 'Aetna', 'United Healthcare'], city: 'Boston', state: 'MA', acceptanceRate: 0.91, avgResponseTimeDays: 2, totalReferralsReceived: 420, completedReferrals: 382, tokenBalance: 1850, tokenEarned: 3200, availabilityScore: 88, yearsInPractice: 18, telehealth: false },
   { providerId: new ObjectId(), providerName: 'Dr. Sandra Okafor', specialty: 'Cardiology', acceptedInsurance: ['Cigna', 'Humana', 'Anthem', 'Medicare', 'Medicaid'], city: 'Atlanta', state: 'GA', acceptanceRate: 0.85, avgResponseTimeDays: 3, totalReferralsReceived: 310, completedReferrals: 264, tokenBalance: 1100, tokenEarned: 2400, availabilityScore: 75, yearsInPractice: 12, telehealth: true },
   { providerId: new ObjectId(), providerName: 'Dr. Michael Reyes', specialty: 'Cardiology', acceptedInsurance: ['United Healthcare', 'Blue Cross Blue Shield', 'WellCare', 'Kaiser Permanente'], city: 'Houston', state: 'TX', acceptanceRate: 0.94, avgResponseTimeDays: 1, totalReferralsReceived: 490, completedReferrals: 461, tokenBalance: 2450, tokenEarned: 4900, availabilityScore: 93, yearsInPractice: 22, telehealth: false },
@@ -4167,7 +4169,7 @@ await db.collection('providerMatchProfiles').insertMany([
   { providerId: new ObjectId(), providerName: 'Dr. Gregory Wallace', specialty: 'ENT', acceptedInsurance: ['Anthem', 'United Healthcare', 'Medicare', 'Blue Cross Blue Shield'], city: 'Dallas', state: 'TX', acceptanceRate: 0.82, avgResponseTimeDays: 3, totalReferralsReceived: 220, completedReferrals: 180, tokenBalance: 880, tokenEarned: 1800, availabilityScore: 74, yearsInPractice: 10, telehealth: false },
   { providerId: new ObjectId(), providerName: 'Dr. Amara Osei', specialty: 'Psychiatry', acceptedInsurance: ['Medicaid', 'Medicare', 'Cigna', 'Aetna', 'WellCare'], city: 'Phoenix', state: 'AZ', acceptanceRate: 0.79, avgResponseTimeDays: 4, totalReferralsReceived: 290, completedReferrals: 229, tokenBalance: 1030, tokenEarned: 2300, availabilityScore: 71, yearsInPractice: 12, telehealth: true }
 ]);
-console.log("Provider match profiles created: " + (await db.collection('providerMatchProfiles').countDocuments()));
+console.log("Provider match profiles created: " + (await db.collection('providermatchprofiles').countDocuments()));
 
 // ═══════════════════════════════════════════════════════════════════════════
 // PRIOR AUTHORIZATIONS (John Smith — user-2, Cardiology)
@@ -4670,7 +4672,7 @@ console.log("DTx prescriptions created: " + (await db.collection('dtxprescriptio
 
   // Load provider users created above
   const _provUsers = await db.collection('users').find(
-    { role: { $in: ['doctor','clinic','hospital','lab','provider','nurse'] } },
+    { role: { $in: ['doctor','clinic','hospital','lab','provider','nurse'] }, isActive: true, accountStatus: 'approved' },
     { projection: { _id: 1, name: 1, specialty: 1 } }
   ).toArray();
 

@@ -793,6 +793,30 @@ router.get('/admin/users', protect, authorize('admin', 'superadmin'), (req, res)
   res.status(200).json({ success: true, count: users.length, data: users });
 });
 
+const PROVIDER_ROLES = ['doctor', 'clinic', 'hospital', 'lab', 'provider'];
+
+// GET /api/providers — provider list for referral creation dropdown
+router.get('/providers', protect, (req, res) => {
+  const { specialty, search } = req.query;
+  let providers = store.users.findAll()
+    .filter((u) => PROVIDER_ROLES.includes(u.role))
+    .map(({ password: _pw, ...u }) => u);
+
+  if (specialty) {
+    providers = providers.filter((u) => (u.specialty || '').toLowerCase().includes(specialty.toLowerCase()));
+  }
+  if (search) {
+    const s = search.toLowerCase();
+    providers = providers.filter((u) =>
+      (u.name || '').toLowerCase().includes(s) ||
+      (u.specialty || '').toLowerCase().includes(s) ||
+      (u.organization || '').toLowerCase().includes(s)
+    );
+  }
+
+  res.status(200).json({ success: true, data: providers });
+});
+
 router.get('/admin/providers', protect, authorize('admin', 'superadmin'), (req, res) => {
   const providers = store.users.findAll()
     .filter((u) => !['admin', 'superadmin'].includes(u.role))

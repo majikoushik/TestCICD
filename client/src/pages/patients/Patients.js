@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useCallback, memo } from 'react';
+import React, { useEffect, useMemo, useCallback, memo, useState } from 'react';
+import { get } from '../../utils/apiUtils';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -68,6 +69,20 @@ function Patients() {
   const [filterMenuAnchorEl, setFilterMenuAnchorEl] = React.useState(null);
   const [actionMenuAnchorEl, setActionMenuAnchorEl] = React.useState(null);
   const [selectedPatient, setSelectedPatient] = React.useState(null);
+
+  // Live analytics stats for the top summary bar
+  const [analytics, setAnalytics] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setAnalyticsLoading(true);
+    get('/analytics/patient-summary')
+      .then(json => { if (!cancelled && json.success) setAnalytics(json.data); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setAnalyticsLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
   
   // Memoized derived values from Redux state
   const filteredPatients = useMemo(() => patients, [patients]);
@@ -265,95 +280,87 @@ function Patients() {
           {error}
         </Alert>
       )}
-      
-      <Typography variant="h4" component="h1" gutterBottom sx={{ mb: 3 }}>
+
+      <Typography variant="h4" component="h1" gutterBottom sx={{ mb: 1 }}>
         Patients
       </Typography>
+
+      <Alert
+        severity="info"
+        icon={<PersonIcon fontSize="inherit" />}
+        sx={{ mb: 3, borderRadius: 2 }}
+      >
+        Showing patients in your care — your registered patients and patients referred to you.
+        {totalPatients > 0 && ` (${totalPatients} total)`}
+      </Alert>
       
-      {/* Business Insights Section */}
+      {/* Live Analytics Summary */}
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Grid container spacing={3}>
-          {/* Patient Engagement Metric */}
-          <Grid item xs={12} md={4}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Box sx={{ 
-                bgcolor: 'success.light', 
-                color: 'success.dark',
-                p: 1.5,
-                borderRadius: 2,
-                mr: 2,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <TimelineIcon fontSize="medium" />
-              </Box>
-              <Box>
-                <Typography variant="h6" component="div" sx={{ fontWeight: 'medium', display: 'flex', alignItems: 'center' }}>
-                  <TrendingUpIcon sx={{ color: 'success.main', mr: 0.5, fontSize: '0.9em' }} />
-                  +28% patient engagement
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Higher app usage and follow-ups
-                </Typography>
-              </Box>
-            </Box>
+        {analyticsLoading ? (
+          <Grid container spacing={3}>
+            {[0, 1, 2].map(i => (
+              <Grid item xs={12} md={4} key={i}>
+                <Skeleton variant="rectangular" height={56} sx={{ borderRadius: 2 }} />
+              </Grid>
+            ))}
           </Grid>
-          
-          {/* Treatment Adherence */}
-          <Grid item xs={12} md={4}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Box sx={{ 
-                bgcolor: 'info.light', 
-                color: 'info.dark',
-                p: 1.5,
-                borderRadius: 2,
-                mr: 2,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <CheckCircleIcon fontSize="medium" />
+        ) : (
+          <Grid container spacing={3}>
+            {/* Patient Engagement */}
+            <Grid item xs={12} md={4}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Box sx={{ bgcolor: 'success.light', color: 'success.dark', p: 1.5, borderRadius: 2, mr: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <TimelineIcon fontSize="medium" />
+                </Box>
+                <Box>
+                  <Typography variant="h6" component="div" sx={{ fontWeight: 'medium', display: 'flex', alignItems: 'center' }}>
+                    <TrendingUpIcon sx={{ color: 'success.main', mr: 0.5, fontSize: '0.9em' }} />
+                    {analytics ? `${analytics.patientEngagement.value}% patient engagement` : 'No data yet'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {analytics ? analytics.patientEngagement.label : 'Run analytics job from admin panel'}
+                  </Typography>
+                </Box>
               </Box>
-              <Box>
-                <Typography variant="h6" component="div" sx={{ fontWeight: 'medium', display: 'flex', alignItems: 'center' }}>
-                  <TrendingUpIcon sx={{ color: 'info.main', mr: 0.5, fontSize: '0.9em' }} />
-                  +45% treatment adherence
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Improved medication compliance
-                </Typography>
+            </Grid>
+
+            {/* Treatment Adherence */}
+            <Grid item xs={12} md={4}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Box sx={{ bgcolor: 'info.light', color: 'info.dark', p: 1.5, borderRadius: 2, mr: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <CheckCircleIcon fontSize="medium" />
+                </Box>
+                <Box>
+                  <Typography variant="h6" component="div" sx={{ fontWeight: 'medium', display: 'flex', alignItems: 'center' }}>
+                    <TrendingUpIcon sx={{ color: 'info.main', mr: 0.5, fontSize: '0.9em' }} />
+                    {analytics ? `${analytics.treatmentAdherence.value}% treatment adherence` : 'No data yet'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {analytics ? analytics.treatmentAdherence.label : 'Run analytics job from admin panel'}
+                  </Typography>
+                </Box>
               </Box>
-            </Box>
+            </Grid>
+
+            {/* Missed Appointments */}
+            <Grid item xs={12} md={4}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Box sx={{ bgcolor: 'primary.light', color: 'primary.dark', p: 1.5, borderRadius: 2, mr: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <AccessTimeIcon fontSize="medium" />
+                </Box>
+                <Box>
+                  <Typography variant="h6" component="div" sx={{ fontWeight: 'medium', display: 'flex', alignItems: 'center' }}>
+                    <TrendingUpIcon sx={{ color: 'primary.main', mr: 0.5, fontSize: '0.9em' }} />
+                    {analytics ? `${analytics.missedAppointments.value} missed follow-ups` : 'No data yet'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {analytics ? analytics.missedAppointments.label : 'Run analytics job from admin panel'}
+                  </Typography>
+                </Box>
+              </Box>
+            </Grid>
           </Grid>
-          
-          {/* Appointment Attendance */}
-          <Grid item xs={12} md={4}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Box sx={{ 
-                bgcolor: 'primary.light', 
-                color: 'primary.dark',
-                p: 1.5,
-                borderRadius: 2,
-                mr: 2,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <AccessTimeIcon fontSize="medium" />
-              </Box>
-              <Box>
-                <Typography variant="h6" component="div" sx={{ fontWeight: 'medium', display: 'flex', alignItems: 'center' }}>
-                  <TrendingUpIcon sx={{ color: 'primary.main', mr: 0.5, fontSize: '0.9em' }} />
-                  -32% missed appointments
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Better scheduling and reminders
-                </Typography>
-              </Box>
-            </Box>
-          </Grid>
-        </Grid>
+        )}
       </Paper>
       
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>

@@ -1,888 +1,493 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Container,
-  Typography,
-  Box,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TablePagination,
-  Alert,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  IconButton,
-  Chip,
-  Tabs,
-  Tab,
-  Grid,
-  Card,
-  CardContent,
-  LinearProgress,
-  Tooltip,
-  Switch,
-  FormControlLabel
+  Container, Typography, Box, Paper, Table, TableBody, TableCell,
+  TableContainer, TableHead, TableRow, TablePagination, Alert, Button,
+  Dialog, DialogTitle, DialogContent, DialogActions, TextField,
+  IconButton, Chip, Tabs, Tab, Grid, Card, CardContent,
+  LinearProgress, Tooltip, Switch, FormControlLabel, Select,
+  MenuItem, InputLabel, FormControl, Stack, Divider, CircularProgress,
 } from '@mui/material';
 import {
-  Search as SearchIcon,
-  Flag as FlagIcon,
-  Visibility as VisibilityIcon,
-  History as HistoryIcon,
-  GetApp as DownloadIcon,
-  VerifiedUser as VerifiedUserIcon,
-  Warning as WarningIcon
+  Search as SearchIcon, Flag as FlagIcon, Visibility as VisibilityIcon,
+  History as HistoryIcon, GetApp as DownloadIcon,
+  VerifiedUser as VerifiedUserIcon, Warning as WarningIcon,
+  Person as PersonIcon, LocalHospital as HospitalIcon,
+  Security as LockIcon,
 } from '@mui/icons-material';
-import { adminMockData } from '../../services/mockData';
+import { getAdminPatients, getAdminPatientById } from '../../services/adminPatientsService';
 import { ModernLoadingIndicator } from '../../components/common';
 
-// Tab Panel Component
-function TabPanel(props) {
-  const { children, value, index, ...other } = props;
+// ── helpers ───────────────────────────────────────────────────────────────────
 
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`patient-tabpanel-${index}`}
-      aria-labelledby={`patient-tab-${index}`}
-      {...other}
-    >
-      {value === index && (
-        <Box sx={{ p: 3 }}>
-          {children}
-        </Box>
-      )}
-    </div>
-  );
+function calcAge(dob) {
+  if (!dob) return '—';
+  const d = new Date(dob);
+  if (isNaN(d)) return '—';
+  const today = new Date();
+  let age = today.getFullYear() - d.getFullYear();
+  const m = today.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age--;
+  return age;
 }
 
-const AdminPatientRecords = () => {
-  const [patientRecords, setPatientRecords] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filteredRecords, setFilteredRecords] = useState([]);
-  const [tabValue, setTabValue] = useState(0);
-  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
-  const [currentRecord, setCurrentRecord] = useState(null);
-  const [modificationHistoryOpen, setModificationHistoryOpen] = useState(false);
-  const [recordModifications, setRecordModifications] = useState([]);
-  const [consentDialogOpen, setConsentDialogOpen] = useState(false);
-  const [consentLogs, setConsentLogs] = useState([]);
-  const [flagDialogOpen, setFlagDialogOpen] = useState(false);
-  const [flagReason, setFlagReason] = useState('');
-  const [deIdentified, setDeIdentified] = useState(true);
+function calcCompleteness(p) {
+  const checks = [
+    !!p.name, !!p.dateOfBirth, !!p.gender,
+    !!p.contactInfo?.email, !!p.contactInfo?.phone, !!p.contactInfo?.address,
+    !!p.insuranceInfo?.provider,
+    Array.isArray(p.medicalHistory) && p.medicalHistory.length > 0,
+    Array.isArray(p.medications) && p.medications.length > 0,
+    Array.isArray(p.allergies) && p.allergies.length > 0,
+  ];
+  return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+}
 
-  useEffect(() => {
-    const fetchPatientRecords = async () => {
-      try {
-        setLoading(true);
-        
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Use mock data directly
-        const mockRecords = adminMockData.patientRecords;
-        setPatientRecords(mockRecords);
-        setFilteredRecords(mockRecords);
-        setLoading(false);
-      } catch (err) {
-        console.error('Error fetching patient records:', err);
-        setError('Failed to load patient records. Please try again later.');
-        setLoading(false);
-      }
-    };
+function riskToStatus(score) {
+  if (score >= 70) return 'Critical';
+  if (score >= 30) return 'Stable';
+  return 'Active';
+}
 
-    fetchPatientRecords();
-  }, []);
+function statusColor(status) {
+  if (status === 'Critical') return 'error';
+  if (status === 'Stable')   return 'info';
+  return 'success';
+}
 
-  useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredRecords(patientRecords);
-    } else {
-      const query = searchQuery.toLowerCase();
-      const filtered = patientRecords.filter(record => 
-        record.patientId?.toLowerCase().includes(query) || 
-        record.condition?.toLowerCase().includes(query) ||
-        record.status?.toLowerCase().includes(query) ||
-        record.provider?.toLowerCase().includes(query)
-      );
-      setFilteredRecords(filtered);
-    }
-  }, [searchQuery, patientRecords]);
+function hasActiveConsent(consentRecords) {
+  if (!Array.isArray(consentRecords) || consentRecords.length === 0) return false;
+  return consentRecords.some(r => !r.expiryDate || new Date(r.expiryDate) > new Date());
+}
 
-  const handleTabChange = (event, newValue) => {
-    setTabValue(newValue);
+function formatDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Map real patient data → display record for the table
+function toRecord(p) {
+  return {
+    id: p._id,
+    patientId: p.patientId,
+    name: p.name,
+    age: calcAge(p.dateOfBirth),
+    gender: p.gender,
+    condition: p.medicalHistory?.[0]?.condition || '—',
+    status: riskToStatus(p.riskScore || 0),
+    lastVisit: p.recentVisits?.[0]?.date || null,
+    completeness: calcCompleteness(p),
+    consentVerified: hasActiveConsent(p.consentRecords),
+    riskScore: p.riskScore || 0,
+    primaryProvider: p.primaryProviderInfo?.name || p.primaryProvider || '—',
+    organization: p.primaryProviderInfo?.organization || '—',
+    // keep raw for detail view
+    _raw: p,
   };
+}
 
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
-  };
+// TabPanel
+function TabPanel({ children, value, index }) {
+  return value === index ? <Box sx={{ pt: 2 }}>{children}</Box> : null;
+}
 
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
+// ── Main component ────────────────────────────────────────────────────────────
 
-  const handleViewDetails = (record) => {
-    setCurrentRecord(record);
-    setDetailDialogOpen(true);
-  };
+export default function AdminPatientRecords() {
+  const [records, setRecords]             = useState([]);
+  const [total, setTotal]                 = useState(0);
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState(null);
 
-  const handleViewModificationHistory = async (record) => {
+  // Pagination & filters
+  const [page, setPage]                   = useState(0);
+  const [rowsPerPage, setRowsPerPage]     = useState(10);
+  const [search, setSearch]               = useState('');
+  const [riskFilter, setRiskFilter]       = useState('');
+  const [tabValue, setTabValue]           = useState(0);
+  const [deIdentified, setDeIdentified]   = useState(true);
+
+  // Dialogs
+  const [detailOpen, setDetailOpen]       = useState(false);
+  const [detailRecord, setDetailRecord]   = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [flagOpen, setFlagOpen]           = useState(false);
+  const [flagTarget, setFlagTarget]       = useState(null);
+  const [flagReason, setFlagReason]       = useState('');
+  // Client-side flag state (no API backing yet)
+  const [flagged, setFlagged]             = useState({});
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Filter modifications for this patient
-      const modifications = adminMockData.recordModifications.filter(
-        mod => mod.patientRecordId === record.id
-      );
-      
-      setRecordModifications(modifications);
-      setCurrentRecord(record);
-      setModificationHistoryOpen(true);
-    } catch (err) {
-      console.error('Error fetching modification history:', err);
-    }
-  };
-
-  const handleVerifyConsent = async (record) => {
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Filter consent logs for this patient
-      const consents = adminMockData.consentLogs.filter(
-        consent => consent.patientRecordId === record.id
-      );
-      
-      setConsentLogs(consents);
-      setCurrentRecord(record);
-      setConsentDialogOpen(true);
-    } catch (err) {
-      console.error('Error fetching consent logs:', err);
-    }
-  };
-
-  const handleFlagRecord = (record) => {
-    setCurrentRecord(record);
-    setFlagReason(record.flagReason || '');
-    setFlagDialogOpen(true);
-  };
-
-  const handleSubmitFlag = async () => {
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Update the record in state
-      const updatedRecords = patientRecords.map(record => {
-        if (record.id === currentRecord.id) {
-          return {
-            ...record,
-            flagged: true,
-            flagReason: flagReason
-          };
-        }
-        return record;
+      const res = await getAdminPatients({
+        page,
+        limit: rowsPerPage,
+        search,
+        riskLevel: riskFilter,
       });
-      
-      setPatientRecords(updatedRecords);
-      setFlagDialogOpen(false);
+      const payload = res?.data || res || {};
+      setRecords((payload.patients || []).map(toRecord));
+      setTotal(payload.total || 0);
     } catch (err) {
-      console.error('Error flagging record:', err);
+      setError(err.message || 'Failed to load patient records');
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [page, rowsPerPage, search, riskFilter]);
 
-  const handleRemoveFlag = async (record) => {
+  useEffect(() => { load(); }, [load]);
+
+  // Debounce search
+  const [searchInput, setSearchInput] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput), 400);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  const openDetail = async (record) => {
+    setDetailOpen(true);
+    setDetailRecord(record);
+    setDetailLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Update the record in state
-      const updatedRecords = patientRecords.map(r => {
-        if (r.id === record.id) {
-          return {
-            ...r,
-            flagged: false,
-            flagReason: null
-          };
-        }
-        return r;
-      });
-      
-      setPatientRecords(updatedRecords);
-    } catch (err) {
-      console.error('Error removing flag:', err);
+      const res = await getAdminPatientById(record.patientId);
+      const full = res?.data || res;
+      setDetailRecord(toRecord(full));
+    } catch (_) { /* keep existing record */ }
+    finally { setDetailLoading(false); }
+  };
+
+  const tabFilter = (rows) => {
+    switch (tabValue) {
+      case 1: return rows.filter(r => flagged[r.id]);
+      case 2: return rows.filter(r => r.completeness < 90);
+      case 3: return rows.filter(r => !r.consentVerified);
+      default: return rows;
     }
   };
 
-  const handleExportData = () => {
-    // Create anonymized data for export
-    const anonymizedData = patientRecords.map(record => {
-      return {
-        patientId: record.patientId,
-        age: record.age,
-        gender: record.gender,
-        condition: record.condition,
-        status: record.status,
-        lastVisit: record.lastVisit,
-        consentVerified: record.consentVerified
-      };
-    });
-    
-    // Create a blob and download
-    const dataStr = JSON.stringify(anonymizedData, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
+  const displayRows = tabFilter(records);
+
+  const maskId = (id) => deIdentified
+    ? `${id.substring(0, 3)}***${id.slice(-2)}`
+    : id;
+
+  const handleExport = () => {
+    const data = records.map(r => ({
+      patientId: r.patientId, age: r.age, gender: r.gender,
+      condition: r.condition, status: r.status, lastVisit: r.lastVisit,
+      completeness: r.completeness, consentVerified: r.consentVerified,
+    }));
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `anonymized_patient_data_${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Active':
-        return 'success';
-      case 'Critical':
-        return 'error';
-      case 'Stable':
-        return 'info';
-      case 'Improving':
-        return 'primary';
-      default:
-        return 'default';
-    }
-  };
-
-  const getFilteredRecordsByTab = (tabIndex) => {
-    switch (tabIndex) {
-      case 0: // All Records
-        return filteredRecords;
-      case 1: // Flagged Records
-        return filteredRecords.filter(record => record.flagged);
-      case 2: // Incomplete Records
-        return filteredRecords.filter(record => record.completeness < 90);
-      case 3: // Missing Consent
-        return filteredRecords.filter(record => !record.consentVerified);
-      default:
-        return filteredRecords;
-    }
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString();
-  };
-
-  // De-identify patient data if needed
-  const getPatientId = (record) => {
-    return deIdentified ? `${record.patientId.substring(0, 3)}***${record.patientId.substring(record.patientId.length - 2)}` : record.patientId;
-  };
-
-  const renderPatientRecordsTable = (tabIndex) => {
-    const displayRecords = getFilteredRecordsByTab(tabIndex);
-    
-    return (
-      <TableContainer component={Paper}>
-        <Table size="medium">
-          <TableHead>
-            <TableRow>
-              <TableCell>Patient ID</TableCell>
-              <TableCell>Age</TableCell>
-              <TableCell>Gender</TableCell>
-              <TableCell>Condition</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Last Visit</TableCell>
-              <TableCell>Completeness</TableCell>
-              <TableCell>Consent</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {displayRecords
-              .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-              .map((record) => (
-                <TableRow key={record.id}>
-                  <TableCell>{getPatientId(record)}</TableCell>
-                  <TableCell>{record.age}</TableCell>
-                  <TableCell>{record.gender}</TableCell>
-                  <TableCell>{record.condition}</TableCell>
-                  <TableCell>
-                    <Chip 
-                      label={record.status} 
-                      color={getStatusColor(record.status)}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>{formatDate(record.lastVisit)}</TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Box sx={{ width: '100%', mr: 1 }}>
-                        <LinearProgress 
-                          variant="determinate" 
-                          value={record.completeness} 
-                          color={record.completeness < 80 ? "warning" : "success"}
-                        />
-                      </Box>
-                      <Box sx={{ minWidth: 35 }}>
-                        <Typography variant="body2" color="text.secondary">
-                          {`${record.completeness}%`}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    {record.consentVerified ? (
-                      <Tooltip title="Consent verified on blockchain">
-                        <Chip 
-                          icon={<VerifiedUserIcon />} 
-                          label="Verified" 
-                          color="success" 
-                          size="small"
-                        />
-                      </Tooltip>
-                    ) : (
-                      <Tooltip title="Consent not verified">
-                        <Chip 
-                          icon={<WarningIcon />} 
-                          label="Missing" 
-                          color="error" 
-                          size="small"
-                        />
-                      </Tooltip>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <IconButton 
-                      size="small" 
-                      color="primary"
-                      onClick={() => handleViewDetails(record)}
-                    >
-                      <VisibilityIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton 
-                      size="small" 
-                      color="primary"
-                      onClick={() => handleViewModificationHistory(record)}
-                    >
-                      <HistoryIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton 
-                      size="small" 
-                      color="primary"
-                      onClick={() => handleVerifyConsent(record)}
-                    >
-                      <VerifiedUserIcon fontSize="small" />
-                    </IconButton>
-                    {record.flagged ? (
-                      <IconButton 
-                        size="small" 
-                        color="error"
-                        onClick={() => handleRemoveFlag(record)}
-                      >
-                        <FlagIcon fontSize="small" />
-                      </IconButton>
-                    ) : (
-                      <IconButton 
-                        size="small" 
-                        color="default"
-                        onClick={() => handleFlagRecord(record)}
-                      >
-                        <FlagIcon fontSize="small" />
-                      </IconButton>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            
-            {displayRecords.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={9} align="center">
-                  No patient records found
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    );
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `patient_records_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
   };
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Patient Records Oversight
-        </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <TextField
-            size="small"
-            label="Search Records"
-            variant="outlined"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            sx={{ mr: 2 }}
-            InputProps={{
-              endAdornment: <SearchIcon color="action" />
-            }}
-          />
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+        <Box>
+          <Typography variant="h4" fontWeight={700} gutterBottom>Patient Records Oversight</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Full access — all patients across all providers. Access is audit-logged.
+          </Typography>
+        </Box>
+        <Stack direction="row" spacing={1} alignItems="center">
           <FormControlLabel
-            control={
-              <Switch
-                checked={deIdentified}
-                onChange={(e) => setDeIdentified(e.target.checked)}
-                color="primary"
-              />
-            }
-            label="De-identified"
+            control={<Switch checked={deIdentified} onChange={e => setDeIdentified(e.target.checked)} size="small" />}
+            label={<Typography variant="caption">De-identified</Typography>}
           />
-          <Button
-            variant="contained"
-            startIcon={<DownloadIcon />}
-            onClick={handleExportData}
-            sx={{ ml: 2 }}
-          >
-            Export Data
+          <Button variant="contained" startIcon={<DownloadIcon />} onClick={handleExport} size="small">
+            Export
           </Button>
-        </Box>
+        </Stack>
       </Box>
-      
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
-      )}
-      
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-           <ModernLoadingIndicator message="Loading alerts..." />
-        </Box>
-      ) : (
-        <>
-          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-            <Tabs value={tabValue} onChange={handleTabChange} aria-label="patient records tabs">
-              <Tab label="All Records" />
-              <Tab label="Flagged Records" />
-              <Tab label="Incomplete Records" />
-              <Tab label="Missing Consent" />
-            </Tabs>
-          </Box>
-          
-          <TabPanel value={tabValue} index={0}>
-            {renderPatientRecordsTable(0)}
-          </TabPanel>
-          <TabPanel value={tabValue} index={1}>
-            {renderPatientRecordsTable(1)}
-          </TabPanel>
-          <TabPanel value={tabValue} index={2}>
-            {renderPatientRecordsTable(2)}
-          </TabPanel>
-          <TabPanel value={tabValue} index={3}>
-            {renderPatientRecordsTable(3)}
-          </TabPanel>
-          
-          <TablePagination
-            rowsPerPageOptions={[5, 10, 25, 50]}
-            component="div"
-            count={getFilteredRecordsByTab(tabValue).length}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onPageChange={handleChangePage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
+
+      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
+
+      {/* Filters */}
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Stack direction="row" spacing={2} alignItems="center">
+          <TextField
+            size="small" label="Search patients" variant="outlined" sx={{ flex: 1 }}
+            value={searchInput}
+            onChange={e => { setSearchInput(e.target.value); setPage(0); }}
+            InputProps={{ endAdornment: <SearchIcon color="action" fontSize="small" /> }}
           />
-        </>
-      )}
-      
-      {/* Patient Record Details Dialog */}
-      <Dialog 
-        open={detailDialogOpen} 
-        onClose={() => setDetailDialogOpen(false)}
-        fullWidth
-        maxWidth="md"
-      >
-        <DialogTitle>
-          Patient Record Details
+          <FormControl size="small" sx={{ minWidth: 140 }}>
+            <InputLabel>Risk Level</InputLabel>
+            <Select value={riskFilter} label="Risk Level" onChange={e => { setRiskFilter(e.target.value); setPage(0); }}>
+              <MenuItem value="">All</MenuItem>
+              <MenuItem value="high">High (≥70)</MenuItem>
+              <MenuItem value="medium">Medium (30–69)</MenuItem>
+              <MenuItem value="low">Low (&lt;30)</MenuItem>
+            </Select>
+          </FormControl>
+          <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+            {total} total
+          </Typography>
+        </Stack>
+      </Paper>
+
+      {/* Tabs + Table */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 0 }}>
+        <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
+          <Tab label="All Records" />
+          <Tab label={`Flagged${Object.keys(flagged).length ? ` (${Object.keys(flagged).length})` : ''}`} />
+          <Tab label="Incomplete" />
+          <Tab label="Missing Consent" />
+        </Tabs>
+      </Box>
+
+      {[0, 1, 2, 3].map(idx => (
+        <TabPanel key={idx} value={tabValue} index={idx}>
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+              <ModernLoadingIndicator message="Loading patient records…" />
+            </Box>
+          ) : (
+            <TableContainer component={Paper} variant="outlined">
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Patient ID</TableCell>
+                    <TableCell>Name</TableCell>
+                    <TableCell>Age</TableCell>
+                    <TableCell>Gender</TableCell>
+                    <TableCell>Primary Condition</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Last Visit</TableCell>
+                    <TableCell>Provider</TableCell>
+                    <TableCell>Completeness</TableCell>
+                    <TableCell>Consent</TableCell>
+                    <TableCell>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {displayRows.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={11} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                        No patient records found
+                      </TableCell>
+                    </TableRow>
+                  ) : displayRows.map(record => (
+                    <TableRow key={record.id} hover>
+                      <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
+                        {maskId(record.patientId)}
+                      </TableCell>
+                      <TableCell>
+                        {deIdentified ? '— hidden —' : record.name}
+                      </TableCell>
+                      <TableCell>{record.age}</TableCell>
+                      <TableCell sx={{ textTransform: 'capitalize' }}>{record.gender}</TableCell>
+                      <TableCell>{record.condition}</TableCell>
+                      <TableCell>
+                        <Chip label={record.status} color={statusColor(record.status)} size="small" />
+                      </TableCell>
+                      <TableCell>{formatDate(record.lastVisit)}</TableCell>
+                      <TableCell>
+                        <Typography variant="caption">{record.primaryProvider}</Typography>
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 120 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <LinearProgress
+                            variant="determinate"
+                            value={record.completeness}
+                            color={record.completeness < 80 ? 'warning' : 'success'}
+                            sx={{ flex: 1, height: 6, borderRadius: 3 }}
+                          />
+                          <Typography variant="caption">{record.completeness}%</Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        {record.consentVerified ? (
+                          <Tooltip title="Has active consent record">
+                            <Chip icon={<VerifiedUserIcon />} label="Active" color="success" size="small" />
+                          </Tooltip>
+                        ) : (
+                          <Tooltip title="No active consent record">
+                            <Chip icon={<WarningIcon />} label="None" color="error" size="small" />
+                          </Tooltip>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Tooltip title="View details">
+                          <IconButton size="small" color="primary" onClick={() => openDetail(record)}>
+                            <VisibilityIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title={flagged[record.id] ? 'Remove flag' : 'Flag record'}>
+                          <IconButton
+                            size="small"
+                            color={flagged[record.id] ? 'error' : 'default'}
+                            onClick={() => {
+                              if (flagged[record.id]) {
+                                setFlagged(f => { const n = { ...f }; delete n[record.id]; return n; });
+                              } else {
+                                setFlagTarget(record);
+                                setFlagReason('');
+                                setFlagOpen(true);
+                              }
+                            }}
+                          >
+                            <FlagIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </TabPanel>
+      ))}
+
+      <TablePagination
+        rowsPerPageOptions={[10, 25, 50]}
+        component="div"
+        count={total}
+        rowsPerPage={rowsPerPage}
+        page={page}
+        onPageChange={(_, p) => setPage(p)}
+        onRowsPerPageChange={e => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+      />
+
+      {/* Detail Dialog */}
+      <Dialog open={detailOpen} onClose={() => setDetailOpen(false)} fullWidth maxWidth="md">
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <PersonIcon color="primary" />
+          Patient Record — {detailRecord?.patientId}
+          {detailLoading && <CircularProgress size={18} sx={{ ml: 1 }} />}
         </DialogTitle>
-        
-        <DialogContent>
-          {currentRecord && (
-            <Grid container spacing={3} sx={{ mt: 1 }}>
+        <DialogContent dividers>
+          {detailRecord && (
+            <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
                 <Card variant="outlined">
                   <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Basic Information
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Patient ID:</strong> {deIdentified ? getPatientId(currentRecord) : currentRecord.patientId}
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Age:</strong> {currentRecord.age}
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Gender:</strong> {currentRecord.gender}
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Blood Type:</strong> {currentRecord.bloodType}
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Condition:</strong> {currentRecord.condition}
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Status:</strong> {' '}
-                      <Chip 
-                        label={currentRecord.status} 
-                        color={getStatusColor(currentRecord.status)}
-                        size="small"
-                      />
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Last Visit:</strong> {formatDate(currentRecord.lastVisit)}
-                    </Typography>
+                    <Typography variant="subtitle1" fontWeight={700} gutterBottom>Demographics</Typography>
+                    <Divider sx={{ mb: 1 }} />
+                    {[
+                      ['Name', deIdentified ? '— hidden —' : detailRecord._raw?.name],
+                      ['Age', detailRecord.age],
+                      ['Gender', detailRecord.gender],
+                      ['DOB', formatDate(detailRecord._raw?.dateOfBirth)],
+                      ['Email', deIdentified ? '— hidden —' : detailRecord._raw?.contactInfo?.email],
+                      ['Phone', deIdentified ? '— hidden —' : detailRecord._raw?.contactInfo?.phone],
+                      ['Address', deIdentified ? '— hidden —' : detailRecord._raw?.contactInfo?.address],
+                    ].map(([k, v]) => (
+                      <Box key={k} sx={{ display: 'flex', gap: 1, mb: 0.5 }}>
+                        <Typography variant="body2" fontWeight={600} sx={{ minWidth: 80 }}>{k}:</Typography>
+                        <Typography variant="body2" color="text.secondary">{v || '—'}</Typography>
+                      </Box>
+                    ))}
                   </CardContent>
                 </Card>
               </Grid>
-              
               <Grid item xs={12} md={6}>
                 <Card variant="outlined">
                   <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Record Information
+                    <Typography variant="subtitle1" fontWeight={700} gutterBottom>
+                      <HospitalIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'middle' }} />
+                      Provider & Insurance
                     </Typography>
-                    <Typography variant="body2">
-                      <strong>Provider:</strong> {currentRecord.provider}
+                    <Divider sx={{ mb: 1 }} />
+                    {[
+                      ['Provider', detailRecord.primaryProvider],
+                      ['Organization', detailRecord.organization],
+                      ['Insurance', detailRecord._raw?.insuranceInfo?.provider],
+                      ['Policy #', detailRecord._raw?.insuranceInfo?.policyNumber],
+                      ['Risk Score', detailRecord.riskScore],
+                      ['Status', detailRecord.status],
+                    ].map(([k, v]) => (
+                      <Box key={k} sx={{ display: 'flex', gap: 1, mb: 0.5 }}>
+                        <Typography variant="body2" fontWeight={600} sx={{ minWidth: 100 }}>{k}:</Typography>
+                        <Typography variant="body2" color="text.secondary">{v || '—'}</Typography>
+                      </Box>
+                    ))}
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Card variant="outlined">
+                  <CardContent>
+                    <Typography variant="subtitle1" fontWeight={700} gutterBottom>Medical History</Typography>
+                    <Divider sx={{ mb: 1 }} />
+                    {detailRecord._raw?.medicalHistory?.length ? detailRecord._raw.medicalHistory.map((h, i) => (
+                      <Box key={i} sx={{ mb: 1 }}>
+                        <Typography variant="body2" fontWeight={600}>{h.condition}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Diagnosed: {formatDate(h.diagnosedDate)} — {h.notes}
+                        </Typography>
+                      </Box>
+                    )) : <Typography variant="body2" color="text.secondary">None recorded</Typography>}
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Card variant="outlined">
+                  <CardContent>
+                    <Typography variant="subtitle1" fontWeight={700} gutterBottom>
+                      <LockIcon fontSize="small" sx={{ mr: 0.5, verticalAlign: 'middle' }} />
+                      Consent Records
                     </Typography>
-                    <Typography variant="body2">
-                      <strong>Completeness:</strong>
-                      <Box sx={{ display: 'flex', alignItems: 'center', mt: 1, mb: 1 }}>
-                        <Box sx={{ width: '100%', mr: 1 }}>
-                          <LinearProgress 
-                            variant="determinate" 
-                            value={currentRecord.completeness} 
-                            color={currentRecord.completeness < 80 ? "warning" : "success"}
-                          />
-                        </Box>
-                        <Box sx={{ minWidth: 35 }}>
-                          <Typography variant="body2" color="text.secondary">
-                            {`${currentRecord.completeness}%`}
+                    <Divider sx={{ mb: 1 }} />
+                    {detailRecord._raw?.consentRecords?.length ? detailRecord._raw.consentRecords.map((c, i) => {
+                      const expired = c.expiryDate && new Date(c.expiryDate) < new Date();
+                      return (
+                        <Box key={i} sx={{ mb: 1 }}>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Chip label={c.accessLevel} size="small" color={expired ? 'default' : 'success'} />
+                            <Chip label={expired ? 'Expired' : 'Active'} size="small" variant="outlined" color={expired ? 'error' : 'success'} />
+                          </Stack>
+                          <Typography variant="caption" color="text.secondary">
+                            Provider: {c.providerId} · Granted: {formatDate(c.consentDate)}
+                            {c.expiryDate ? ` · Expires: ${formatDate(c.expiryDate)}` : ''}
                           </Typography>
                         </Box>
-                      </Box>
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Consent Status:</strong> {' '}
-                      {currentRecord.consentVerified ? (
-                        <Chip 
-                          icon={<VerifiedUserIcon />} 
-                          label="Verified" 
-                          color="success" 
-                          size="small"
-                        />
-                      ) : (
-                        <Chip 
-                          icon={<WarningIcon />} 
-                          label="Missing" 
-                          color="error" 
-                          size="small"
-                        />
-                      )}
-                    </Typography>
-                    {currentRecord.consentVerified && (
-                      <Typography variant="body2">
-                        <strong>Consent Date:</strong> {formatDate(currentRecord.consentTimestamp)}
-                      </Typography>
-                    )}
-                    {currentRecord.flagged && (
-                      <Typography variant="body2" color="error" sx={{ mt: 1 }}>
-                        <strong>Flagged:</strong> {currentRecord.flagReason}
-                      </Typography>
-                    )}
-                  </CardContent>
-                </Card>
-              </Grid>
-              
-              <Grid item xs={12}>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Actions
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                      <Button 
-                        variant="outlined" 
-                        startIcon={<HistoryIcon />}
-                        onClick={() => {
-                          setDetailDialogOpen(false);
-                          handleViewModificationHistory(currentRecord);
-                        }}
-                      >
-                        View Modification History
-                      </Button>
-                      <Button 
-                        variant="outlined" 
-                        startIcon={<VerifiedUserIcon />}
-                        onClick={() => {
-                          setDetailDialogOpen(false);
-                          handleVerifyConsent(currentRecord);
-                        }}
-                      >
-                        Verify Consent
-                      </Button>
-                      {currentRecord.flagged ? (
-                        <Button 
-                          variant="outlined" 
-                          color="error"
-                          startIcon={<FlagIcon />}
-                          onClick={() => {
-                            setDetailDialogOpen(false);
-                            handleRemoveFlag(currentRecord);
-                          }}
-                        >
-                          Remove Flag
-                        </Button>
-                      ) : (
-                        <Button 
-                          variant="outlined" 
-                          startIcon={<FlagIcon />}
-                          onClick={() => {
-                            setDetailDialogOpen(false);
-                            handleFlagRecord(currentRecord);
-                          }}
-                        >
-                          Flag Record
-                        </Button>
-                      )}
-                    </Box>
+                      );
+                    }) : <Typography variant="body2" color="text.secondary">No consent records</Typography>}
                   </CardContent>
                 </Card>
               </Grid>
             </Grid>
           )}
         </DialogContent>
-        
         <DialogActions>
-          <Button onClick={() => setDetailDialogOpen(false)}>
-            Close
-          </Button>
+          <Button onClick={() => setDetailOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
-      
-      {/* Modification History Dialog */}
-      <Dialog 
-        open={modificationHistoryOpen} 
-        onClose={() => setModificationHistoryOpen(false)}
-        fullWidth
-        maxWidth="md"
-      >
-        <DialogTitle>
-          Record Modification History
-        </DialogTitle>
-        
+
+      {/* Flag Dialog */}
+      <Dialog open={flagOpen} onClose={() => setFlagOpen(false)}>
+        <DialogTitle>Flag Patient Record</DialogTitle>
         <DialogContent>
-          {currentRecord && (
-            <>
-              <Typography variant="subtitle1" gutterBottom>
-                Patient ID: {deIdentified ? getPatientId(currentRecord) : currentRecord.patientId}
-              </Typography>
-              
-              <TableContainer component={Paper} sx={{ mt: 2 }}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Date</TableCell>
-                      <TableCell>Modified By</TableCell>
-                      <TableCell>Field</TableCell>
-                      <TableCell>Old Value</TableCell>
-                      <TableCell>New Value</TableCell>
-                      <TableCell>Reason</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {recordModifications.length > 0 ? (
-                      recordModifications.map((mod) => (
-                        <TableRow key={mod.id}>
-                          <TableCell>{formatDate(mod.timestamp)}</TableCell>
-                          <TableCell>{mod.modifiedBy}</TableCell>
-                          <TableCell>{mod.field}</TableCell>
-                          <TableCell>{mod.oldValue}</TableCell>
-                          <TableCell>{mod.newValue}</TableCell>
-                          <TableCell>{mod.reason}</TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={6} align="center">
-                          No modification history found
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </>
-          )}
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            Flagging: <strong>{flagTarget?.patientId}</strong>
+          </Typography>
+          <TextField
+            fullWidth multiline rows={3} label="Reason for flagging"
+            value={flagReason} onChange={e => setFlagReason(e.target.value)}
+          />
         </DialogContent>
-        
         <DialogActions>
-          <Button onClick={() => setModificationHistoryOpen(false)}>
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
-      
-      {/* Consent Verification Dialog */}
-      <Dialog 
-        open={consentDialogOpen} 
-        onClose={() => setConsentDialogOpen(false)}
-        fullWidth
-        maxWidth="md"
-      >
-        <DialogTitle>
-          Consent Verification
-        </DialogTitle>
-        
-        <DialogContent>
-          {currentRecord && (
-            <>
-              <Typography variant="subtitle1" gutterBottom>
-                Patient ID: {deIdentified ? getPatientId(currentRecord) : currentRecord.patientId}
-              </Typography>
-              
-              <TableContainer component={Paper} sx={{ mt: 2 }}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Date</TableCell>
-                      <TableCell>Action</TableCell>
-                      <TableCell>Details</TableCell>
-                      <TableCell>Verified By</TableCell>
-                      <TableCell>Transaction Hash</TableCell>
-                      <TableCell>Status</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {consentLogs.length > 0 ? (
-                      consentLogs.map((consent) => (
-                        <TableRow key={consent.id}>
-                          <TableCell>{formatDate(consent.timestamp)}</TableCell>
-                          <TableCell>{consent.action}</TableCell>
-                          <TableCell>{consent.details}</TableCell>
-                          <TableCell>{consent.verifiedBy}</TableCell>
-                          <TableCell>
-                            {consent.txHash ? (
-                              <Tooltip title="View on blockchain explorer">
-                                <Button
-                                  size="small"
-                                  variant="text"
-                                  onClick={() => window.open(`https://etherscan.io/tx/${consent.txHash}`, '_blank')}
-                                >
-                                  {`${consent.txHash.substring(0, 6)}...${consent.txHash.substring(consent.txHash.length - 4)}`}
-                                </Button>
-                              </Tooltip>
-                            ) : (
-                              'N/A'
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {consent.verified ? (
-                              <Chip 
-                                label="Verified" 
-                                color="success" 
-                                size="small"
-                              />
-                            ) : (
-                              <Chip 
-                                label="Pending" 
-                                color="warning" 
-                                size="small"
-                              />
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={6} align="center">
-                          No consent logs found
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </>
-          )}
-        </DialogContent>
-        
-        <DialogActions>
-          <Button onClick={() => setConsentDialogOpen(false)}>
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
-      
-      {/* Flag Record Dialog */}
-      <Dialog 
-        open={flagDialogOpen} 
-        onClose={() => setFlagDialogOpen(false)}
-        fullWidth
-        maxWidth="sm"
-      >
-        <DialogTitle>
-          Flag Patient Record
-        </DialogTitle>
-        
-        <DialogContent>
-          {currentRecord && (
-            <>
-              <Typography variant="subtitle1" gutterBottom>
-                Patient ID: {deIdentified ? getPatientId(currentRecord) : currentRecord.patientId}
-              </Typography>
-              
-              <TextField
-                fullWidth
-                label="Reason for Flagging"
-                variant="outlined"
-                multiline
-                rows={4}
-                value={flagReason}
-                onChange={(e) => setFlagReason(e.target.value)}
-                sx={{ mt: 2 }}
-              />
-            </>
-          )}
-        </DialogContent>
-        
-        <DialogActions>
-          <Button onClick={() => setFlagDialogOpen(false)}>
-            Cancel
-          </Button>
-          <Button 
-            variant="contained" 
-            color="primary"
-            onClick={handleSubmitFlag}
-            disabled={!flagReason.trim()}
+          <Button onClick={() => setFlagOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained" color="warning"
+            onClick={() => {
+              if (flagTarget) setFlagged(f => ({ ...f, [flagTarget.id]: flagReason }));
+              setFlagOpen(false);
+            }}
           >
-            Submit Flag
+            Flag Record
           </Button>
         </DialogActions>
       </Dialog>
     </Container>
   );
-};
-
-export default AdminPatientRecords;
+}

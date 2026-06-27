@@ -80,7 +80,7 @@ export function AuthProvider({ children }) {
 
       return response;
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
+      setError(err.response?.data?.error || err.message || 'Login failed. Please check your credentials.');
       throw err;
     } finally {
       setLoading(false);

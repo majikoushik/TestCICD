@@ -25,6 +25,16 @@ const protect = async (req, res, next) => {
       return res.status(401).json({ success: false, error: 'User not found' });
     }
 
+    if (user.accountStatus === 'suspended') {
+      logger.warn('Auth: suspended account attempted access', { userId: user._id, method: req.method, path: req.path });
+      return res.status(403).json({ success: false, error: 'Account suspended. Contact your administrator.' });
+    }
+
+    if (user.isActive === false) {
+      logger.warn('Auth: inactive account attempted access', { userId: user._id, method: req.method, path: req.path });
+      return res.status(403).json({ success: false, error: 'Account is inactive. Contact your administrator.' });
+    }
+
     req.user = user;
     return next();
   } catch (error) {

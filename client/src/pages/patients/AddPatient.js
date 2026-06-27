@@ -38,163 +38,81 @@ export default function AddPatient() {
   const [success, setSuccess] = useState(false);
   
   const [patientData, setPatientData] = useState({
-    // Personal Information
-    patientId: '',
     name: '',
     dateOfBirth: '',
     gender: 'male',
-    contactInfo: {
-      email: '',
-      phone: '',
-      address: ''
-    },
-    
-    // Medical Information
-    medicalHistory: [],
-    medications: [],
-    allergies: [],
-    
-    // Insurance Information
-    insuranceInfo: {
-      provider: '',
-      policyNumber: '',
-      groupNumber: ''
-    }
+    contactInfo: { email: '', phone: '', address: '' },
+    insuranceInfo: { provider: '', policyNumber: '', groupNumber: '' }
   });
 
-  // For managing medical history, medications, and allergies
-  const [medicalCondition, setMedicalCondition] = useState({
-    condition: '',
-    diagnosedDate: '',
-    notes: ''
-  });
-  
-  const [medication, setMedication] = useState({
-    name: '',
-    dosage: '',
-    frequency: '',
-    startDate: ''
-  });
-  
-  const [allergy, setAllergy] = useState({
-    allergen: '',
-    reaction: '',
-    severity: 'mild'
-  });
+  // Separate state for lists — keeps display updates instant and independent
+  const [medicalHistoryItems, setMedicalHistoryItems] = useState([]);
+  const [medicationItems, setMedicationItems] = useState([]);
+  const [allergyItems, setAllergyItems] = useState([]);
+
+  const [medicalCondition, setMedicalCondition] = useState({ condition: '', diagnosedDate: '', notes: '' });
+  const [medication, setMedication] = useState({ name: '', dosage: '', frequency: '', startDate: '' });
+  const [allergy, setAllergy] = useState({ allergen: '', reaction: '', severity: 'mild' });
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    
-    // Handle nested objects
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
-      setPatientData({
-        ...patientData,
-        [parent]: {
-          ...patientData[parent],
-          [child]: value
-        }
-      });
+      setPatientData(prev => ({
+        ...prev,
+        [parent]: { ...prev[parent], [child]: value }
+      }));
     } else {
-      setPatientData({
-        ...patientData,
-        [name]: value
-      });
+      setPatientData(prev => ({ ...prev, [name]: value }));
     }
   };
 
   const handleMedicalConditionChange = (e) => {
     const { name, value } = e.target;
-    setMedicalCondition({
-      ...medicalCondition,
-      [name]: value
-    });
+    setMedicalCondition(prev => ({ ...prev, [name]: value }));
   };
 
   const handleAddMedicalCondition = () => {
-    if (medicalCondition.condition && medicalCondition.diagnosedDate) {
-      setPatientData({
-        ...patientData,
-        medicalHistory: [...patientData.medicalHistory, { ...medicalCondition }]
-      });
-      setMedicalCondition({
-        condition: '',
-        diagnosedDate: '',
-        notes: ''
-      });
+    if (medicalCondition.condition) {
+      setMedicalHistoryItems(prev => [...prev, { ...medicalCondition }]);
+      setMedicalCondition({ condition: '', diagnosedDate: '', notes: '' });
     }
   };
 
   const handleRemoveMedicalCondition = (index) => {
-    const updatedHistory = [...patientData.medicalHistory];
-    updatedHistory.splice(index, 1);
-    setPatientData({
-      ...patientData,
-      medicalHistory: updatedHistory
-    });
+    setMedicalHistoryItems(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleMedicationChange = (e) => {
     const { name, value } = e.target;
-    setMedication({
-      ...medication,
-      [name]: value
-    });
+    setMedication(prev => ({ ...prev, [name]: value }));
   };
 
   const handleAddMedication = () => {
-    if (medication.name && medication.dosage && medication.frequency) {
-      setPatientData({
-        ...patientData,
-        medications: [...patientData.medications, { ...medication }]
-      });
-      setMedication({
-        name: '',
-        dosage: '',
-        frequency: '',
-        startDate: ''
-      });
+    if (medication.name) {
+      setMedicationItems(prev => [...prev, { ...medication }]);
+      setMedication({ name: '', dosage: '', frequency: '', startDate: '' });
     }
   };
 
   const handleRemoveMedication = (index) => {
-    const updatedMedications = [...patientData.medications];
-    updatedMedications.splice(index, 1);
-    setPatientData({
-      ...patientData,
-      medications: updatedMedications
-    });
+    setMedicationItems(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleAllergyChange = (e) => {
     const { name, value } = e.target;
-    setAllergy({
-      ...allergy,
-      [name]: value
-    });
+    setAllergy(prev => ({ ...prev, [name]: value }));
   };
 
   const handleAddAllergy = () => {
-    if (allergy.allergen && allergy.reaction) {
-      setPatientData({
-        ...patientData,
-        allergies: [...patientData.allergies, { ...allergy }]
-      });
-      setAllergy({
-        allergen: '',
-        reaction: '',
-        severity: 'mild'
-      });
+    if (allergy.allergen) {
+      setAllergyItems(prev => [...prev, { ...allergy }]);
+      setAllergy({ allergen: '', reaction: '', severity: 'mild' });
     }
   };
 
   const handleRemoveAllergy = (index) => {
-    const updatedAllergies = [...patientData.allergies];
-    updatedAllergies.splice(index, 1);
-    setPatientData({
-      ...patientData,
-      allergies: updatedAllergies
-    });
+    setAllergyItems(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleNext = () => {
@@ -207,9 +125,12 @@ export default function AddPatient() {
 
   const validateStep = () => {
     switch (activeStep) {
-      case 0:
-        // Validate personal information
-        return patientData.name && patientData.dateOfBirth && patientData.contactInfo.phone;
+      case 0: {
+        if (!patientData.name || !patientData.dateOfBirth || !patientData.contactInfo.phone) return false;
+        const dob = new Date(patientData.dateOfBirth);
+        const year = dob.getFullYear();
+        return year >= 1900 && dob <= new Date();
+      }
       case 1:
         // Medical information is optional
         return true;
@@ -225,9 +146,13 @@ export default function AddPatient() {
     try {
       setIsSubmitting(true);
       setError('');
-      
-      // Call the patientService to create a new patient
-      await createPatient(patientData);
+
+      await createPatient({
+        ...patientData,
+        medicalHistory: medicalHistoryItems,
+        medications: medicationItems,
+        allergies: allergyItems,
+      });
       
       // Show success message
       setSuccess(true);
@@ -266,11 +191,10 @@ export default function AddPatient() {
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  label="Patient ID (optional)"
-                  name="patientId"
-                  value={patientData.patientId}
-                  onChange={handleInputChange}
-                  helperText="Leave blank to auto-generate"
+                  label="Patient ID"
+                  value="Auto-generated on save"
+                  disabled
+                  helperText="Unique ID is automatically created from the patient's name"
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -285,7 +209,7 @@ export default function AddPatient() {
                   InputLabelProps={{
                     shrink: true,
                   }}
-                  inputProps={{ max: new Date().toISOString().split('T')[0] }}
+                  inputProps={{ min: '1900-01-01', max: new Date().toISOString().split('T')[0] }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -370,7 +294,7 @@ export default function AddPatient() {
                   InputLabelProps={{
                     shrink: true,
                   }}
-                  inputProps={{ max: new Date().toISOString().split('T')[0] }}
+                  inputProps={{ min: '1900-01-01', max: new Date().toISOString().split('T')[0] }}
                 />
               </Grid>
               <Grid item xs={12} sm={4}>
@@ -384,32 +308,27 @@ export default function AddPatient() {
               </Grid>
               <Grid item xs={12}>
                 <Button
+                  type="button"
                   variant="outlined"
                   onClick={handleAddMedicalCondition}
-                  disabled={!medicalCondition.condition || !medicalCondition.diagnosedDate}
+                  disabled={!medicalCondition.condition}
                 >
                   Add Condition
                 </Button>
               </Grid>
             </Grid>
-            
-            {patientData.medicalHistory.length > 0 && (
+
+            {medicalHistoryItems.length > 0 && (
               <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
-                {patientData.medicalHistory.map((condition, index) => (
-                  <Box key={`condition-${index}`} sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                {medicalHistoryItems.map((condition, index) => (
+                  <Box key={index} sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
-                      <Typography variant="body1">
-                        {condition.condition}
-                      </Typography>
+                      <Typography variant="body1">{condition.condition}</Typography>
                       <Typography variant="body2" color="text.secondary">
-                        Diagnosed: {condition.diagnosedDate} {condition.notes && `- ${condition.notes}`}
+                        {condition.diagnosedDate && `Diagnosed: ${condition.diagnosedDate}`}{condition.notes && ` - ${condition.notes}`}
                       </Typography>
                     </Box>
-                    <Button
-                      size="small"
-                      color="error"
-                      onClick={() => handleRemoveMedicalCondition(index)}
-                    >
+                    <Button type="button" size="small" color="error" onClick={() => handleRemoveMedicalCondition(index)}>
                       Remove
                     </Button>
                   </Box>
@@ -466,32 +385,27 @@ export default function AddPatient() {
               </Grid>
               <Grid item xs={12}>
                 <Button
+                  type="button"
                   variant="outlined"
                   onClick={handleAddMedication}
-                  disabled={!medication.name || !medication.dosage || !medication.frequency}
+                  disabled={!medication.name}
                 >
                   Add Medication
                 </Button>
               </Grid>
             </Grid>
-            
-            {patientData.medications.length > 0 && (
+
+            {medicationItems.length > 0 && (
               <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
-                {patientData.medications.map((med, index) => (
-                  <Box key={`medication-${index}`} sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                {medicationItems.map((med, index) => (
+                  <Box key={index} sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
-                      <Typography variant="body1">
-                        {med.name} {med.dosage}
-                      </Typography>
+                      <Typography variant="body1">{med.name}{med.dosage && ` - ${med.dosage}`}</Typography>
                       <Typography variant="body2" color="text.secondary">
-                        {med.frequency} {med.startDate && `- Started: ${med.startDate}`}
+                        {med.frequency}{med.startDate && ` - Started: ${med.startDate}`}
                       </Typography>
                     </Box>
-                    <Button
-                      size="small"
-                      color="error"
-                      onClick={() => handleRemoveMedication(index)}
-                    >
+                    <Button type="button" size="small" color="error" onClick={() => handleRemoveMedication(index)}>
                       Remove
                     </Button>
                   </Box>
@@ -540,32 +454,27 @@ export default function AddPatient() {
               </Grid>
               <Grid item xs={12}>
                 <Button
+                  type="button"
                   variant="outlined"
                   onClick={handleAddAllergy}
-                  disabled={!allergy.allergen || !allergy.reaction}
+                  disabled={!allergy.allergen}
                 >
                   Add Allergy
                 </Button>
               </Grid>
             </Grid>
-            
-            {patientData.allergies.length > 0 && (
+
+            {allergyItems.length > 0 && (
               <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
-                {patientData.allergies.map((item, index) => (
-                  <Box key={`allergy-${index}`} sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                {allergyItems.map((item, index) => (
+                  <Box key={index} sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
-                      <Typography variant="body1">
-                        {item.allergen}
-                      </Typography>
+                      <Typography variant="body1">{item.allergen}</Typography>
                       <Typography variant="body2" color="text.secondary">
-                        {item.reaction} - {item.severity.charAt(0).toUpperCase() + item.severity.slice(1)} severity
+                        {item.reaction && `${item.reaction} - `}{item.severity.charAt(0).toUpperCase() + item.severity.slice(1)} severity
                       </Typography>
                     </Box>
-                    <Button
-                      size="small"
-                      color="error"
-                      onClick={() => handleRemoveAllergy(index)}
-                    >
+                    <Button type="button" size="small" color="error" onClick={() => handleRemoveAllergy(index)}>
                       Remove
                     </Button>
                   </Box>
@@ -652,11 +561,12 @@ export default function AddPatient() {
           ))}
         </Stepper>
         
-        <Box component="form" onSubmit={handleSubmit}>
+        <Box>
           {getStepContent(activeStep)}
           
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
             <Button
+              type="button"
               variant="outlined"
               onClick={handleBack}
               disabled={activeStep === 0 || isSubmitting}
@@ -667,7 +577,7 @@ export default function AddPatient() {
               {activeStep === steps.length - 1 ? (
                 <Button
                   variant="contained"
-                  type="submit"
+                  onClick={handleSubmit}
                   startIcon={<SaveIcon />}
                   disabled={isSubmitting || !validateStep()}
                 >
@@ -675,6 +585,7 @@ export default function AddPatient() {
                 </Button>
               ) : (
                 <Button
+                  type="button"
                   variant="contained"
                   onClick={handleNext}
                   endIcon={<ArrowForwardIcon />}

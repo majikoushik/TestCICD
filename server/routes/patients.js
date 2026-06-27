@@ -31,13 +31,32 @@ router.post(
         allergies,
       } = req.body;
 
-      let patient = await Patient.findOne({ patientId });
+      const generatePatientId = async (fullName) => {
+        const prefix = (fullName || 'PAT')
+          .split(' ')[0]
+          .replace(/[^a-zA-Z]/g, '')
+          .toUpperCase()
+          .slice(0, 3)
+          .padEnd(3, 'X');
+        for (let attempt = 0; attempt < 10; attempt++) {
+          const digits = String(Math.floor(1000 + Math.random() * 9000));
+          const id = `PT-${prefix}-${digits}`;
+          if (!(await Patient.exists({ patientId: id }))) return id;
+        }
+        // Extremely unlikely fallback: append timestamp suffix
+        return `PT-${prefix}-${Date.now().toString(36).toUpperCase().slice(-4)}`;
+      };
+
+      const resolvedId = await generatePatientId(name);
+
+      let patient = await Patient.findOne({ patientId: resolvedId });
       if (patient) {
         return res.status(400).json({ success: false, error: 'Patient already exists' });
       }
 
       patient = new Patient({
-        patientId,
+        _id: resolvedId,
+        patientId: resolvedId,
         name,
         dateOfBirth,
         gender,
@@ -59,7 +78,11 @@ router.post(
 );
 
 // @route   GET api/patients
-// @desc    Get all patients for the provider
+// @desc    Get patients the provider has a care relationship with.
+//          Access tiers:
+//            1. Own patients  — primaryProvider === this provider
+//            2. Referral access — receivingProvider on any referral for that patient
+//            3. Consent access — explicit consentRecord (labs / other roles)
 // @access  Private (all healthcare providers)
 router.get(
   '/',
@@ -68,55 +91,65 @@ router.get(
   ehiAudit('Patient', 'READ'),
   async (req, res) => {
     try {
-      const page = parseInt(req.query.page) || 0;
+      const page  = parseInt(req.query.page)  || 0;
       const limit = parseInt(req.query.limit) || 10;
       const search = req.query.search || '';
 
-      let patients = await Patient.find().select('-consentRecords');
+      const PROVIDER_ROLES = ['doctor', 'clinic', 'hospital'];
 
-      if (patients.length > 0) {
-        if (['doctor', 'clinic', 'hospital'].includes(req.user.role)) {
-          if (!req.user.id.startsWith('user-')) {
-            patients = patients.filter(
-              (p) => p.primaryProvider && p.primaryProvider.toString() === req.user.id
-            );
-          }
-        } else {
-          if (!req.user.id.startsWith('user-')) {
-            patients = patients.filter(
-              (p) =>
-                p.consentRecords &&
-                Array.isArray(p.consentRecords) &&
-                p.consentRecords.some(
-                  (r) =>
-                    r && r.providerId && r.providerId.toString() === req.user.id &&
-                    ['full', 'partial'].includes(r.accessLevel)
-                )
-            );
-          }
-        }
+      // ── Build DB-level access filter ──────────────────────────────────────
+      let accessFilter;
+
+      if (PROVIDER_ROLES.includes(req.user.role)) {
+        // Patients reachable via active referrals sent TO this provider
+        const referralPatientIds = await Referral.distinct('patient', {
+          receivingProvider: req.user.id,
+        });
+
+        accessFilter = {
+          $or: [
+            { primaryProvider: req.user.id },
+            { _id: { $in: referralPatientIds } },
+          ],
+        };
+      } else {
+        // Lab / other roles: explicit consent only
+        accessFilter = {
+          consentRecords: {
+            $elemMatch: {
+              providerId: req.user.id,
+              accessLevel: { $in: ['full', 'partial'] },
+            },
+          },
+        };
       }
 
+      // ── Combine access filter with optional search ────────────────────────
+      let dbFilter = accessFilter;
       if (search) {
         const searchRegex = new RegExp(search, 'i');
-        patients = patients.filter((p) => {
-          const fullName = p.name || `${p.firstName || ''} ${p.lastName || ''}`.trim();
-          return (
-            searchRegex.test(fullName) ||
-            searchRegex.test(p.firstName) ||
-            searchRegex.test(p.lastName) ||
-            searchRegex.test(p.patientId) ||
-            (p.contactInfo && searchRegex.test(p.contactInfo.email))
-          );
-        });
+        const searchClause = {
+          $or: [
+            { name: searchRegex },
+            { patientId: searchRegex },
+            { 'contactInfo.email': searchRegex },
+          ],
+        };
+        dbFilter = { $and: [accessFilter, searchClause] };
       }
 
-      const totalPatients = patients.length;
-      const paginatedPatients = patients.slice(page * limit, page * limit + limit);
+      const [patients, totalPatients] = await Promise.all([
+        Patient.find(dbFilter)
+          .select('-consentRecords')
+          .skip(page * limit)
+          .limit(limit)
+          .lean(),
+        Patient.countDocuments(dbFilter),
+      ]);
 
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
-        patients: paginatedPatients,
+        patients,
         pagination: {
           total: totalPatients,
           page,
@@ -126,14 +159,14 @@ router.get(
       });
     } catch (error) {
       logger.error('Get patients error', logger.reqCtx(req, error));
-      res.status(500).json({ success: false, error: 'Server error' });
+      return res.status(500).json({ success: false, error: 'Server error' });
     }
   }
 );
 
 // @route   GET api/patients/:id
 // @desc    Get a single patient
-// @access  Private (with consent verification)
+// @access  Private — primary provider, referral-granted provider, admin, or consent holder
 router.get('/:id', protect, ehiAudit('Patient', 'READ'), async (req, res) => {
   try {
     const patient = await Patient.findOne({ patientId: req.params.id });
@@ -142,16 +175,26 @@ router.get('/:id', protect, ehiAudit('Patient', 'READ'), async (req, res) => {
     }
 
     const isPrimaryProvider = patient.primaryProvider.toString() === req.user.id;
+    const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
     let hasConsent = false;
+    let hasReferralAccess = false;
 
-    if (!isPrimaryProvider) {
-      hasConsent = await verifyConsent(patient.patientId, req.user.id, 'demographics');
+    if (!isPrimaryProvider && !isAdmin) {
+      // Check referral-granted access: any referral where this provider is the receiver
+      hasReferralAccess = !!(await Referral.exists({
+        patient: patient._id,
+        receivingProvider: req.user.id,
+      }));
 
-      if (!hasConsent) {
-        return oncDeny(res, 'GET /api/patients/:id').status(403).json({
-          success: false,
-          error: 'You do not have consent to access this patient record',
-        });
+      if (!hasReferralAccess) {
+        hasConsent = await verifyConsent(patient.patientId, req.user.id, 'demographics');
+
+        if (!hasConsent) {
+          return oncDeny(res, 'GET /api/patients/:id').status(403).json({
+            success: false,
+            error: 'You do not have consent to access this patient record',
+          });
+        }
       }
     }
 
@@ -162,7 +205,7 @@ router.get('/:id', protect, ehiAudit('Patient', 'READ'), async (req, res) => {
       if (provider) primaryProviderName = provider.name;
     }
 
-    if (!isPrimaryProvider && hasConsent) {
+    if (!isPrimaryProvider && !isAdmin && hasConsent && !hasReferralAccess) {
       const consentRecord = patient.consentRecords.find(
         (r) => r.providerId.toString() === req.user.id
       );
@@ -217,9 +260,12 @@ router.put('/:id', protect, ehiAudit('Patient', 'UPDATE'), async (req, res) => {
       }
     }
 
+    // Strip immutable/client-only fields before updating
+    const { _id, __v, patientId, primaryProvider, primaryProviderName, createdAt, consentRecords, ...updateFields } = req.body;
+
     patient = await Patient.findByIdAndUpdate(
       req.params.id,
-      { $set: req.body },
+      { $set: updateFields },
       { new: true, runValidators: true }
     );
 
@@ -291,14 +337,22 @@ router.get('/:id/medical-records', protect, ehiAudit('Patient', 'READ'), async (
     }
 
     const isPrimaryProvider = patient.primaryProvider.toString() === req.user.id;
+    const isAdminRole = ['admin', 'superadmin'].includes(req.user.role);
 
-    if (!isPrimaryProvider) {
-      const hasConsent = await verifyConsent(patient.patientId, req.user.id, 'medical_records');
-      if (!hasConsent) {
-        return oncDeny(res, 'GET /api/patients/:id/medical-records').status(403).json({
-          success: false,
-          error: "You do not have consent to access this patient's medical records",
-        });
+    if (!isPrimaryProvider && !isAdminRole) {
+      const hasReferral = !!(await Referral.exists({
+        patient: patient._id,
+        receivingProvider: req.user.id,
+      }));
+
+      if (!hasReferral) {
+        const hasConsent = await verifyConsent(patient.patientId, req.user.id, 'medical_records');
+        if (!hasConsent) {
+          return oncDeny(res, 'GET /api/patients/:id/medical-records').status(403).json({
+            success: false,
+            error: "You do not have consent to access this patient's medical records",
+          });
+        }
       }
     }
 

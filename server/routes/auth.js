@@ -180,6 +180,17 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ success: false, error: 'Invalid credentials' });
     }
 
+    // Block suspended or inactive accounts before issuing a token
+    if (user.accountStatus === 'suspended') {
+      logger.warn('Login blocked: suspended account', { userId: user._id, email, ipAddress });
+      return res.status(403).json({ success: false, error: 'Your account has been suspended. Please contact your administrator.' });
+    }
+
+    if (user.isActive === false) {
+      logger.warn('Login blocked: inactive account', { userId: user._id, email, ipAddress });
+      return res.status(403).json({ success: false, error: 'Your account is inactive. Please contact your administrator.' });
+    }
+
     // Successful login — update metadata and reset failure counter
     user.lastLogin = timestamp;
     user.loginAttempts = 0;

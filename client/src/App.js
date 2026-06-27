@@ -83,6 +83,7 @@ const AdminPriorAuth = lazy(() => import('./pages/admin/AdminPriorAuth'));
 const AdminPatientEngagement = lazy(() => import('./pages/admin/AdminPatientEngagement'));
 const AdminAmbientSessions = lazy(() => import('./pages/admin/AdminAmbientSessions'));
 const AdminReferralMatching = lazy(() => import('./pages/admin/AdminReferralMatching'));
+const AdminMatchingConfig = lazy(() => import('./pages/admin/AdminMatchingConfig'));
 const AdminAppointments = lazy(() => import('./pages/admin/AdminAppointments'));
 
 // Appointments (patient self-scheduling)
@@ -449,6 +450,11 @@ function App() {
         <Route path="referral-matching" element={
           <Suspense fallback={<PageLoadingFallback />}>
             <AdminReferralMatching />
+          </Suspense>
+        } />
+        <Route path="matching-config" element={
+          <Suspense fallback={<PageLoadingFallback />}>
+            <AdminMatchingConfig />
           </Suspense>
         } />
         <Route path="appointments" element={

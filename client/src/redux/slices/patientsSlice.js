@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import patientService from '../../services/patientService';
+import { logout } from './authSlice';
 
 // Async thunks
 export const fetchPatients = createAsyncThunk(
@@ -86,6 +87,8 @@ const patientsSlice = createSlice({
       .addCase(fetchPatients.rejected, (state, action) => {
         state.listLoading = false;
         state.error = action.payload || 'Failed to fetch patients';
+        state.patients = [];
+        state.pagination = { ...state.pagination, totalItems: 0 };
       })
       // Handle fetchPatientById
       .addCase(fetchPatientById.pending, (state) => {
@@ -100,7 +103,9 @@ const patientsSlice = createSlice({
       .addCase(fetchPatientById.rejected, (state, action) => {
         state.detailLoading = false;
         state.error = action.payload || 'Failed to fetch patient details';
-      });
+      })
+      // Clear all patient data when user logs out
+      .addCase(logout, () => initialState);
   },
 });
 

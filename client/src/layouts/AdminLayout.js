@@ -40,6 +40,7 @@ import {
   Storefront as StorefrontIcon,
   ContactMail as ContactMailIcon,
   VerifiedUser as VerifiedUserIcon,
+  TuneRounded as TuneIcon,
 } from '@mui/icons-material';
 import adminAuthService from '../services/adminAuthService';
 import { isAuthenticated, hasRole } from '../utils/authUtils';
@@ -101,6 +102,7 @@ const getMenuItems = () => [
   { text: 'Patient Engagement', icon: <NotificationsActiveIcon />, path: '/admin/patient-engagement' },
   { text: 'Ambient AI Sessions', icon: <MicIcon />, path: '/admin/ambient-sessions' },
   { text: 'AI Referral Matching', icon: <AIIcon />, path: '/admin/referral-matching' },
+  { text: 'Matching Rules', icon: <TuneIcon />, path: '/admin/matching-config' },
   { text: 'Appointments', icon: <AssignmentIcon />, path: '/admin/appointments' },
   { text: 'DTx Marketplace', icon: <StorefrontIcon />, path: '/admin/dtx' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/admin/settings' },
