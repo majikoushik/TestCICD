@@ -1,5 +1,5 @@
 import React, { useTransition } from 'react';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, useNotification } from '../../contexts';
 import { useForm } from '../../hooks';
 import {
@@ -19,6 +19,8 @@ export default function Login() {
   const { login, error, clearError } = useAuth();
   const { notifySuccess } = useNotification();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const emailVerified = searchParams.get('verified') === '1';
   const [, startTransition] = useTransition();
   
   // Form validation rules
@@ -80,6 +82,12 @@ export default function Login() {
         </Typography>
       </Box>
       
+      {emailVerified && (
+        <Alert severity="success" sx={{ mb: 3 }} icon={false}>
+          ✅ Email verified! Sign in to continue your setup.
+        </Alert>
+      )}
+
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={clearError}>
           {error}

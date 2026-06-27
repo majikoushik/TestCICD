@@ -53,7 +53,6 @@ function userPayload(user) {
     tokenBalance: user.tokenBalance,
     lastLogin: user.lastLogin,
     profileImage: user.profileImage || null,
-    emailVerified: user.emailVerified !== undefined ? user.emailVerified : true,
     onboardingStatus: user.onboardingStatus || 'verified',
   };
 }
@@ -3268,7 +3267,6 @@ const syntheticProfiles = {};
 router.get('/onboarding/status', protect, (req, res) => {
   const profile = syntheticProfiles[req.user.id] || {
     onboardingStatus: req.user.onboardingStatus || 'pending_email',
-    emailVerified: req.user.emailVerified || false,
     steps: { profile_created: true, email_verified: false, profile_reviewed: false, docs_uploaded: false, first_patient: false, first_referral: false, colleague_invited: false },
     kycStatus: 'pending_email', npi: null, hasDoc: false,
   };

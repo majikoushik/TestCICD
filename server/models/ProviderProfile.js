@@ -9,7 +9,8 @@ const ProviderProfileSchema = new mongoose.Schema({
 
   // Profile fields (editable by provider, pre-filled from NPI)
   credential: { type: String, default: '' },
-  specialty: { type: String, default: '' },
+  specialty: { type: String, default: '' },          // primary specialty (backward compat)
+  specialties: { type: [String], default: [] },       // multi-select list
   taxonomyCode: { type: String, default: '' },
   enumerationType: { type: String, default: 'NPI-1' }, // NPI-1=individual, NPI-2=org
   organizationName: { type: String, default: '' },
@@ -24,6 +25,16 @@ const ProviderProfileSchema = new mongoose.Schema({
     zip: { type: String, default: '' },
   },
 
+  // Referral & practice details
+  acceptingNewPatients: { type: Boolean, default: true },
+  telehealthAvailable:  { type: Boolean, default: false },
+  ageGroupsTreated:     { type: [String], default: [] }, // e.g. ['Adult', 'Geriatric']
+  languagesSpoken:      { type: [String], default: [] }, // e.g. ['English', 'Spanish']
+  insuranceAccepted:    { type: [String], default: [] }, // e.g. ['Medicare', 'Aetna']
+  boardCertifications:  { type: [String], default: [] }, // e.g. ['ABIM', 'ABFM']
+  hospitalAffiliations: { type: [String], default: [] }, // e.g. ['Mass General', 'UCSF']
+  conditionsTreated:    { type: [String], default: [] }, // e.g. ['Diabetes', 'Hypertension']
+
   // KYC documents
   licenseNumber: { type: String, default: '' },
   licenseState: { type: String, default: '' },
@@ -34,7 +45,7 @@ const ProviderProfileSchema = new mongoose.Schema({
   // KYC review
   kycStatus: {
     type: String,
-    enum: ['pending_email', 'pending_docs', 'under_review', 'verified', 'rejected'],
+    enum: ['pending_email', 'profile_incomplete', 'doc_pending', 'under_review', 'verified', 'rejected'],
     default: 'pending_email',
   },
   kycReviewedBy: { type: String, ref: 'User', default: null },
@@ -47,13 +58,7 @@ const ProviderProfileSchema = new mongoose.Schema({
     email_verified:     { type: Boolean, default: false },
     profile_reviewed:   { type: Boolean, default: false },
     docs_uploaded:      { type: Boolean, default: false },
-    first_patient:      { type: Boolean, default: false },
-    first_referral:     { type: Boolean, default: false },
-    colleague_invited:  { type: Boolean, default: false },
   },
-
-  // Colleague invite tracking
-  invitesSent: [{ email: String, sentAt: { type: Date, default: Date.now } }],
 }, { timestamps: true });
 
 ProviderProfileSchema.index({ npi: 1 });

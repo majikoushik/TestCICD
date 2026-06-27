@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const fetch = require('node-fetch');
 const { protect } = require('../middleware/auth');
 const User = require('../models/User');
 const ProviderProfile = require('../models/ProviderProfile');
@@ -43,7 +44,6 @@ router.get('/status', protect, async (req, res) => {
       success: true,
       data: {
         onboardingStatus: user.onboardingStatus,
-        emailVerified: user.emailVerified,
         steps: profile?.onboardingSteps || null,
         kycStatus: profile?.kycStatus || null,
         kycRejectionReason: profile?.kycRejectionReason || '',
@@ -56,18 +56,166 @@ router.get('/status', protect, async (req, res) => {
   }
 });
 
+// GET /api/onboarding/profile — fetch current profile data (pre-filled from NPI)
+router.get('/profile', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    const profile = await ProviderProfile.findOne({ userId: req.user.id });
+    if (!profile) return res.status(404).json({ success: false, error: 'Profile not found' });
+
+    // npiData is stored as the normalized profile object returned by GET /api/npi/lookup
+    // (shape: { npi, firstName, lastName, gender, specialty, address: { phone, fax, line1, ... }, ... })
+    // Older records may store raw NPPES format ({ results: [...] }) — handle both.
+    const npiRaw = profile.npiData || {};
+    let npi = {};
+
+    if (Array.isArray(npiRaw.results) && npiRaw.results[0]) {
+      // Raw NPPES format
+      const r = npiRaw.results[0];
+      const b = r.basic || {};
+      const tax = r.taxonomies?.find(t => t.primary) || r.taxonomies?.[0] || {};
+      const mailing  = r.addresses?.find(a => a.address_purpose === 'MAILING') || null;
+      const location = r.addresses?.find(a => a.address_purpose === 'LOCATION') || r.addresses?.[0] || {};
+      const addrSrc  = mailing || location;
+      npi = {
+        firstName: b.first_name || '', lastName: b.last_name || '',
+        organization: b.organization_name || '',
+        credential: b.credential || '',
+        gender: (b.sex || b.gender || '').toUpperCase(),
+        specialty: tax.desc || '', taxonomyCode: tax.code || '',
+        enumerationType: r.enumeration_type || 'NPI-1',
+        organizationName: b.organization_name || '',
+        phone: location.telephone_number || '',
+        fax: addrSrc.fax_number || '',
+        address: {
+          line1: addrSrc.address_1 || '', line2: addrSrc.address_2 || '',
+          city: addrSrc.city || '', state: addrSrc.state || '',
+          zip: (addrSrc.postal_code || '').slice(0, 5),
+        },
+        licenseNumber: tax.license || '', licenseState: tax.state || '',
+      };
+    } else if (npiRaw.npi || npiRaw.firstName) {
+      // Normalized format stored by registration (from /api/npi/lookup response)
+      npi = {
+        firstName: npiRaw.firstName || '', lastName: npiRaw.lastName || '',
+        organization: npiRaw.organizationName || '',
+        credential: npiRaw.credential || '',
+        gender: npiRaw.gender || '',
+        specialty: npiRaw.specialty || '', taxonomyCode: npiRaw.taxonomyCode || '',
+        enumerationType: npiRaw.enumerationType || 'NPI-1',
+        organizationName: npiRaw.organizationName || '',
+        phone: npiRaw.address?.phone || '',
+        fax: npiRaw.address?.fax || '',
+        address: {
+          line1: npiRaw.address?.line1 || '', line2: npiRaw.address?.line2 || '',
+          city: npiRaw.address?.city || '', state: npiRaw.address?.state || '',
+          zip: npiRaw.address?.zip || '',
+        },
+        licenseNumber: npiRaw.licenseNumber || '', licenseState: npiRaw.licenseState || '',
+      };
+    }
+
+    // Fallback: if gender is still empty (old registrations had a bug storing it as ''),
+    // fetch directly from NPPES once. After user saves, profile.gender is set and this won't fire.
+    if (!npi.gender && !profile.gender && profile.npi) {
+      try {
+        const npRes = await fetch(`https://npiregistry.cms.hhs.gov/api/?version=2.1&number=${profile.npi}`, { timeout: 5000 });
+        const npJson = await npRes.json();
+        const sex = npJson?.results?.[0]?.basic?.sex;
+        if (sex) npi.gender = sex.toUpperCase();
+      } catch (_) { /* non-fatal — user can select manually */ }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        // Identity (from User — read-only on the form)
+        firstName:    user.firstName || npi.firstName  || '',
+        lastName:     user.lastName  || npi.lastName   || '',
+        email:        user.email     || '',
+        organization: user.organization || npi.organization || '',
+        // Provider details — profile fields first, fall back to NPI
+        npi:             profile.npi             || '',
+        credential:      profile.credential      || npi.credential      || '',
+        specialty:       profile.specialty       || npi.specialty       || '',
+        taxonomyCode:    profile.taxonomyCode    || npi.taxonomyCode    || '',
+        enumerationType: profile.enumerationType || npi.enumerationType || 'NPI-1',
+        organizationName: profile.organizationName || npi.organizationName || '',
+        gender: profile.gender || npi.gender || '',
+        phone:  profile.phone  || npi.phone  || '',
+        fax:    profile.fax    || npi.fax    || '',
+        address: {
+          line1: profile.address?.line1 || npi.address?.line1 || '',
+          line2: profile.address?.line2 || npi.address?.line2 || '',
+          city:  profile.address?.city  || npi.address?.city  || '',
+          state: profile.address?.state || npi.address?.state || '',
+          zip:   profile.address?.zip   || npi.address?.zip   || '',
+        },
+        licenseNumber: profile.licenseNumber || npi.licenseNumber || '',
+        licenseState:  profile.licenseState  || npi.licenseState  || '',
+        deaNumber:     profile.deaNumber     || '',
+        // Referral & practice details
+        specialties:          profile.specialties?.length
+                                ? profile.specialties
+                                : (npi.specialty ? [npi.specialty] : []),
+        acceptingNewPatients: profile.acceptingNewPatients ?? true,
+        telehealthAvailable:  profile.telehealthAvailable  ?? false,
+        ageGroupsTreated:     profile.ageGroupsTreated     || [],
+        languagesSpoken:      profile.languagesSpoken      || [],
+        insuranceAccepted:    profile.insuranceAccepted    || [],
+        boardCertifications:  profile.boardCertifications  || [],
+        hospitalAffiliations: profile.hospitalAffiliations || [],
+        conditionsTreated:    profile.conditionsTreated    || [],
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
 // PATCH /api/onboarding/profile — update profile + mark profile_reviewed
 router.patch('/profile', protect, async (req, res) => {
   try {
-    const { specialty, credential, phone, address, licenseNumber, licenseState } = req.body;
+    const {
+      specialty, specialties, credential, phone, fax, address,
+      licenseNumber, licenseState, deaNumber, organizationName, gender,
+      acceptingNewPatients, telehealthAvailable, ageGroupsTreated,
+      languagesSpoken, insuranceAccepted, boardCertifications,
+      hospitalAffiliations, conditionsTreated,
+    } = req.body;
     const update = {};
-    if (specialty) update.specialty = specialty;
-    if (credential) update.credential = credential;
-    if (phone) update.phone = phone;
-    if (address) update.address = address;
-    if (licenseNumber) update.licenseNumber = licenseNumber;
-    if (licenseState) update.licenseState = licenseState;
+
+    // Core fields
+    if (credential !== undefined)       update.credential       = credential;
+    if (phone !== undefined)            update.phone            = phone;
+    if (fax !== undefined)              update.fax              = fax;
+    if (address !== undefined)          update.address          = address;
+    if (licenseNumber !== undefined)    update.licenseNumber    = licenseNumber;
+    if (licenseState !== undefined)     update.licenseState     = licenseState;
+    if (deaNumber !== undefined)        update.deaNumber        = deaNumber;
+    if (organizationName !== undefined) update.organizationName = organizationName;
+    if (gender !== undefined)           update.gender           = gender;
+
+    // Specialties — multi-select array; keep single specialty in sync for backward compat
+    if (specialties !== undefined) {
+      update.specialties = specialties;
+      update.specialty   = specialties[0] || specialty || '';
+    } else if (specialty !== undefined) {
+      update.specialty   = specialty;
+      update.specialties = [specialty];
+    }
+
+    // Referral & practice details
+    if (acceptingNewPatients !== undefined) update.acceptingNewPatients = acceptingNewPatients;
+    if (telehealthAvailable  !== undefined) update.telehealthAvailable  = telehealthAvailable;
+    if (ageGroupsTreated     !== undefined) update.ageGroupsTreated     = ageGroupsTreated;
+    if (languagesSpoken      !== undefined) update.languagesSpoken      = languagesSpoken;
+    if (insuranceAccepted    !== undefined) update.insuranceAccepted    = insuranceAccepted;
+    if (boardCertifications  !== undefined) update.boardCertifications  = boardCertifications;
+    if (hospitalAffiliations !== undefined) update.hospitalAffiliations = hospitalAffiliations;
+    if (conditionsTreated    !== undefined) update.conditionsTreated    = conditionsTreated;
     update['onboardingSteps.profile_reviewed'] = true;
+    update.kycStatus = 'doc_pending';
 
     const profile = await ProviderProfile.findOneAndUpdate(
       { userId: req.user.id },
@@ -75,8 +223,11 @@ router.patch('/profile', protect, async (req, res) => {
       { new: true }
     );
 
-    // Mirror specialty to User model
-    if (specialty) await User.findByIdAndUpdate(req.user.id, { specialty });
+    // Mirror primary specialty + status to User model
+    const primarySpecialty = (specialties && specialties[0]) || specialty;
+    const userUpdate = { onboardingStatus: 'doc_pending' };
+    if (primarySpecialty !== undefined) userUpdate.specialty = primarySpecialty;
+    await User.findByIdAndUpdate(req.user.id, userUpdate);
 
     res.json({ success: true, data: profile });
   } catch (err) {
@@ -124,7 +275,7 @@ router.post('/documents', protect, upload.single('document'), async (req, res) =
 // PATCH /api/onboarding/steps/:step — mark a step done
 router.patch('/steps/:step', protect, async (req, res) => {
   try {
-    const ALLOWED = ['profile_reviewed', 'first_patient', 'first_referral'];
+    const ALLOWED = ['profile_reviewed', 'docs_uploaded'];
     const { step } = req.params;
     if (!ALLOWED.includes(step)) {
       return res.status(400).json({ success: false, error: 'Invalid step' });

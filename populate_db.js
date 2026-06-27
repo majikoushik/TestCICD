@@ -74,7 +74,6 @@ const users = [
     isActive: true,
     accountStatus: "approved",
     kycVerified: true,
-    emailVerified: true,
     onboardingStatus: "verified",
     loginAttempts: 0,
     createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
@@ -82,7 +81,6 @@ const users = [
     profileImage: null,
     status: "active",
     blockchainId: "0x1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t",
-    verificationStatus: "verified",
     tokenBalance: 500
   },
   {
@@ -99,7 +97,6 @@ const users = [
     isActive: true,
     accountStatus: "approved",
     kycVerified: true,
-    emailVerified: true,
     onboardingStatus: "verified",
     loginAttempts: 0,
     createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000),
@@ -107,7 +104,6 @@ const users = [
     profileImage: null,
     status: "active",
     blockchainId: "0x2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u",
-    verificationStatus: "verified",
     tokenBalance: 350
   },
   {
@@ -124,7 +120,6 @@ const users = [
     isActive: true,
     accountStatus: "approved",
     kycVerified: true,
-    emailVerified: true,
     onboardingStatus: "verified",
     loginAttempts: 0,
     createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
@@ -132,7 +127,6 @@ const users = [
     profileImage: null,
     status: "active",
     blockchainId: "0x3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v",
-    verificationStatus: "verified",
     tokenBalance: 175
   },
   {
@@ -149,7 +143,6 @@ const users = [
     isActive: true,
     accountStatus: "approved",
     kycVerified: true,
-    emailVerified: true,
     onboardingStatus: "verified",
     loginAttempts: 0,
     createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
@@ -157,7 +150,6 @@ const users = [
     profileImage: null,
     status: "active",
     blockchainId: "0x4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w",
-    verificationStatus: "verified",
     tokenBalance: 420
   },
   {
@@ -174,7 +166,6 @@ const users = [
     isActive: true,
     accountStatus: "approved",
     kycVerified: true,
-    emailVerified: true,
     onboardingStatus: "verified",
     loginAttempts: 0,
     createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
@@ -182,7 +173,6 @@ const users = [
     profileImage: null,
     status: "active",
     blockchainId: "0x5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x",
-    verificationStatus: "verified",
     tokenBalance: 290
   },
   // Pending provider — shows up in Pending Approval tab
@@ -200,14 +190,12 @@ const users = [
     isActive: false,
     accountStatus: "pending",
     kycVerified: false,
-    emailVerified: false,
     onboardingStatus: "pending_email",
     loginAttempts: 0,
     createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
     lastLogin: null,
     profileImage: null,
     blockchainId: null,
-    verificationStatus: "pending",
     tokenBalance: 0
   },
   // Rejected provider
@@ -225,14 +213,12 @@ const users = [
     isActive: false,
     accountStatus: "rejected",
     kycVerified: false,
-    emailVerified: true,
     onboardingStatus: "rejected",
     loginAttempts: 0,
     createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
     lastLogin: null,
     profileImage: null,
     blockchainId: null,
-    verificationStatus: "rejected",
     tokenBalance: 0,
     kycRejectionReason: "Incomplete license documentation submitted"
   },
@@ -251,14 +237,12 @@ const users = [
     isActive: false,
     accountStatus: "suspended",
     kycVerified: true,
-    emailVerified: true,
     onboardingStatus: "verified",
     loginAttempts: 0,
     createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
     lastLogin: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
     profileImage: null,
     blockchainId: "0x8f9g0h1i2j3k4l5m6n7o8p9q0r1s2t3u4v5w6x7y",
-    verificationStatus: "verified",
     tokenBalance: 120,
     suspensionReason: "Multiple billing discrepancies under investigation"
   }
@@ -3966,7 +3950,7 @@ await db.collection('providerprofiles').insertMany([
     deaNumber: "BC1234567",
     kycDocumentPath: "",
     kycDocumentOriginalName: "",
-    kycStatus: "pending_docs",
+    kycStatus: "doc_pending",
     kycReviewedBy: null,
     kycReviewedAt: null,
     kycRejectionReason: "",

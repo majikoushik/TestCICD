@@ -474,7 +474,8 @@ router.get('/providers', protect, authorize('admin', 'superadmin'), async (req, 
   try {
     const PROVIDER_ROLES = ['doctor', 'clinic', 'hospital', 'lab', 'provider', 'nurse'];
     const providers = await User.find({
-      role: { $in: PROVIDER_ROLES }
+      role: { $in: PROVIDER_ROLES },
+      onboardingStatus: 'verified',
     }).select('-password').sort({ createdAt: -1 });
 
     // Normalize fields that may be absent on seeded/legacy documents
@@ -533,7 +534,6 @@ router.put('/providers/:id/approve', protect, authorize('admin', 'superadmin', '
     provider.accountStatus = 'approved';
     provider.kycVerified = true;
     provider.onboardingStatus = 'verified';
-    provider.verificationStatus = 'verified';
     provider.isActive = true;
     if (!provider.kycDocuments) provider.kycDocuments = {};
     provider.kycDocuments.verifiedAt = Date.now();
@@ -574,7 +574,6 @@ router.put('/providers/:id/reject', protect, authorize('admin', 'superadmin', 'r
     provider.accountStatus = 'rejected';
     provider.isActive = false;
     provider.onboardingStatus = 'rejected';
-    provider.verificationStatus = 'rejected';
     provider.kycRejectionReason = reason || 'Application did not meet requirements';
     
     await provider.save();
@@ -667,8 +666,8 @@ router.put('/providers/:id', protect, authorize('admin', 'superadmin'), async (r
 
     const editable = [
       'firstName', 'lastName', 'email', 'role', 'organization', 'specialty',
-      'isActive', 'accountStatus', 'kycVerified', 'emailVerified',
-      'onboardingStatus', 'profileImage', 'verificationStatus', 'tokenBalance',
+      'isActive', 'accountStatus', 'kycVerified',
+      'onboardingStatus', 'profileImage', 'tokenBalance',
     ];
 
     for (const field of editable) {

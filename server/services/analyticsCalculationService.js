@@ -233,6 +233,155 @@ function calcMissedAppointments(patients) {
   };
 }
 
+// ── Patient Demographics (age groups) ────────────────────────────────────────
+function calcPatientDemographics(patients) {
+  const groups = { '0-18': 0, '19-35': 0, '36-50': 0, '51-65': 0, '65+': 0 };
+  for (const p of patients) {
+    const age = calcAge(p.dateOfBirth);
+    if      (age <= 18) groups['0-18']++;
+    else if (age <= 35) groups['19-35']++;
+    else if (age <= 50) groups['36-50']++;
+    else if (age <= 65) groups['51-65']++;
+    else                groups['65+']++;
+  }
+  const total = patients.length || 1;
+  return Object.entries(groups).map(([ageGroup, count]) => ({
+    ageGroup,
+    count,
+    percentage: Math.round((count / total) * 100),
+  }));
+}
+
+// ── Top Conditions (most common diagnoses) ────────────────────────────────────
+function calcTopConditions(patients, limit = 10) {
+  const condMap = {};
+  for (const p of patients) {
+    for (const h of (p.medicalHistory || [])) {
+      const cond = (h.condition || '').trim();
+      if (cond) condMap[cond] = (condMap[cond] || 0) + 1;
+    }
+  }
+  return Object.entries(condMap)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([name, count]) => ({ name, count }));
+}
+
+// ── Patient Monthly Trends (new patients per month, last 6 months) ────────────
+function calcPatientMonthlyTrends(patients) {
+  const now = new Date();
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const base  = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const start = new Date(base.getFullYear(), base.getMonth(), 1);
+    const end   = new Date(base.getFullYear(), base.getMonth() + 1, 0, 23, 59, 59);
+    const label = base.toLocaleString('default', { month: 'short', year: '2-digit' });
+    const newPatients = patients.filter(p => {
+      const created = new Date(p.createdAt || 0);
+      return created >= start && created <= end;
+    }).length;
+    months.push({ month: label, newPatients });
+  }
+  return months;
+}
+
+// ── Referrals by Specialty ────────────────────────────────────────────────────
+// Joins referrals → User.specialty via receivingProvider ID
+async function calcReferralsBySpecialty(referrals) {
+  const providerIds = [...new Set(referrals.map(r => r.receivingProvider).filter(Boolean))];
+  const providerMap = {};
+  if (providerIds.length > 0) {
+    const users = await User.find({ _id: { $in: providerIds } }).select('specialty').lean();
+    for (const u of users) providerMap[String(u._id)] = u.specialty || 'Other';
+  }
+
+  const specMap = {};
+  for (const r of referrals) {
+    const spec = providerMap[String(r.receivingProvider)] || 'Other';
+    specMap[spec] = (specMap[spec] || 0) + 1;
+  }
+
+  const total = referrals.length || 1;
+  return Object.entries(specMap)
+    .sort((a, b) => b[1] - a[1])
+    .map(([specialty, count]) => ({
+      specialty,
+      count,
+      percentage: Math.round((count / total) * 100),
+    }));
+}
+
+// ── Referral Status Distribution ──────────────────────────────────────────────
+function calcReferralStatusDistribution(referrals) {
+  const statusMap = {};
+  for (const r of referrals) {
+    const s = r.status || 'unknown';
+    statusMap[s] = (statusMap[s] || 0) + 1;
+  }
+  return Object.entries(statusMap)
+    .sort((a, b) => b[1] - a[1])
+    .map(([status, count]) => ({ status, count }));
+}
+
+// ── Referral Monthly Trends (last 6 months) ───────────────────────────────────
+function calcReferralMonthlyTrends(referrals) {
+  const now = new Date();
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const base  = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const start = new Date(base.getFullYear(), base.getMonth(), 1);
+    const end   = new Date(base.getFullYear(), base.getMonth() + 1, 0, 23, 59, 59);
+    const label = base.toLocaleString('default', { month: 'short', year: '2-digit' });
+    const inMonth = referrals.filter(r => {
+      const created = new Date(r.createdAt || 0);
+      return created >= start && created <= end;
+    });
+    months.push({
+      month: label,
+      sent:      inMonth.length,
+      accepted:  inMonth.filter(r => r.status === 'accepted' || r.status === 'completed').length,
+      completed: inMonth.filter(r => r.status === 'completed').length,
+    });
+  }
+  return months;
+}
+
+// ── Referral Provider Conversion ──────────────────────────────────────────────
+// Per-provider sent / accepted / completed / conversion rate (top 10 by volume)
+async function calcReferralProviderConversion(referrals) {
+  const provMap = {};
+  for (const r of referrals) {
+    const pid = String(r.referringProvider || 'unknown');
+    if (pid === 'unknown') continue;
+    if (!provMap[pid]) provMap[pid] = { sent: 0, accepted: 0, completed: 0 };
+    provMap[pid].sent++;
+    if (r.status === 'accepted' || r.status === 'completed') provMap[pid].accepted++;
+    if (r.status === 'completed') provMap[pid].completed++;
+  }
+
+  const providerIds = Object.keys(provMap);
+  const userMap = {};
+  if (providerIds.length > 0) {
+    const users = await User.find({ _id: { $in: providerIds } }).select('name specialty').lean();
+    for (const u of users) userMap[String(u._id)] = u;
+  }
+
+  return Object.entries(provMap)
+    .map(([id, stats]) => {
+      const user = userMap[id] || {};
+      return {
+        provider:  user.name     || id,
+        specialty: user.specialty || 'Unknown',
+        sent:      stats.sent,
+        accepted:  stats.accepted,
+        completed: stats.completed,
+        rate:      stats.sent > 0 ? Math.round((stats.completed / stats.sent) * 100) : 0,
+      };
+    })
+    .sort((a, b) => b.sent - a.sent)
+    .slice(0, 10);
+}
+
 // ── Enrich trend from prior snapshot ─────────────────────────────────────────
 // If a previous global snapshot exists, back-fill the trend on adherence
 // and missed appointments by comparing against that snapshot's values.
@@ -305,6 +454,7 @@ async function runAnalyticsJob(triggeredBy = 'job', providerId = null) {
     const accepted       = referrals.filter(
       r => r.status === 'accepted' || r.status === 'completed'
     );
+    const pendingCount = referrals.filter(r => r.status === 'pending').length;
     const referralAcceptanceRate = referrals.length
       ? Math.round((accepted.length / referrals.length) * 100)
       : 0;
@@ -318,6 +468,22 @@ async function runAnalyticsJob(triggeredBy = 'job', providerId = null) {
         accountStatus: 'approved',
       });
     }
+
+    // ── Extended patient analytics ────────────────────────────────────────
+    const patientDemographics   = calcPatientDemographics(patients);
+    const topConditions         = calcTopConditions(patients);
+    const patientMonthlyTrends  = calcPatientMonthlyTrends(patients);
+
+    // ── Extended referral analytics ───────────────────────────────────────
+    const [
+      referralsBySpecialty,
+      referralProviderConversion,
+    ] = await Promise.all([
+      calcReferralsBySpecialty(referrals),
+      calcReferralProviderConversion(referrals),
+    ]);
+    const referralStatusDistribution = calcReferralStatusDistribution(referrals);
+    const referralMonthlyTrends      = calcReferralMonthlyTrends(referrals);
 
     // ── Enrich trends from prior snapshot ────────────────────────────────
     const priorSnapshot = await AnalyticsSnapshot.findOne(
@@ -374,6 +540,20 @@ async function runAnalyticsJob(triggeredBy = 'job', providerId = null) {
           unit:  'count',
           label: `${patients.length} patients in scope`,
         },
+        pendingReferrals: {
+          value: pendingCount,
+          unit:  'count',
+          label: `${pendingCount} referrals awaiting response`,
+        },
+        // Patient analytics
+        patientDemographics,
+        topConditions,
+        patientMonthlyTrends,
+        // Referral analytics
+        referralsBySpecialty,
+        referralStatusDistribution,
+        referralMonthlyTrends,
+        referralProviderConversion,
       },
       errors,
     });
@@ -438,4 +618,11 @@ module.exports = {
   calcEngagement,
   calcAdherence,
   calcMissedAppointments,
+  calcPatientDemographics,
+  calcTopConditions,
+  calcPatientMonthlyTrends,
+  calcReferralsBySpecialty,
+  calcReferralStatusDistribution,
+  calcReferralMonthlyTrends,
+  calcReferralProviderConversion,
 };

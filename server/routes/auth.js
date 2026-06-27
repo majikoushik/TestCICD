@@ -40,7 +40,8 @@ router.post('/register', async (req, res) => {
         const statusMsg = {
           verified: 'This NPI is already registered and verified. Please sign in.',
           under_review: 'This NPI is already registered and under review.',
-          pending_docs: 'This NPI is already registered. Please sign in to complete onboarding.',
+          profile_incomplete: 'This NPI is already registered. Please sign in to complete onboarding.',
+          doc_pending: 'This NPI is already registered. Please sign in to complete onboarding.',
           pending_email: 'This NPI is already registered. Please check your email to verify.',
           rejected: 'This NPI registration was rejected. Please contact support.',
         };
@@ -68,7 +69,7 @@ router.post('/register', async (req, res) => {
       name, firstName: firstName || name.split(' ')[0],
       lastName: lastName || name.split(' ').slice(1).join(' ') || name,
       email, password, role, organization, specialty: specialty || '',
-      emailVerified: false,
+
       emailVerificationToken: hashedToken,
       emailVerificationExpiry: expiry,
       onboardingStatus: 'pending_email',
@@ -386,16 +387,15 @@ router.get('/verify-email', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid or expired verification link. Please request a new one.' });
     }
 
-    user.emailVerified = true;
     user.emailVerificationToken = undefined;
     user.emailVerificationExpiry = undefined;
-    user.onboardingStatus = 'pending_docs';
+    user.onboardingStatus = 'profile_incomplete';
     await user.save();
 
     // Update provider profile
     await ProviderProfile.findOneAndUpdate(
       { userId: user._id },
-      { 'onboardingSteps.email_verified': true, kycStatus: 'pending_docs' }
+      { 'onboardingSteps.email_verified': true, kycStatus: 'profile_incomplete' }
     );
 
     res.json({ success: true, message: 'Email verified successfully.' });
@@ -411,7 +411,7 @@ router.post('/resend-verification', protect, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('+emailVerificationToken +emailVerificationExpiry');
     if (!user) return res.status(404).json({ success: false, error: 'User not found' });
-    if (user.emailVerified) return res.status(400).json({ success: false, error: 'Email already verified' });
+    if (user.onboardingStatus !== 'pending_email') return res.status(400).json({ success: false, error: 'Email already verified' });
 
     const rawToken = crypto.randomBytes(32).toString('hex');
     const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
@@ -452,7 +452,6 @@ function buildUserPayload(user) {
     tokenBalance: user.tokenBalance,
     lastLogin: user.lastLogin,
     profileImage: user.profileImage || null,
-    emailVerified: user.emailVerified,
     onboardingStatus: user.onboardingStatus,
   };
 }

@@ -191,9 +191,9 @@ export const TokenProvider = ({ children }) => {
     }
   }, [currentUser]);
   
-  // Load token balance when user changes
+  // Load token balance only for fully verified users — skip during onboarding
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser && currentUser.onboardingStatus === 'verified') {
       getBalance();
       getRedemptionServices();
     } else {

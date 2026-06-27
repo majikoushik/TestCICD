@@ -67,8 +67,7 @@ function TabPanel(props) {
 
 const PROVIDER_ROLES = ['doctor', 'clinic', 'hospital', 'lab', 'provider', 'nurse'];
 const ACCOUNT_STATUSES = ['pending', 'approved', 'rejected', 'suspended'];
-const ONBOARDING_STATUSES = ['pending_email', 'pending_docs', 'under_review', 'verified', 'rejected'];
-const VERIFICATION_STATUSES = ['pending', 'verified', 'rejected', 'unverified'];
+const ONBOARDING_STATUSES = ['pending_email', 'profile_incomplete', 'doc_pending', 'under_review', 'verified', 'rejected'];
 
 const AdminProviders = () => {
   const [providers, setProviders] = useState([]);
@@ -95,10 +94,8 @@ const AdminProviders = () => {
   const [editIsActive, setEditIsActive] = useState(true);
   const [editAccountStatus, setEditAccountStatus] = useState('pending');
   const [editKycVerified, setEditKycVerified] = useState(false);
-  const [editEmailVerified, setEditEmailVerified] = useState(false);
   const [editOnboardingStatus, setEditOnboardingStatus] = useState('pending_email');
   const [editProfileImage, setEditProfileImage] = useState('');
-  const [editVerificationStatus, setEditVerificationStatus] = useState('pending');
   const [editTokenBalance, setEditTokenBalance] = useState(0);
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveError, setSaveError] = useState(null);
@@ -166,10 +163,8 @@ const AdminProviders = () => {
     setEditIsActive(provider.isActive !== false);
     setEditAccountStatus(provider.accountStatus || 'pending');
     setEditKycVerified(provider.kycVerified || false);
-    setEditEmailVerified(provider.emailVerified || false);
     setEditOnboardingStatus(provider.onboardingStatus || 'pending_email');
     setEditProfileImage(provider.profileImage || '');
-    setEditVerificationStatus(provider.verificationStatus || 'pending');
     setEditTokenBalance(provider.tokenBalance || 0);
     setSaveError(null);
     setSaveSuccess(false);
@@ -192,10 +187,8 @@ const AdminProviders = () => {
         isActive: editIsActive,
         accountStatus: editAccountStatus,
         kycVerified: editKycVerified,
-        emailVerified: editEmailVerified,
         onboardingStatus: editOnboardingStatus,
         profileImage: editProfileImage,
-        verificationStatus: editVerificationStatus,
         tokenBalance: Number(editTokenBalance),
       });
       if (response.success) {
@@ -248,19 +241,20 @@ const AdminProviders = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'approved': case 'verified': case 'active': return 'success';
-      case 'pending': case 'pending_docs': case 'under_review': return 'warning';
-      case 'pending_email': case 'unverified': return 'info';
+      case 'pending': case 'doc_pending': case 'under_review': return 'warning';
+      case 'pending_email': case 'profile_incomplete': return 'info';
       case 'rejected': case 'suspended': return 'error';
       default: return 'default';
     }
   };
 
   const getOnboardingLabel = (status) => ({
-    pending_email: 'Email Unverified',
-    pending_docs:  'Docs Pending',
-    under_review:  'Under Review',
-    verified:      'Verified',
-    rejected:      'Rejected',
+    pending_email:      'Email Unverified',
+    profile_incomplete: 'Profile Incomplete',
+    doc_pending:        'Doc Pending',
+    under_review:       'Under Review',
+    verified:           'Verified',
+    rejected:           'Rejected',
   }[status] || status || '—');
 
   const fmt = (date) => date ? new Date(date).toLocaleDateString() : '—';
@@ -483,16 +477,8 @@ const AdminProviders = () => {
                         <Chip label={currentProvider.kycVerified ? 'Verified' : 'Not Verified'} size="small" color={currentProvider.kycVerified ? 'success' : 'default'} />
                       </Box>
                       <Box sx={{ display: 'flex', py: 0.75, alignItems: 'center' }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600, minWidth: 160, color: 'text.secondary' }}>Email Verified</Typography>
-                        <Chip label={currentProvider.emailVerified ? 'Verified' : 'Not Verified'} size="small" color={currentProvider.emailVerified ? 'success' : 'warning'} />
-                      </Box>
-                      <Box sx={{ display: 'flex', py: 0.75, alignItems: 'center' }}>
                         <Typography variant="body2" sx={{ fontWeight: 600, minWidth: 160, color: 'text.secondary' }}>Onboarding Status</Typography>
                         <Chip label={getOnboardingLabel(currentProvider.onboardingStatus)} size="small" color={getStatusColor(currentProvider.onboardingStatus)} />
-                      </Box>
-                      <Box sx={{ display: 'flex', py: 0.75, alignItems: 'center' }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600, minWidth: 160, color: 'text.secondary' }}>Verification Status</Typography>
-                        <Chip label={currentProvider.verificationStatus || 'pending'} size="small" color={getStatusColor(currentProvider.verificationStatus)} />
                       </Box>
                     </CardContent>
                   </Card>
@@ -633,13 +619,6 @@ const AdminProviders = () => {
                   </Select>
                 </FormControl>
 
-                <FormControl fullWidth sx={{ mb: 2 }}>
-                  <InputLabel>Verification Status</InputLabel>
-                  <Select value={editVerificationStatus} label="Verification Status" onChange={(e) => setEditVerificationStatus(e.target.value)}>
-                    {VERIFICATION_STATUSES.map(s => <MenuItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</MenuItem>)}
-                  </Select>
-                </FormControl>
-
                 <TextField
                   fullWidth
                   label="Token Balance"
@@ -658,10 +637,6 @@ const AdminProviders = () => {
                   <FormControlLabel
                     control={<Switch checked={editKycVerified} onChange={(e) => setEditKycVerified(e.target.checked)} color="success" />}
                     label={<Typography variant="body2">KYC Verified: <strong>{editKycVerified ? 'Yes' : 'No'}</strong></Typography>}
-                  />
-                  <FormControlLabel
-                    control={<Switch checked={editEmailVerified} onChange={(e) => setEditEmailVerified(e.target.checked)} color="success" />}
-                    label={<Typography variant="body2">Email Verified: <strong>{editEmailVerified ? 'Yes' : 'No'}</strong></Typography>}
                   />
                 </Box>
 

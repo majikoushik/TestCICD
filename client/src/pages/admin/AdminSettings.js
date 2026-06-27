@@ -20,12 +20,7 @@ import { ModernLoadingIndicator } from '../../components/common';
 import { useNavigate, useParams } from 'react-router-dom';
 import { adminMockData } from '../../services/mockData';
 import SettingCard from '../../components/admin/SettingCard';
-import axios from 'axios';
-
-// Function to get authentication token from localStorage
-const getToken = () => {
-  return localStorage.getItem('authToken') || '';
-};
+import { get, post, put } from '../../utils/apiUtils';
 
 const AdminSettings = () => {
   const { category } = useParams();
@@ -128,13 +123,10 @@ const AdminSettings = () => {
         }
       }
       
-      const token = getToken();
-      await axios.put(`/api/admin/settings/${currentSetting.key}`, {
+      await put(`/admin/settings/${currentSetting.key}`, {
         value: parsedValue,
         description: editDescription,
         isActive: editIsActive
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       });
       
       // Update the settings in the state
@@ -163,17 +155,11 @@ const AdminSettings = () => {
       setLoading(true);
       setError(null);
       
-      const token = getToken();
-      await axios.post('/api/admin/initialize', {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
+      await post('/admin/initialize', {});
+
       // Reload settings
-      const response = await axios.get(`/api/admin/settings/${activeTab}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      setSettings(response.data.data);
+      const response = await get(`/admin/settings/${activeTab}`);
+      setSettings(response.data || response);
       setLoading(false);
     } catch (err) {
       console.error('Error initializing settings:', err);

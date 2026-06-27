@@ -63,9 +63,9 @@ export const verifyAdminToken = async () => {
     }
     
     // Real API call
-    const response = get('/admin/auth/verify');
-    
-    return response.data;
+    const response = await get('/admin/auth/verify');
+
+    return response;
   } catch (error) {
     console.error('Admin token verification error:', error);
     return { success: false, error: error.message };

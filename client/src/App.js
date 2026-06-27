@@ -109,6 +109,7 @@ const AmbientRecorder = lazy(() => import('./pages/ambient/AmbientRecorder'));
 // Onboarding Pages
 const VerifyEmail = lazy(() => import('./pages/auth/VerifyEmail'));
 const OnboardingWall = lazy(() => import('./pages/onboarding/OnboardingWall'));
+const OnboardingProfileSetup = lazy(() => import('./pages/onboarding/OnboardingProfileSetup'));
 
 // FHIR Pages
 const FHIRExplorer = lazy(() => import('./pages/fhir/FHIRExplorer'));
@@ -190,6 +191,11 @@ function App() {
         <Route path="onboarding" element={
           <Suspense fallback={<PageLoadingFallback />}>
             <OnboardingWall />
+          </Suspense>
+        } />
+        <Route path="onboarding/profile" element={
+          <Suspense fallback={<PageLoadingFallback />}>
+            <OnboardingProfileSetup />
           </Suspense>
         } />
       </Route>

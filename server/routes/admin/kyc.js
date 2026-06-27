@@ -35,7 +35,7 @@ router.get('/', async (req, res) => {
 
     // Stats
     const [pendingDocs, underReview, verified, rejected] = await Promise.all([
-      ProviderProfile.countDocuments({ kycStatus: 'pending_docs' }),
+      ProviderProfile.countDocuments({ kycStatus: { $in: ['profile_incomplete', 'doc_pending'] } }),
       ProviderProfile.countDocuments({ kycStatus: 'under_review' }),
       ProviderProfile.countDocuments({ kycStatus: 'verified' }),
       ProviderProfile.countDocuments({ kycStatus: 'rejected' }),
@@ -55,30 +55,38 @@ router.get('/', async (req, res) => {
 router.patch('/:id', async (req, res) => {
   try {
     const { status, rejectionReason } = req.body;
-    if (!['verified', 'rejected'].includes(status)) {
-      return res.status(400).json({ success: false, error: 'Status must be verified or rejected' });
+    const ALLOWED = ['pending_email', 'profile_incomplete', 'doc_pending', 'under_review', 'verified', 'rejected'];
+    if (!ALLOWED.includes(status)) {
+      return res.status(400).json({ success: false, error: 'Invalid status value' });
     }
 
     const profile = await ProviderProfile.findById(req.params.id);
     if (!profile) return res.status(404).json({ success: false, error: 'Provider profile not found' });
 
     profile.kycStatus = status;
-    profile.kycReviewedBy = req.user.id;
-    profile.kycReviewedAt = new Date();
+    if (['verified', 'rejected'].includes(status)) {
+      profile.kycReviewedBy = req.user.id;
+      profile.kycReviewedAt = new Date();
+    }
     if (status === 'rejected') profile.kycRejectionReason = rejectionReason || '';
-    if (status === 'verified') profile.kycRejectionReason = '';
+    if (status !== 'rejected') profile.kycRejectionReason = '';
+
+    // Sync onboardingSteps flags to match the status level
+    profile.onboardingSteps.email_verified   = ['profile_incomplete', 'doc_pending', 'under_review', 'verified', 'rejected'].includes(status);
+    profile.onboardingSteps.profile_reviewed = ['doc_pending', 'under_review', 'verified', 'rejected'].includes(status);
+    profile.onboardingSteps.docs_uploaded    = ['under_review', 'verified', 'rejected'].includes(status);
+
     await profile.save();
 
-    // Update user onboarding status
-    const newUserStatus = status === 'verified' ? 'verified' : 'rejected';
+    // Mirror to user onboarding status
     const user = await User.findByIdAndUpdate(
       profile.userId,
-      { onboardingStatus: newUserStatus, ...(status === 'rejected' ? { kycRejectionReason: rejectionReason || '' } : {}) },
+      { onboardingStatus: status, ...(status === 'rejected' ? { kycRejectionReason: rejectionReason || '' } : {}) },
       { new: true }
     );
 
-    // Send notification email
-    if (user) {
+    // Send notification email only for terminal decisions
+    if (user && ['verified', 'rejected'].includes(status)) {
       try {
         if (status === 'verified') {
           await sendEmail({ to: user.email, subject: 'Your ClinicTrust AI account is verified!', html: kycApprovedHtml(user.firstName || user.name) });
@@ -90,6 +98,60 @@ router.patch('/:id', async (req, res) => {
 
     res.json({ success: true, data: profile });
   } catch (err) {
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// PATCH /api/admin/kyc/:id/profile — update editable profile fields (no status side-effects)
+router.patch('/:id/profile', async (req, res) => {
+  try {
+    const {
+      credential, gender, phone, fax, address,
+      licenseNumber, licenseState, deaNumber, organizationName,
+      specialty, specialties,
+      acceptingNewPatients, telehealthAvailable,
+      ageGroupsTreated, languagesSpoken, insuranceAccepted,
+      boardCertifications, hospitalAffiliations, conditionsTreated,
+    } = req.body;
+
+    const update = {};
+    if (credential       !== undefined) update.credential       = credential;
+    if (gender           !== undefined) update.gender           = gender;
+    if (phone            !== undefined) update.phone            = phone;
+    if (fax              !== undefined) update.fax              = fax;
+    if (address          !== undefined) update.address          = address;
+    if (licenseNumber    !== undefined) update.licenseNumber    = licenseNumber;
+    if (licenseState     !== undefined) update.licenseState     = licenseState;
+    if (deaNumber        !== undefined) update.deaNumber        = deaNumber;
+    if (organizationName !== undefined) update.organizationName = organizationName;
+
+    if (specialties !== undefined) {
+      update.specialties = specialties;
+      update.specialty   = specialties[0] || specialty || '';
+    } else if (specialty !== undefined) {
+      update.specialty   = specialty;
+      update.specialties = [specialty];
+    }
+
+    if (acceptingNewPatients !== undefined) update.acceptingNewPatients = acceptingNewPatients;
+    if (telehealthAvailable  !== undefined) update.telehealthAvailable  = telehealthAvailable;
+    if (ageGroupsTreated     !== undefined) update.ageGroupsTreated     = ageGroupsTreated;
+    if (languagesSpoken      !== undefined) update.languagesSpoken      = languagesSpoken;
+    if (insuranceAccepted    !== undefined) update.insuranceAccepted    = insuranceAccepted;
+    if (boardCertifications  !== undefined) update.boardCertifications  = boardCertifications;
+    if (hospitalAffiliations !== undefined) update.hospitalAffiliations = hospitalAffiliations;
+    if (conditionsTreated    !== undefined) update.conditionsTreated    = conditionsTreated;
+
+    const profile = await ProviderProfile.findByIdAndUpdate(req.params.id, update, { new: true });
+    if (!profile) return res.status(404).json({ success: false, error: 'Profile not found' });
+
+    if (update.specialty !== undefined) {
+      await User.findByIdAndUpdate(profile.userId, { specialty: update.specialty });
+    }
+
+    res.json({ success: true, data: profile });
+  } catch (err) {
+    logger.error('Admin KYC profile update error', logger.reqCtx(req, err));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });

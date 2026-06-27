@@ -91,6 +91,21 @@ router.get('/patient-summary', protect, async (req, res) => {
   }
 });
 
+// @route   GET api/analytics/snapshot
+// @desc    Latest global analytics snapshot — used by provider Dashboard tabs.
+//          Returns null data if no job has been run yet.
+// @access  Private
+router.get('/snapshot', protect, async (req, res) => {
+  try {
+    const { getLatestSnapshot } = require('../services/analyticsCalculationService');
+    const snapshot = await getLatestSnapshot('global');
+    return res.status(200).json({ success: true, data: snapshot });
+  } catch (err) {
+    logger.error('Analytics snapshot error', logger.reqCtx(req, err));
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // @route   GET api/analytics/:id
 // @desc    Get a single analytics job
 // @access  Private (creator or shared with)

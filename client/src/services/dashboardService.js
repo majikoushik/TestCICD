@@ -395,6 +395,21 @@ const dashboardService = {
   },
 
   /**
+   * Get the latest global analytics snapshot (computed by the analytics job).
+   * Returns null data if the job has never been run.
+   * @returns {Promise<Object>} { success, data: snapshot | null }
+   */
+  getAnalyticsSnapshot: async () => {
+    try {
+      const response = await get('/analytics/snapshot');
+      return response;
+    } catch (error) {
+      console.error('Error fetching analytics snapshot:', error);
+      return { success: false, data: null };
+    }
+  },
+
+  /**
    * Get AI analytics statistics
    * @returns {Promise<Object>} AI analytics data
    */

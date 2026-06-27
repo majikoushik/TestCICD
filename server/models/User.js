@@ -100,24 +100,18 @@ const UserSchema = new mongoose.Schema({
     successful: Boolean
   }],
 
-  // Email verification
-  emailVerified: { type: Boolean, default: false },
+  // Email verification (token fields kept for verification flow; emailVerified removed — use onboardingStatus !== 'pending_email')
   emailVerificationToken: { type: String, select: false },
   emailVerificationExpiry: { type: Date, select: false },
 
   // Onboarding / KYC status
   onboardingStatus: {
     type: String,
-    enum: ['pending_email', 'pending_docs', 'under_review', 'verified', 'rejected'],
+    enum: ['pending_email', 'profile_incomplete', 'doc_pending', 'under_review', 'verified', 'rejected'],
     default: 'pending_email',
   },
   kycRejectionReason: { type: String, default: '' },
   profileImage: { type: String, default: null },
-  verificationStatus: {
-    type: String,
-    enum: ['pending', 'verified', 'rejected', 'unverified'],
-    default: 'pending',
-  },
 });
 
 // Encrypt password using bcrypt

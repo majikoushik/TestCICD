@@ -53,6 +53,40 @@ const analyticsSnapshotSchema = new mongoose.Schema(
       // ── Provider health (global scope only) ───────────────────────────
       activeProviders: metricSchema,
       totalPatients:   metricSchema,
+
+      // ── Patient Analytics (Tab 1) ──────────────────────────────────────
+      pendingReferrals: metricSchema,
+
+      patientDemographics: {
+        type: [{ ageGroup: String, count: Number, percentage: Number, _id: false }],
+        default: [],
+      },
+      topConditions: {
+        type: [{ name: String, count: Number, _id: false }],
+        default: [],
+      },
+      patientMonthlyTrends: {
+        type: [{ month: String, newPatients: Number, _id: false }],
+        default: [],
+      },
+
+      // ── Referral Analytics (Tab 2) ─────────────────────────────────────
+      referralsBySpecialty: {
+        type: [{ specialty: String, count: Number, percentage: Number, _id: false }],
+        default: [],
+      },
+      referralStatusDistribution: {
+        type: [{ status: String, count: Number, _id: false }],
+        default: [],
+      },
+      referralMonthlyTrends: {
+        type: [{ month: String, sent: Number, accepted: Number, completed: Number, _id: false }],
+        default: [],
+      },
+      referralProviderConversion: {
+        type: [{ provider: String, specialty: String, sent: Number, accepted: Number, completed: Number, rate: Number, _id: false }],
+        default: [],
+      },
     },
 
     errors: [String],

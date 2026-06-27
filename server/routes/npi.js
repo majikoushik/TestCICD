@@ -52,7 +52,7 @@ router.get('/lookup/:npi', async (req, res) => {
         ? (basic.organization_name || '')
         : `${basic.first_name || ''} ${basic.last_name || ''}`.trim(),
       credential: basic.credential || '',
-      gender: basic.gender || '',
+      gender: basic.sex || basic.gender || '',
       organizationName: basic.organization_name || '',
       specialty: taxonomy.desc || '',
       taxonomyCode: taxonomy.code || '',
@@ -82,7 +82,8 @@ router.get('/lookup/:npi', async (req, res) => {
 function getNpiStatusMessage(status) {
   const map = {
     pending_email: 'This NPI is already registered. Please check your email to verify.',
-    pending_docs: 'This NPI is already registered. Please sign in to complete onboarding.',
+    profile_incomplete: 'This NPI is already registered. Please sign in to complete onboarding.',
+    doc_pending: 'This NPI is already registered. Please sign in to complete onboarding.',
     under_review: 'This NPI is already registered and under review.',
     verified: 'This NPI is already registered and verified. Please sign in.',
     rejected: 'This NPI registration was rejected. Please contact support.',

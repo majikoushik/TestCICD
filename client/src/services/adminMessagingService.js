@@ -116,7 +116,7 @@ export const deleteBroadcastMessage = async (id) => {
       return await mockResponse({ data: { success: true, message: 'Broadcast message deleted successfully' } });
     }
 
-    const response = del(`/admin/messages/broadcast/${id}`);
+    const response = await del(`/admin/messages/broadcast/${id}`);
     return response;
   } catch (error) {
     console.error('Error in deleteBroadcastMessage:', error);

@@ -3,11 +3,13 @@ import { useSearchParams, useNavigate, Link as RouterLink } from 'react-router-d
 import { Box, Typography, CircularProgress, Alert, Button, Paper } from '@mui/material';
 import { CheckCircle as CheckIcon, Error as ErrorIcon } from '@mui/icons-material';
 import onboardingService from '../../services/onboardingService';
+import { useAuth } from '../../contexts';
 
 export default function VerifyEmail() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [, startTransition] = useTransition();
+  const { currentUser, refreshUser } = useAuth();
   const [status, setStatus] = useState('loading'); // loading | success | error
   const [message, setMessage] = useState('');
   const token = searchParams.get('token');
@@ -18,22 +20,25 @@ export default function VerifyEmail() {
       setMessage('No verification token found in the link. Please use the link from your email.');
       return;
     }
+
     onboardingService.verifyEmail(token)
-      .then(() => {
+      .then(async () => {
         setStatus('success');
-        // Update stored user if present
-        try {
-          const stored = JSON.parse(localStorage.getItem('user') || '{}');
-          stored.emailVerified = true;
-          stored.onboardingStatus = 'pending_docs';
-          localStorage.setItem('user', JSON.stringify(stored));
-        } catch (_) {}
-        setTimeout(() => startTransition(() => navigate('/onboarding')), 2500);
+
+        if (currentUser) {
+          // User is logged in — refresh context so onboardingStatus is current
+          try { await refreshUser(); } catch (_) {}
+          setTimeout(() => startTransition(() => navigate('/onboarding')), 2500);
+        } else {
+          // User is not logged in — send them to login with a verified flag
+          setTimeout(() => startTransition(() => navigate('/login?verified=1')), 2500);
+        }
       })
       .catch(err => {
         setStatus('error');
-        setMessage(err.response?.data?.error || 'Verification failed. The link may have expired.');
+        setMessage(err.message || 'Verification failed. The link may have expired.');
       });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   return (
@@ -43,20 +48,30 @@ export default function VerifyEmail() {
           <>
             <CircularProgress size={56} sx={{ mb: 3 }} />
             <Typography variant="h6">Verifying your email&hellip;</Typography>
+            <Typography variant="body2" color="text.secondary" mt={1}>This will only take a moment.</Typography>
           </>
         )}
+
         {status === 'success' && (
           <>
             <CheckIcon sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
             <Typography variant="h5" fontWeight={700} mb={1}>Email Verified!</Typography>
             <Typography color="text.secondary" mb={3}>
-              Your email has been verified. Redirecting you to continue your onboarding&hellip;
+              {currentUser
+                ? 'Your email has been verified. Redirecting you to continue your setup…'
+                : 'Your email has been verified. Redirecting you to sign in…'}
             </Typography>
-            <Button variant="contained" onClick={() => startTransition(() => navigate('/onboarding'))}>
-              Continue Onboarding
+            <Button
+              variant="contained"
+              onClick={() => startTransition(() =>
+                navigate(currentUser ? '/onboarding' : '/login?verified=1')
+              )}
+            >
+              {currentUser ? 'Continue Setup' : 'Sign In'}
             </Button>
           </>
         )}
+
         {status === 'error' && (
           <>
             <ErrorIcon sx={{ fontSize: 64, color: 'error.main', mb: 2 }} />

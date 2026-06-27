@@ -473,10 +473,11 @@ const AdminDashboard = () => {
       {/* ── Analytics Job Result / Error Banner ── */}
       {jobResult && (
         <Alert severity="success" sx={{ mb: 2 }} onClose={() => setJobResult(null)}>
-          Analytics job completed in {jobResult.durationMs}ms — {jobResult.patientsUpdated} patient risk scores updated.
-          Patient engagement: {jobResult.metrics?.patientEngagement?.value ?? '—'}% &nbsp;|&nbsp;
-          Treatment adherence: {jobResult.metrics?.treatmentAdherence?.value ?? '—'}% &nbsp;|&nbsp;
-          Missed follow-ups: {jobResult.metrics?.missedAppointments?.value ?? '—'}
+          Analytics job completed successfully in {jobResult.durationMs}ms. Updated risk scores for {jobResult.patientsUpdated} patient{jobResult.patientsUpdated !== 1 ? 's' : ''}.
+          &nbsp;&nbsp;Patient Engagement: {jobResult.metrics?.patientEngagement?.value ?? '—'}% &nbsp;|&nbsp;
+          Treatment Adherence: {jobResult.metrics?.treatmentAdherence?.value ?? '—'}% &nbsp;|&nbsp;
+          Missed Follow-ups: {jobResult.metrics?.missedAppointments?.value ?? '—'} &nbsp;|&nbsp;
+          High Risk Patients: {jobResult.metrics?.riskDistribution?.high ?? '—'}
         </Alert>
       )}
       {jobError && (

@@ -2,14 +2,9 @@ import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, useToken, usePatient, useReferral, useAnalytics } from '../../contexts';
 import dashboardService from '../../services/dashboardService';
-import { 
-  mockPatientRiskData,
+import {
   mockClinicalMetricsData,
   mockReferralEfficiencyData,
-  mockAIPerformanceMetrics,
-  mockAIInsights,
-  mockPatientAnalyticsData,
-  mockReferralMetricsData,
   mockClinicalOutcomesData,
   mockAIPerformanceData
 } from '../../services/mockData';
@@ -310,6 +305,7 @@ function Dashboard() {
   const [todayLoading, setTodayLoading] = useState(false);
   const [recentRx, setRecentRx] = useState([]);
   const [rxLoading, setRxLoading] = useState(false);
+  const [analyticsSnapshot, setAnalyticsSnapshot] = useState(null);
 
   // Define fetchDashboardData function outside of useEffect
   const fetchDashboardData = async () => {
@@ -325,11 +321,8 @@ function Dashboard() {
         // Enhance with our new mock data
         data = {
           ...data,
-          patientRiskData: mockPatientRiskData,
           clinicalMetricsData: mockClinicalMetricsData,
           referralEfficiencyData: mockReferralEfficiencyData,
-          aiMetrics: mockAIPerformanceMetrics,
-          aiInsights: mockAIInsights
         };
       } else {
         data = await dashboardService.getDashboardData();
@@ -400,6 +393,10 @@ function Dashboard() {
     fetchAdditionalMetrics();
     fetchTodaySchedule();
     fetchRecentRx();
+    // Fetch pre-calculated analytics snapshot for Patient Analytics & Referral Metrics tabs
+    dashboardService.getAnalyticsSnapshot().then(res => {
+      if (res?.data) setAnalyticsSnapshot(res.data);
+    }).catch(() => {});
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -515,8 +512,6 @@ function Dashboard() {
   const generatePatientRiskData = useCallback(() => {
     // Add null checks to prevent TypeError
     if (!dashboardData || !dashboardData.patients) {
-      // Use mock data directly if dashboardData.patients is not available
-      setPatientRiskData(mockPatientRiskData);
       return;
     }
     
@@ -916,187 +911,217 @@ function Dashboard() {
         )}
         
         {/* Patient Analytics Tab */}
-        {activeTab === 1 && (
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-              <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="h6" gutterBottom>Patient Demographics</Typography>
-                <Box sx={{ height: 300 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={mockPatientAnalyticsData.demographics}
-                        dataKey="count"
-                        nameKey="ageGroup"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        fill="#8884d8"
-                        label={({ageGroup, percentage}) => `${ageGroup}: ${percentage}%`}
-                      >
-                        {mockPatientAnalyticsData?.demographics?.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'][index % 5]} />
-                        ))}
-                      </Pie>
-                      <Legend />
-                      <RechartsTooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </Box>
-              </Paper>
+        {activeTab === 1 && (() => {
+          const m = analyticsSnapshot?.metrics;
+          const demographics  = m?.patientDemographics   || [];
+          const conditions    = m?.topConditions          || [];
+          const monthlyTrends = m?.patientMonthlyTrends   || [];
+          const noData = !analyticsSnapshot;
+          return (
+            <Grid container spacing={3}>
+              {noData && (
+                <Grid item xs={12}>
+                  <Paper elevation={1} sx={{ p: 3, borderRadius: 2, textAlign: 'center', color: 'text.secondary' }}>
+                    No analytics data yet. Ask your admin to run the Analytics Job to populate these charts.
+                  </Paper>
+                </Grid>
+              )}
+              <Grid item xs={12} md={6}>
+                <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+                  <Typography variant="h6" gutterBottom>Patient Demographics</Typography>
+                  <Box sx={{ height: 300 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={demographics}
+                          dataKey="count"
+                          nameKey="ageGroup"
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={80}
+                          fill="#8884d8"
+                          label={({ageGroup, percentage}) => `${ageGroup}: ${percentage || 0}%`}
+                        >
+                          {demographics.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'][index % 5]} />
+                          ))}
+                        </Pie>
+                        <Legend />
+                        <RechartsTooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </Paper>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+                  <Typography variant="h6" gutterBottom>Common Conditions</Typography>
+                  <Box sx={{ height: 300 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={conditions}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <RechartsTooltip formatter={(value) => [`${value} patients`]} />
+                        <Bar dataKey="count" fill="#8884d8" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </Paper>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+                  <Typography variant="h6" gutterBottom>Risk Factors</Typography>
+                  <Box sx={{ height: 300 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={conditions}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <RechartsTooltip formatter={(value) => [`${value} patients`]} />
+                        <Bar dataKey="count" fill="#82ca9d" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </Paper>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+                  <Typography variant="h6" gutterBottom>Patient Trends</Typography>
+                  <Box sx={{ height: 300 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={monthlyTrends}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <RechartsTooltip />
+                        <Legend />
+                        <Line type="monotone" dataKey="newPatients" stroke="#8884d8" name="New Patients" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </Paper>
+              </Grid>
             </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="h6" gutterBottom>Common Conditions</Typography>
-                <Box sx={{ height: 300 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={mockPatientAnalyticsData.conditions}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <RechartsTooltip formatter={(value) => [`${value} patients`]} />
-                      <Bar dataKey="count" fill="#8884d8" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Box>
-              </Paper>
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="h6" gutterBottom>Risk Factors</Typography>
-                <Box sx={{ height: 300 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={mockPatientAnalyticsData.riskFactors}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="factor" />
-                      <YAxis />
-                      <RechartsTooltip formatter={(value) => [`${value} patients`]} />
-                      <Bar dataKey="count" fill="#82ca9d" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Box>
-              </Paper>
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="h6" gutterBottom>Patient Trends</Typography>
-                <Box sx={{ height: 300 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={mockPatientAnalyticsData.trends}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <RechartsTooltip />
-                      <Legend />
-                      <Line type="monotone" dataKey="newPatients" stroke="#8884d8" name="New Patients" />
-                      <Line type="monotone" dataKey="discharges" stroke="#82ca9d" name="Discharges" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </Box>
-              </Paper>
-            </Grid>
-          </Grid>
-        )}
+          );
+        })()}
         
         {/* Referral Metrics Tab */}
-        {activeTab === 2 && (
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-              <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="h6" gutterBottom>Referrals by Specialty</Typography>
-                <Box sx={{ height: 300 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={mockReferralMetricsData.bySpecialty}
-                        dataKey="count"
-                        nameKey="specialty"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        fill="#8884d8"
-                        label={({specialty, percentage}) => `${specialty}: ${percentage}%`}
-                      >
-                        {mockReferralMetricsData?.bySpecialty?.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'][index % 6]} />
-                        ))}
-                      </Pie>
-                      <Legend />
-                      <RechartsTooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </Box>
-              </Paper>
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="h6" gutterBottom>Referral Status Distribution</Typography>
-                <Box sx={{ height: 300 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={mockReferralMetricsData.statusDistribution}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="status" />
-                      <YAxis />
-                      <RechartsTooltip formatter={(value) => [`${value} referrals`]} />
-                      <Bar dataKey="count" fill="#8884d8" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Box>
-              </Paper>
-            </Grid>
-            
-            <Grid item xs={12} md={12}>
-              <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="h6" gutterBottom>Referral Trends</Typography>
-                <Box sx={{ height: 300 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={mockReferralMetricsData.trends}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <RechartsTooltip />
-                      <Legend />
-                      <Line type="monotone" dataKey="sent" stroke="#8884d8" name="Sent" />
-                      <Line type="monotone" dataKey="accepted" stroke="#82ca9d" name="Accepted" />
-                      <Line type="monotone" dataKey="completed" stroke="#ffc658" name="Completed" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </Box>
-              </Paper>
-            </Grid>
-            
-            <Grid item xs={12}>
-              <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="h6" gutterBottom>Provider Conversion Rates</Typography>
-                <Box sx={{ overflowX: 'auto' }}>
-                  <Box sx={{ minWidth: 650 }}>
-                    <Box sx={{ display: 'flex', fontWeight: 'bold', p: 1, bgcolor: 'background.paper' }}>
-                      <Box sx={{ flex: 2 }}>Provider</Box>
-                      <Box sx={{ flex: 1 }}>Sent</Box>
-                      <Box sx={{ flex: 1 }}>Accepted</Box>
-                      <Box sx={{ flex: 1 }}>Completed</Box>
-                      <Box sx={{ flex: 1 }}>Rate (%)</Box>
-                    </Box>
-                    <Divider />
-                    {mockReferralMetricsData?.conversionRates?.map((row, index) => (
-                      <Box key={index} sx={{ display: 'flex', p: 1, '&:nth-of-type(odd)': { bgcolor: 'action.hover' } }}>
-                        <Box sx={{ flex: 2 }}>{row.provider}</Box>
-                        <Box sx={{ flex: 1 }}>{row.sent}</Box>
-                        <Box sx={{ flex: 1 }}>{row.accepted}</Box>
-                        <Box sx={{ flex: 1 }}>{row.completed}</Box>
-                        <Box sx={{ flex: 1 }}>{row.rate}%</Box>
-                      </Box>
-                    ))}
+        {activeTab === 2 && (() => {
+          const m = analyticsSnapshot?.metrics;
+          const bySpecialty        = m?.referralsBySpecialty        || [];
+          const statusDistribution = m?.referralStatusDistribution  || [];
+          const monthlyTrends      = m?.referralMonthlyTrends       || [];
+          const providerConversion = m?.referralProviderConversion   || [];
+          const noData = !analyticsSnapshot;
+          return (
+            <Grid container spacing={3}>
+              {noData && (
+                <Grid item xs={12}>
+                  <Paper elevation={1} sx={{ p: 3, borderRadius: 2, textAlign: 'center', color: 'text.secondary' }}>
+                    No analytics data yet. Ask your admin to run the Analytics Job to populate these charts.
+                  </Paper>
+                </Grid>
+              )}
+              <Grid item xs={12} md={6}>
+                <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+                  <Typography variant="h6" gutterBottom>Referrals by Specialty</Typography>
+                  <Box sx={{ height: 300 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={bySpecialty}
+                          dataKey="count"
+                          nameKey="specialty"
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={80}
+                          fill="#8884d8"
+                          label={({specialty, percentage}) => `${specialty}: ${percentage || 0}%`}
+                        >
+                          {bySpecialty.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'][index % 6]} />
+                          ))}
+                        </Pie>
+                        <Legend />
+                        <RechartsTooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </Box>
-                </Box>
-              </Paper>
+                </Paper>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+                  <Typography variant="h6" gutterBottom>Referral Status Distribution</Typography>
+                  <Box sx={{ height: 300 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={statusDistribution}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="status" />
+                        <YAxis />
+                        <RechartsTooltip formatter={(value) => [`${value} referrals`]} />
+                        <Bar dataKey="count" fill="#8884d8" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </Paper>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+                  <Typography variant="h6" gutterBottom>Referral Trends</Typography>
+                  <Box sx={{ height: 300 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={monthlyTrends}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <RechartsTooltip />
+                        <Legend />
+                        <Line type="monotone" dataKey="sent"      stroke="#8884d8" name="Sent" />
+                        <Line type="monotone" dataKey="accepted"  stroke="#82ca9d" name="Accepted" />
+                        <Line type="monotone" dataKey="completed" stroke="#ffc658" name="Completed" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </Paper>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+                  <Typography variant="h6" gutterBottom>Provider Conversion Rates</Typography>
+                  <Box sx={{ overflowX: 'auto' }}>
+                    <Box sx={{ minWidth: 650 }}>
+                      <Box sx={{ display: 'flex', fontWeight: 'bold', p: 1, bgcolor: 'background.paper' }}>
+                        <Box sx={{ flex: 2 }}>Provider</Box>
+                        <Box sx={{ flex: 1 }}>Sent</Box>
+                        <Box sx={{ flex: 1 }}>Accepted</Box>
+                        <Box sx={{ flex: 1 }}>Completed</Box>
+                        <Box sx={{ flex: 1 }}>Rate (%)</Box>
+                      </Box>
+                      <Divider />
+                      {providerConversion.length === 0 ? (
+                        <Box sx={{ p: 2, color: 'text.secondary', textAlign: 'center' }}>No conversion data available</Box>
+                      ) : providerConversion.map((row, index) => (
+                        <Box key={index} sx={{ display: 'flex', p: 1, '&:nth-of-type(odd)': { bgcolor: 'action.hover' } }}>
+                          <Box sx={{ flex: 2 }}>{row.provider}</Box>
+                          <Box sx={{ flex: 1 }}>{row.sent}</Box>
+                          <Box sx={{ flex: 1 }}>{row.accepted}</Box>
+                          <Box sx={{ flex: 1 }}>{row.completed}</Box>
+                          <Box sx={{ flex: 1 }}>{row.rate}%</Box>
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                </Paper>
+              </Grid>
             </Grid>
-          </Grid>
-        )}
+          );
+        })()}
         
         {/* Clinical Outcomes Tab */}
         {activeTab === 3 && (
