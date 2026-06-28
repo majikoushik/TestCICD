@@ -410,6 +410,20 @@ const dashboardService = {
   },
 
   /**
+   * Get clinical outcomes data (treatment effectiveness, readmission proxy, satisfaction, quality metrics)
+   * @returns {Promise<Object>} Clinical outcomes data
+   */
+  getClinicalOutcomesData: async () => {
+    try {
+      const response = await get('/dashboard/clinical-outcomes');
+      return response?.success ? response : { success: true, data: response };
+    } catch (error) {
+      console.error('Error fetching clinical outcomes:', error);
+      return { success: false, data: null };
+    }
+  },
+
+  /**
    * Get AI analytics statistics
    * @returns {Promise<Object>} AI analytics data
    */

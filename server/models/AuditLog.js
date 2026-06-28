@@ -20,13 +20,15 @@ const AuditLogSchema = new mongoose.Schema(
     userRole:     { type: String, default: null },
     action: {
       type: String,
-      enum: ['READ', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT', 'CONSENT_GRANT', 'CONSENT_REVOKE'],
+      enum: ['READ', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT', 'CONSENT_GRANT', 'CONSENT_REVOKE',
+             'PA_SUBMITTED', 'PA_AI_ANALYZED', 'PA_AUTO_APPROVED', 'PA_APPROVED', 'PA_DENIED',
+             'PA_APPEALED', 'PA_APPEAL_APPROVED', 'PA_APPEAL_DENIED', 'PA_EXPIRED'],
       required: true,
       index: true,
     },
     resourceType: {
       type: String,
-      enum: ['Patient', 'Referral', 'Analytics', 'User', 'AdminSetting'],
+      enum: ['Patient', 'Referral', 'Analytics', 'User', 'AdminSetting', 'PriorAuthorization'],
       required: true,
       index: true,
     },

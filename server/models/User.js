@@ -90,16 +90,6 @@ const UserSchema = new mongoose.Schema({
   },
   lockedUntil: Date,
   lastFailedLogin: Date,
-  loginHistory: [{
-    timestamp: {
-      type: Date,
-      default: Date.now
-    },
-    ipAddress: String,
-    userAgent: String,
-    successful: Boolean
-  }],
-
   // Email verification (token fields kept for verification flow; emailVerified removed — use onboardingStatus !== 'pending_email')
   emailVerificationToken: { type: String, select: false },
   emailVerificationExpiry: { type: Date, select: false },

@@ -18,8 +18,10 @@ import {
   HourglassEmpty as PendingIcon,
   Warning as WarningIcon
 } from '@mui/icons-material';
+import { LinearProgress, Stack, Divider } from '@mui/material';
+import { FlashOn as AutoIcon, FormatQuote as GuidelinesIcon } from '@mui/icons-material';
 import { ModernLoadingIndicator } from '../../components/common';
-import { getPriorAuths, submitAppeal } from '../../services/priorAuthService';
+import { getPriorAuths, submitAppeal, getAppealDraft } from '../../services/priorAuthService';
 import CreatePriorAuth from './CreatePriorAuth';
 
 const STATUS_COLOR = {
@@ -65,6 +67,8 @@ export default function PriorAuth() {
   const [appealNotes, setAppealNotes] = useState('');
   const [appealLoading, setAppealLoading] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [draftLoading, setDraftLoading] = useState(false);
+  const [appealDraft, setAppealDraft] = useState(null);
 
   const loadPAs = useCallback(async () => {
     try {
@@ -95,6 +99,21 @@ export default function PriorAuth() {
     Approved: pas.filter(p => p.status === 'Approved').length,
     Denied: pas.filter(p => p.status === 'Denied').length,
     Appealing: pas.filter(p => p.status === 'Appealing').length
+  };
+
+  const handleGetAppealDraft = async () => {
+    if (!selectedPA) return;
+    try {
+      setDraftLoading(true);
+      const res = await getAppealDraft(selectedPA._id);
+      const draft = res.data;
+      setAppealNotes(draft.body || '');
+      setAppealDraft(draft);
+    } catch {
+      setError('Failed to generate appeal draft. You can write your own justification.');
+    } finally {
+      setDraftLoading(false);
+    }
   };
 
   const handleAppeal = async () => {
@@ -216,12 +235,19 @@ export default function PriorAuth() {
                       />
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        icon={STATUS_ICON[pa.status]}
-                        label={pa.status}
-                        size="small"
-                        color={STATUS_COLOR[pa.status] || 'default'}
-                      />
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Chip
+                          icon={STATUS_ICON[pa.status]}
+                          label={pa.status}
+                          size="small"
+                          color={STATUS_COLOR[pa.status] || 'default'}
+                        />
+                        {pa.autoApproved && (
+                          <Tooltip title="Auto-approved by AI">
+                            <AutoIcon fontSize="small" color="success" />
+                          </Tooltip>
+                        )}
+                      </Box>
                     </TableCell>
                     <TableCell>
                       {pa.aiRecommendation ? (
@@ -318,24 +344,73 @@ export default function PriorAuth() {
                   <Typography variant="body2">{selectedPA.clinicalNotes}</Typography>
                 </Paper>
               </Grid>
+              {/* Denial reason code */}
+              {selectedPA.denialReasonCode && (
+                <Grid item xs={12}>
+                  <Alert severity="error" sx={{ mt: 0.5 }}>
+                    <strong>Denial Reason (CARC {selectedPA.denialReasonCode}):</strong> {selectedPA.denialReasonDescription}
+                  </Alert>
+                </Grid>
+              )}
+              {/* Approval window */}
+              {selectedPA.approvedDate && (
+                <Grid item xs={12}>
+                  <Alert severity="success" sx={{ mt: 0.5 }}>
+                    <strong>Approved</strong> {new Date(selectedPA.approvedDate).toLocaleDateString()} →
+                    Expires <strong>{selectedPA.expiryDate ? new Date(selectedPA.expiryDate).toLocaleDateString() : '—'}</strong>
+                    {' '}({selectedPA.approvalDurationDays || 90}-day window)
+                    {selectedPA.autoApproved && <Chip icon={<AutoIcon />} label="Auto-approved by AI" size="small" color="success" variant="outlined" sx={{ ml: 1 }} />}
+                  </Alert>
+                </Grid>
+              )}
               {selectedPA.aiRecommendation && (
                 <Grid item xs={12}>
-                  <Paper variant="outlined" sx={{ p: 2, bgcolor: 'primary.50', borderColor: 'primary.200' }}>
+                  <Paper variant="outlined" sx={{ p: 2, bgcolor: 'rgba(25,118,210,0.04)', borderColor: 'primary.light' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                       <AIIcon color="primary" />
-                      <Typography variant="subtitle2" color="primary">AI Analysis</Typography>
+                      <Typography variant="subtitle2" color="primary.main">AI Analysis</Typography>
                       <Chip
                         label={selectedPA.aiRecommendation}
                         size="small"
                         color={selectedPA.aiRecommendation === 'Approve' ? 'success' : selectedPA.aiRecommendation === 'Deny' ? 'error' : 'warning'}
                       />
                       {selectedPA.aiConfidenceScore != null && (
-                        <Typography variant="caption" color="text.secondary">
-                          Confidence: {selectedPA.aiConfidenceScore}%
-                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 1 }}>
+                          <LinearProgress
+                            variant="determinate"
+                            value={selectedPA.aiConfidenceScore}
+                            color={selectedPA.aiConfidenceScore >= 75 ? 'success' : selectedPA.aiConfidenceScore >= 50 ? 'warning' : 'error'}
+                            sx={{ width: 60, height: 6, borderRadius: 3 }}
+                          />
+                          <Typography variant="caption">{selectedPA.aiConfidenceScore}%</Typography>
+                        </Box>
                       )}
                     </Box>
-                    <Typography variant="body2">{selectedPA.aiReasoning}</Typography>
+                    <Typography variant="body2" sx={{ mb: 1 }}>{selectedPA.aiReasoning}</Typography>
+                    {selectedPA.aiKeyFactors?.length > 0 && (
+                      <Box sx={{ mb: 1 }}>
+                        <Typography variant="caption" fontWeight={600} color="text.secondary">Key Factors:</Typography>
+                        <Stack direction="row" flexWrap="wrap" gap={0.5} sx={{ mt: 0.5 }}>
+                          {selectedPA.aiKeyFactors.map((f, i) => <Chip key={i} label={f} size="small" variant="outlined" />)}
+                        </Stack>
+                      </Box>
+                    )}
+                    {selectedPA.aiGuidelinesCited?.length > 0 && (
+                      <Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                          <GuidelinesIcon fontSize="small" color="action" />
+                          <Typography variant="caption" fontWeight={600} color="text.secondary">Guidelines Cited:</Typography>
+                        </Box>
+                        {selectedPA.aiGuidelinesCited.map((g, i) => (
+                          <Typography key={i} variant="caption" display="block" color="text.secondary" sx={{ ml: 1.5 }}>• {g}</Typography>
+                        ))}
+                      </Box>
+                    )}
+                    {selectedPA.aiSuggestedAction && (
+                      <Alert severity="info" sx={{ mt: 1 }} icon={false}>
+                        <Typography variant="caption"><strong>AI Suggestion:</strong> {selectedPA.aiSuggestedAction}</Typography>
+                      </Alert>
+                    )}
                   </Paper>
                 </Grid>
               )}
@@ -385,16 +460,29 @@ export default function PriorAuth() {
       </Dialog>
 
       {/* Appeal Dialog */}
-      <Dialog open={appealDialogOpen} onClose={() => setAppealDialogOpen(false)} fullWidth maxWidth="sm">
+      <Dialog open={appealDialogOpen} onClose={() => { setAppealDialogOpen(false); setAppealNotes(''); setAppealDraft(null); }} fullWidth maxWidth="sm">
         <DialogTitle>Submit Appeal</DialogTitle>
         <DialogContent>
+          {selectedPA?.denialReasonCode && (
+            <Alert severity="error" sx={{ mb: 2 }} icon={false}>
+              <Typography variant="caption"><strong>Denial Reason (CARC {selectedPA.denialReasonCode}):</strong> {selectedPA.denialReasonDescription}</Typography>
+            </Alert>
+          )}
+          {selectedPA?.appealCount >= 1 && (
+            <Alert severity="warning" sx={{ mb: 2 }}>You have already submitted 1 appeal for this authorization. This is your final appeal opportunity.</Alert>
+          )}
           <DialogContentText sx={{ mb: 2 }}>
             Provide your clinical justification for appealing the denied prior authorization for <strong>{selectedPA?.patientName}</strong>.
           </DialogContentText>
+          {appealDraft && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              AI draft loaded — review and edit before submitting.
+            </Alert>
+          )}
           <TextField
             fullWidth
             multiline
-            rows={5}
+            rows={7}
             label="Appeal Justification"
             value={appealNotes}
             onChange={(e) => setAppealNotes(e.target.value)}
@@ -402,7 +490,15 @@ export default function PriorAuth() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => { setAppealDialogOpen(false); setAppealNotes(''); }}>Cancel</Button>
+          <Button
+            startIcon={<AIIcon />}
+            onClick={handleGetAppealDraft}
+            disabled={draftLoading}
+            sx={{ mr: 'auto' }}
+          >
+            {draftLoading ? 'Generating...' : 'AI Draft'}
+          </Button>
+          <Button onClick={() => { setAppealDialogOpen(false); setAppealNotes(''); setAppealDraft(null); }}>Cancel</Button>
           <Button
             variant="contained"
             color="warning"

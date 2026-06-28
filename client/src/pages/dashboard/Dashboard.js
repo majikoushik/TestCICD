@@ -5,8 +5,6 @@ import dashboardService from '../../services/dashboardService';
 import {
   mockClinicalMetricsData,
   mockReferralEfficiencyData,
-  mockClinicalOutcomesData,
-  mockAIPerformanceData
 } from '../../services/mockData';
 import { ModernLoadingIndicator, ErrorDisplay } from '../../components/common';
 import {
@@ -27,7 +25,8 @@ import {
   Tabs,
   LinearProgress,
   Tooltip,
-  IconButton
+  IconButton,
+  CircularProgress,
 } from '@mui/material';
 import {
   TrendingUp as TrendingUpIcon,
@@ -46,6 +45,7 @@ import {
   VideoCall as TelehealthIcon,
   Storefront as StorefrontIcon,
   LocalPharmacy as RxIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { getMySchedule } from '../../services/appointmentService';
 import { getMyPrescriptions } from '../../services/dtxService';
@@ -285,10 +285,11 @@ function Dashboard() {
   const navigate = useNavigate();
   
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState(0);
   const [dashboardData, setDashboardData] = useState({
-    patients: { total: 0, highRisk: 0, careQualityIndex: 0 },
+    patients: { total: 0, highRisk: 0, mediumRisk: 0, lowRisk: 0, careQualityIndex: 0 },
     referrals: { pending: 0, completed: 0, conversionRate: 0 },
     analytics: { recent: [], engagementGrowth: 0 },
     tokens: { balance: 0, estimatedValue: 0 },
@@ -301,6 +302,8 @@ function Dashboard() {
   const [referralEfficiency, setReferralEfficiency] = useState([]);
   const [patientRiskData, setPatientRiskData] = useState([]);
   const [aiMetricsData, setAiMetricsData] = useState([]);
+  const [clinicalOutcomesData, setClinicalOutcomesData] = useState(null);
+  const [aiPerformanceData, setAiPerformanceData] = useState(null);
   const [todayAppointments, setTodayAppointments] = useState([]);
   const [todayLoading, setTodayLoading] = useState(false);
   const [recentRx, setRecentRx] = useState([]);
@@ -308,7 +311,7 @@ function Dashboard() {
   const [analyticsSnapshot, setAnalyticsSnapshot] = useState(null);
 
   // Define fetchDashboardData function outside of useEffect
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     setLoading(true);
     try {
       // Check if we should use mock data
@@ -330,16 +333,12 @@ function Dashboard() {
       
       setDashboardData(data);
 
-      // Compute patient risk chart directly from fetched data (avoids stale-state race)
+      // Build patient risk chart from the real counts returned by the API
       if (data?.patients) {
-        const total = data.patients.total || 100;
-        const highRisk = data.patients.highRisk || 0;
-        const mediumRiskCount = Math.floor(total * 0.3);
-        const lowRiskCount = Math.max(0, total - highRisk - mediumRiskCount);
         setPatientRiskData([
-          { name: 'High Risk', value: highRisk },
-          { name: 'Medium Risk', value: mediumRiskCount },
-          { name: 'Low Risk', value: lowRiskCount },
+          { name: 'High Risk',   value: data.patients.highRisk   || 0 },
+          { name: 'Medium Risk', value: data.patients.mediumRisk || 0 },
+          { name: 'Low Risk',    value: data.patients.lowRisk    || 0 },
         ]);
       }
     } catch (error) {
@@ -348,13 +347,14 @@ function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
-  
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Handle tab change
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
   };
-  
+
   // Fetch today's schedule
   const fetchTodaySchedule = useCallback(async () => {
     setTodayLoading(true);
@@ -416,21 +416,19 @@ function Dashboard() {
       const aiResponse = await dashboardService.getAIAnalyticsStats();
       if (aiResponse.success) {
         const accuracy = aiResponse.data.accuracyMetrics || {};
-        setDashboardData(prev => ({
-          ...prev,
-          aiMetrics: accuracy
-        }));
-        // Convert 0-1 fractions to 0-100 percentages for the chart component
+        setDashboardData(prev => ({ ...prev, aiMetrics: accuracy }));
         setAiMetricsData({
-          riskAssessment: Math.round((accuracy.riskAssessment || 0) * 100),
+          riskAssessment:    Math.round((accuracy.riskAssessment    || 0) * 100),
           summaryGeneration: Math.round((accuracy.summaryGeneration || 0) * 100),
-          recommendations: Math.round((accuracy.recommendations || 0) * 100),
-          overall: Math.round((accuracy.overall || 0) * 100),
+          recommendations:   Math.round((accuracy.recommendations   || 0) * 100),
+          overall:           Math.round((accuracy.overall           || 0) * 100),
         });
+        // Store full AI performance data for the AI Performance tab
+        setAiPerformanceData(aiResponse.data);
         generateAIInsights(aiResponse.data);
       }
 
-      // Fetch token economy stats
+      // Fetch token economy stats (drives Care Quality Trends chart)
       const tokenResponse = await dashboardService.getTokenEconomyStats();
       if (tokenResponse.success) {
         generateClinicalMetrics(tokenResponse.data);
@@ -441,12 +439,35 @@ function Dashboard() {
       if (referralStatsResponse.success) {
         generateReferralEfficiencyData(referralStatsResponse.data);
       }
+
+      // Fetch clinical outcomes for the Clinical Outcomes tab
+      const clinicalResponse = await dashboardService.getClinicalOutcomesData();
+      if (clinicalResponse?.success && clinicalResponse.data) {
+        setClinicalOutcomesData(clinicalResponse.data);
+      }
       
     } catch (err) {
       console.error('Error fetching additional metrics:', err);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        fetchDashboardData(),
+        fetchAdditionalMetrics(),
+        fetchTodaySchedule(),
+        fetchRecentRx(),
+        dashboardService.getAnalyticsSnapshot().then(res => {
+          if (res?.data) setAnalyticsSnapshot(res.data);
+        }).catch(() => {}),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchDashboardData, fetchAdditionalMetrics, fetchTodaySchedule, fetchRecentRx]);
 
   // Generate AI insights based on data
   const generateAIInsights = useCallback((aiData) => {
@@ -581,13 +602,28 @@ function Dashboard() {
         <ErrorDisplay message={error} />
       ) : (
         <>
-          <Box sx={{ mb: 4 }}>
-            <Typography variant="h4" component="h1" gutterBottom>
-              Welcome, {currentUser?.firstName || 'User'}
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Here's an overview of your ClinicTrust AI platform
-            </Typography>
+          <Box sx={{ mb: 4, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+            <Box>
+              <Typography variant="h4" component="h1" gutterBottom>
+                Welcome, {currentUser?.firstName || 'User'}
+              </Typography>
+              <Typography variant="body1" color="text.secondary">
+                Here's an overview of your ClinicTrust AI platform
+              </Typography>
+            </Box>
+            <Tooltip title="Refresh dashboard">
+              <span>
+                <IconButton
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  sx={{ mt: 0.5 }}
+                >
+                  {refreshing
+                    ? <CircularProgress size={22} color="inherit" />
+                    : <RefreshIcon />}
+                </IconButton>
+              </span>
+            </Tooltip>
           </Box>
         
         {/* Dashboard Tabs */}
@@ -671,7 +707,7 @@ function Dashboard() {
             <Grid item xs={12} sm={6} md={3}>
               <StatCard
                 title="Token Balance"
-                value={149}
+                value={dashboardData?.tokens?.balance ?? 0}
                 icon={<TokenIcon />}
                 color="info"
                 subtitle="Available tokens"
@@ -1124,176 +1160,212 @@ function Dashboard() {
         })()}
         
         {/* Clinical Outcomes Tab */}
-        {activeTab === 3 && (
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-              <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="h6" gutterBottom>Treatment Effectiveness</Typography>
-                <Box sx={{ height: 300 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={mockClinicalOutcomesData.treatmentEffectiveness}
-                      layout="vertical"
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" />
-                      <YAxis dataKey="condition" type="category" width={100} />
-                      <RechartsTooltip />
-                      <Legend />
-                      <Bar dataKey="improved" stackId="a" fill="#82ca9d" name="Improved" />
-                      <Bar dataKey="unchanged" stackId="a" fill="#ffc658" name="Unchanged" />
-                      <Bar dataKey="worsened" stackId="a" fill="#ff8042" name="Worsened" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Box>
-              </Paper>
+        {activeTab === 3 && (() => {
+          const co = clinicalOutcomesData;
+          const noData = !co;
+          return (
+            <Grid container spacing={3}>
+              {noData && (
+                <Grid item xs={12}>
+                  <Paper elevation={1} sx={{ p: 3, borderRadius: 2, textAlign: 'center', color: 'text.secondary' }}>
+                    Clinical outcomes data is loading or unavailable. Data is computed from your referral history.
+                  </Paper>
+                </Grid>
+              )}
+              <Grid item xs={12} md={6}>
+                <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+                  <Typography variant="h6" gutterBottom>Referral Outcomes by Specialty</Typography>
+                  <Box sx={{ height: 300 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={co?.treatmentEffectiveness || []} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis type="number" />
+                        <YAxis dataKey="condition" type="category" width={100} />
+                        <RechartsTooltip />
+                        <Legend />
+                        <Bar dataKey="improved" stackId="a" fill="#82ca9d" name="Completed" />
+                        <Bar dataKey="unchanged" stackId="a" fill="#ffc658" name="Accepted" />
+                        <Bar dataKey="worsened" stackId="a" fill="#ff8042" name="Rejected/Cancelled" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </Paper>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+                  <Typography variant="h6" gutterBottom>Monthly Rejection Rate vs Benchmark</Typography>
+                  <Box sx={{ height: 300 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={co?.readmissionRates || []}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis unit="%" />
+                        <RechartsTooltip formatter={(v) => `${v}%`} />
+                        <Legend />
+                        <Line type="monotone" dataKey="rate" stroke="#8884d8" name="Your Rate %" />
+                        <Line type="monotone" dataKey="benchmark" stroke="#82ca9d" name="Benchmark %" strokeDasharray="5 5" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </Paper>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+                  <Typography variant="h6" gutterBottom>Referral Outcome Scores (out of 5)</Typography>
+                  <Box sx={{ height: 300 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={co?.patientSatisfaction || []}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="category" />
+                        <YAxis domain={[0, 5]} />
+                        <RechartsTooltip />
+                        <Legend />
+                        <Bar dataKey="score"     fill="#8884d8" name="Your Score" />
+                        <Bar dataKey="benchmark" fill="#82ca9d" name="Benchmark" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </Paper>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+                  <Typography variant="h6" gutterBottom>Quality Metrics</Typography>
+                  <Box sx={{ height: 300 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={co?.qualityMetrics || []} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis type="number" domain={[0, 100]} />
+                        <YAxis dataKey="metric" type="category" width={170} />
+                        <RechartsTooltip />
+                        <Legend />
+                        <Bar dataKey="score"  fill="#8884d8" name="Current" />
+                        <Bar dataKey="target" fill="#82ca9d" name="Target" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </Paper>
+              </Grid>
             </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="h6" gutterBottom>Readmission Rates</Typography>
-                <Box sx={{ height: 300 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={mockClinicalOutcomesData.readmissionRates}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <RechartsTooltip />
-                      <Legend />
-                      <Line type="monotone" dataKey="rate" stroke="#8884d8" name="Your Rate" />
-                      <Line type="monotone" dataKey="benchmark" stroke="#82ca9d" name="Benchmark" strokeDasharray="5 5" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </Box>
-              </Paper>
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="h6" gutterBottom>Patient Satisfaction</Typography>
-                <Box sx={{ height: 300 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={mockClinicalOutcomesData.patientSatisfaction}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="category" />
-                      <YAxis domain={[0, 5]} />
-                      <RechartsTooltip />
-                      <Legend />
-                      <Bar dataKey="score" fill="#8884d8" name="Your Score" />
-                      <Bar dataKey="benchmark" fill="#82ca9d" name="Benchmark" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Box>
-              </Paper>
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="h6" gutterBottom>Quality Metrics</Typography>
-                <Box sx={{ height: 300 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={mockClinicalOutcomesData.qualityMetrics} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" domain={[0, 100]} />
-                      <YAxis dataKey="metric" type="category" width={150} />
-                      <RechartsTooltip />
-                      <Legend />
-                      <Bar dataKey="score" fill="#8884d8" name="Current Score" />
-                      <Bar dataKey="target" fill="#82ca9d" name="Target" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Box>
-              </Paper>
-            </Grid>
-          </Grid>
-        )}
+          );
+        })()}
         
         {/* AI Performance Tab */}
-        {activeTab === 4 && (
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={12}>
-              <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="h6" gutterBottom>AI Accuracy Trends</Typography>
-                <Box sx={{ height: 300 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={mockAIPerformanceData.accuracyTrends}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis domain={[75, 100]} />
-                      <RechartsTooltip />
-                      <Legend />
-                      <Line type="monotone" dataKey="riskAssessment" stroke="#8884d8" name="Risk Assessment" />
-                      <Line type="monotone" dataKey="summaryGeneration" stroke="#82ca9d" name="Summary Generation" />
-                      <Line type="monotone" dataKey="recommendations" stroke="#ffc658" name="Recommendations" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </Box>
-              </Paper>
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="h6" gutterBottom>Usage Statistics</Typography>
-                <Box sx={{ height: 300 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={mockAIPerformanceData.usageStatistics}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="feature" />
-                      <YAxis />
-                      <RechartsTooltip />
-                      <Legend />
-                      <Bar dataKey="usageCount" fill="#8884d8" name="Usage Count" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Box>
-              </Paper>
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="h6" gutterBottom>Error Analysis</Typography>
-                <Box sx={{ height: 300 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={mockAIPerformanceData.errorAnalysis}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="category" />
-                      <YAxis />
-                      <RechartsTooltip formatter={(value) => [`${value} cases`]} />
-                      <Bar dataKey="count" fill="#ff8042" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Box>
-              </Paper>
-            </Grid>
-            
-            <Grid item xs={12}>
-              <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="h6" gutterBottom>Model Performance</Typography>
-                <Box sx={{ overflowX: 'auto' }}>
-                  <Box sx={{ minWidth: 650 }}>
-                    <Box sx={{ display: 'flex', fontWeight: 'bold', p: 1, bgcolor: 'background.paper' }}>
-                      <Box sx={{ flex: 3 }}>Model</Box>
-                      <Box sx={{ flex: 1 }}>Accuracy</Box>
-                      <Box sx={{ flex: 1 }}>Precision</Box>
-                      <Box sx={{ flex: 1 }}>Recall</Box>
-                      <Box sx={{ flex: 1 }}>F1 Score</Box>
-                    </Box>
-                    <Divider />
-                    {mockAIPerformanceData?.modelPerformance?.map((row, index) => (
-                      <Box key={index} sx={{ display: 'flex', p: 1, '&:nth-of-type(odd)': { bgcolor: 'action.hover' } }}>
-                        <Box sx={{ flex: 3 }}>{row.model}</Box>
-                        <Box sx={{ flex: 1 }}>{row.accuracy}%</Box>
-                        <Box sx={{ flex: 1 }}>{row.precision}%</Box>
-                        <Box sx={{ flex: 1 }}>{row.recall}%</Box>
-                        <Box sx={{ flex: 1 }}>{row.f1Score}</Box>
-                      </Box>
-                    ))}
+        {activeTab === 4 && (() => {
+          const ai = aiPerformanceData;
+          const noData = !ai;
+          const feedback = ai?.feedbackMetrics || {};
+          return (
+            <Grid container spacing={3}>
+              {noData && (
+                <Grid item xs={12}>
+                  <Paper elevation={1} sx={{ p: 3, borderRadius: 2, textAlign: 'center', color: 'text.secondary' }}>
+                    AI performance data is computed from your analytics job history. Run analytics jobs to populate these charts.
+                  </Paper>
+                </Grid>
+              )}
+              {!noData && (
+                <Grid item xs={12}>
+                  <Paper elevation={1} sx={{ p: 2, borderRadius: 2, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    <Box><Typography variant="caption" color="text.secondary">Total Jobs</Typography><Typography variant="h6">{feedback.totalJobs ?? 0}</Typography></Box>
+                    <Box><Typography variant="caption" color="text.secondary">Completed</Typography><Typography variant="h6" color="success.main">{feedback.completedJobs ?? 0}</Typography></Box>
+                    <Box><Typography variant="caption" color="text.secondary">Failed</Typography><Typography variant="h6" color="error.main">{feedback.failedJobs ?? 0}</Typography></Box>
+                  </Paper>
+                </Grid>
+              )}
+
+              <Grid item xs={12} md={12}>
+                <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+                  <Typography variant="h6" gutterBottom>AI Confidence Score Trends (% by month)</Typography>
+                  <Box sx={{ height: 300 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={ai?.accuracyTrends || []}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis domain={[0, 100]} unit="%" />
+                        <RechartsTooltip formatter={(v) => `${v}%`} />
+                        <Legend />
+                        <Line type="monotone" dataKey="riskAssessment"    stroke="#8884d8" name="Risk Assessment" />
+                        <Line type="monotone" dataKey="summaryGeneration" stroke="#82ca9d" name="Summary Generation" />
+                        <Line type="monotone" dataKey="recommendations"   stroke="#ffc658" name="Recommendations" />
+                      </LineChart>
+                    </ResponsiveContainer>
                   </Box>
-                </Box>
-              </Paper>
+                </Paper>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+                  <Typography variant="h6" gutterBottom>Analytics Job Usage by Type</Typography>
+                  <Box sx={{ height: 300 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={ai?.usageByFeature || []}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="feature" />
+                        <YAxis />
+                        <RechartsTooltip />
+                        <Legend />
+                        <Bar dataKey="count" fill="#8884d8" name="Total Jobs" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </Paper>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+                  <Typography variant="h6" gutterBottom>Failed Jobs by Type</Typography>
+                  <Box sx={{ height: 300 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={ai?.errorAnalysis?.length ? ai.errorAnalysis : [{ category: 'No failures', count: 0 }]}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="category" />
+                        <YAxis allowDecimals={false} />
+                        <RechartsTooltip formatter={(v) => [`${v} jobs`]} />
+                        <Bar dataKey="count" fill="#ff8042" name="Failed Jobs" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </Paper>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+                  <Typography variant="h6" gutterBottom>Model Performance by Job Type</Typography>
+                  {(!ai?.modelPerformance?.length) ? (
+                    <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
+                      No completed analytics jobs yet. Run an analytics job to see model performance stats.
+                    </Typography>
+                  ) : (
+                    <Box sx={{ overflowX: 'auto' }}>
+                      <Box sx={{ minWidth: 650 }}>
+                        <Box sx={{ display: 'flex', fontWeight: 'bold', p: 1, bgcolor: 'background.paper' }}>
+                          <Box sx={{ flex: 3 }}>Model Type</Box>
+                          <Box sx={{ flex: 1 }}>Accuracy</Box>
+                          <Box sx={{ flex: 1 }}>Precision</Box>
+                          <Box sx={{ flex: 1 }}>Recall</Box>
+                          <Box sx={{ flex: 1 }}>F1 Score</Box>
+                        </Box>
+                        <Divider />
+                        {ai.modelPerformance.map((row, index) => (
+                          <Box key={index} sx={{ display: 'flex', p: 1, '&:nth-of-type(odd)': { bgcolor: 'action.hover' } }}>
+                            <Box sx={{ flex: 3 }}>{row.model}</Box>
+                            <Box sx={{ flex: 1 }}>{row.accuracy}%</Box>
+                            <Box sx={{ flex: 1 }}>{row.precision}%</Box>
+                            <Box sx={{ flex: 1 }}>{row.recall}%</Box>
+                            <Box sx={{ flex: 1 }}>{row.f1Score}</Box>
+                          </Box>
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
+                </Paper>
+              </Grid>
             </Grid>
-          </Grid>
-        )}
+          );
+        })()}
         </>
       )}
     </Container>

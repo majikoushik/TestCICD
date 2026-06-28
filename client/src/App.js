@@ -60,8 +60,6 @@ const Settings = lazy(() => import('./pages/settings/Settings'));
 // Notifications
 const Notifications = lazy(() => import('./pages/notifications/Notifications'));
 
-// Appointments
-const ScheduleAppointment = lazy(() => import('./pages/appointments/ScheduleAppointment'));
 
 // Error Pages
 const NotFound = lazy(() => import('./pages/errors/NotFound'));
@@ -86,8 +84,7 @@ const AdminReferralMatching = lazy(() => import('./pages/admin/AdminReferralMatc
 const AdminMatchingConfig = lazy(() => import('./pages/admin/AdminMatchingConfig'));
 const AdminAppointments = lazy(() => import('./pages/admin/AdminAppointments'));
 
-// Appointments (patient self-scheduling)
-const MyAppointments = lazy(() => import('./pages/appointments/MyAppointments'));
+// Appointments
 const BookAppointment = lazy(() => import('./pages/appointments/BookAppointment'));
 
 // Provider Schedule
@@ -325,12 +322,8 @@ function App() {
           </Suspense>
         } />
         
-        {/* Appointments */}
-        <Route path="appointments/schedule" element={
-          <Suspense fallback={<PageLoadingFallback />}>
-            <ScheduleAppointment />
-          </Suspense>
-        } />
+        {/* Legacy appointment routes — redirect to unified schedule page */}
+        <Route path="appointments/schedule" element={<Navigate to="/app/appointments/book" replace />} />
 
         {/* FHIR R4 Explorer */}
         <Route path="fhir" element={
@@ -353,12 +346,8 @@ function App() {
           </Suspense>
         } />
 
-        {/* Patient Self-Scheduling */}
-        <Route path="appointments" element={
-          <Suspense fallback={<PageLoadingFallback />}>
-            <MyAppointments />
-          </Suspense>
-        } />
+        {/* /app/appointments → unified schedule page, All Appointments tab */}
+        <Route path="appointments" element={<Navigate to="/app/schedule?tab=appointments" replace />} />
         <Route path="appointments/book" element={
           <Suspense fallback={<PageLoadingFallback />}>
             <BookAppointment />

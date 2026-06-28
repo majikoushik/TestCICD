@@ -33,7 +33,6 @@ await db.collection('appointments').drop().catch(() => {});
 await db.collection('appointmenttypes').drop().catch(() => {});
 await db.collection('providerschedules').drop().catch(() => {});
 await db.collection('scheduleexceptions').drop().catch(() => {});
-await db.collection('waitlistentries').drop().catch(() => {});
 await db.collection('dtxprescriptions').drop().catch(() => {});
 await db.collection('dtxprograms').drop().catch(() => {});
 await db.collection('contacts').drop().catch(() => {});
@@ -353,6 +352,7 @@ const patients = [
     },
     primaryProvider: "user-2",
     riskScore: 75,
+    riskLevel: 'high',
     medicalHistory: [
       { condition: "Hypertension", diagnosedDate: new Date(2018, 2, 10), notes: "Stage 1 hypertension; managed with lifestyle changes and medication." },
       { condition: "Type 2 Diabetes", diagnosedDate: new Date(2020, 8, 15), notes: "HbA1c 7.2%; on Metformin 500mg twice daily." }
@@ -394,6 +394,7 @@ const patients = [
     },
     primaryProvider: "user-2",
     riskScore: 45,
+    riskLevel: 'medium',
     medicalHistory: [
       { condition: "Asthma", diagnosedDate: new Date(2005, 6, 20), notes: "Mild persistent asthma; well-controlled with inhaler." },
       { condition: "Iron Deficiency Anemia", diagnosedDate: new Date(2022, 1, 14), notes: "Hemoglobin 10.2 g/dL. On iron supplementation." }
@@ -433,6 +434,7 @@ const patients = [
     },
     primaryProvider: "user-2",
     riskScore: 85,
+    riskLevel: 'high',
     medicalHistory: [
       { condition: "Coronary Artery Disease", diagnosedDate: new Date(2015, 4, 10), notes: "Stent placed in LAD 2015. On dual antiplatelet therapy." },
       { condition: "Hyperlipidemia", diagnosedDate: new Date(2012, 9, 8), notes: "LDL 110 mg/dL on statin therapy." },
@@ -476,6 +478,7 @@ const patients = [
     },
     primaryProvider: "user-2",
     riskScore: 60,
+    riskLevel: 'medium',
     medicalHistory: [
       { condition: "Hypothyroidism", diagnosedDate: new Date(2016, 3, 22), notes: "TSH 6.8 at diagnosis. Now TSH 2.1 on Levothyroxine." },
       { condition: "Migraine", diagnosedDate: new Date(2010, 7, 5), notes: "Chronic migraines 3–4x/month. Triggers: stress, hormonal changes." }
@@ -515,6 +518,7 @@ const patients = [
     },
     primaryProvider: "user-2",
     riskScore: 90,
+    riskLevel: 'high',
     medicalHistory: [
       { condition: "Chronic Kidney Disease Stage 3", diagnosedDate: new Date(2017, 8, 12), notes: "eGFR 42 mL/min. Dietary protein restriction advised." },
       { condition: "Atrial Fibrillation", diagnosedDate: new Date(2019, 11, 3), notes: "Paroxysmal AFib. On anticoagulation." },
@@ -558,6 +562,7 @@ const patients = [
     },
     primaryProvider: "user-2",
     riskScore: 30,
+    riskLevel: 'low',
     medicalHistory: [
       { condition: "Polycystic Ovary Syndrome (PCOS)", diagnosedDate: new Date(2014, 9, 12), notes: "Managed with lifestyle modification and oral contraceptives." },
       { condition: "Anxiety Disorder", diagnosedDate: new Date(2018, 4, 3), notes: "Generalized anxiety; on SSRI with good response." }
@@ -596,6 +601,7 @@ const patients = [
     },
     primaryProvider: "user-2",
     riskScore: 88,
+    riskLevel: 'high',
     medicalHistory: [
       { condition: "Congestive Heart Failure", diagnosedDate: new Date(2016, 7, 22), notes: "HFrEF, EF 35%. Compensated on medical therapy." },
       { condition: "Type 2 Diabetes", diagnosedDate: new Date(2008, 3, 14), notes: "HbA1c 8.1%. On insulin." },
@@ -638,6 +644,7 @@ const patients = [
     },
     primaryProvider: "user-2",
     riskScore: 20,
+    riskLevel: 'low',
     medicalHistory: [
       { condition: "Seasonal Allergic Rhinitis", diagnosedDate: new Date(2012, 3, 5), notes: "Pollen and dust mite allergy confirmed by skin prick test." }
     ],
@@ -675,6 +682,7 @@ const patients = [
     },
     primaryProvider: "user-2",
     riskScore: 70,
+    riskLevel: 'medium',
     medicalHistory: [
       { condition: "Sickle Cell Trait", diagnosedDate: new Date(1998, 0, 15), notes: "Carrier, not disease state. Counselled on implications." },
       { condition: "Hypertension", diagnosedDate: new Date(2013, 6, 9), notes: "Controlled on single agent. BP target <130/80." },
@@ -712,6 +720,7 @@ const patients = [
     },
     primaryProvider: "user-2",
     riskScore: 55,
+    riskLevel: 'medium',
     medicalHistory: [
       { condition: "Osteoporosis", diagnosedDate: new Date(2019, 10, 5), notes: "T-score -2.7 at lumbar spine. On bisphosphonate therapy." },
       { condition: "Breast Cancer (in remission)", diagnosedDate: new Date(2017, 4, 12), notes: "Stage II, hormone receptor positive. Completed chemo + radiation 2018. On tamoxifen." },
@@ -827,49 +836,397 @@ await db.collection('medicalrecords').insertMany(medicalRecords);
 // Create referrals collection
 console.log("Creating referrals collection...");
 const referrals = [
+  // ── Referrals SENT by Dr. John Smith (user-2) — Jan 2026 ─────────────────
   {
     _id: "referral-1",
-    patientId: "patient-1",
-    referringProviderId: "user-2",
-    specialistId: "user-4",
-    specialty: "Cardiology",
-    reason: "Abnormal ECG findings",
+    patient: "patient-1",
+    referringProvider: "user-2",
+    receivingProvider: "user-4",
+    reason: "Cardiac arrhythmia with neurological involvement — neurological risk evaluation requested",
+    urgency: "urgent",
     status: "completed",
-    priority: "high",
-    notes: "Patient has family history of heart disease",
-    createdAt: new Date(2023, 6, 10).toISOString(),
-    updatedAt: new Date(2023, 7, 3).toISOString(),
-    completedAt: new Date(2023, 7, 3).toISOString(),
-    blockchainTransactionId: "tx_r1a2b3c4d5e6f7g8h9"
+    notes: "Patient has family history of cardiac disease. Request comprehensive neuro eval for stroke risk.",
+    createdAt: new Date(2026, 0, 8),
+    updatedAt: new Date(2026, 0, 25),
+    completionDate: new Date(2026, 0, 25),
   },
   {
     _id: "referral-2",
-    patientId: "patient-3",
-    referringProviderId: "user-5",
-    specialistId: "user-4",
-    specialty: "Neurology",
-    reason: "Recurring headaches and dizziness",
-    status: "pending",
-    priority: "medium",
-    notes: "Patient reports symptoms worsening over past month",
-    createdAt: new Date(2023, 6, 28).toISOString(),
-    updatedAt: new Date(2023, 6, 28).toISOString(),
-    blockchainTransactionId: "tx_r2b3c4d5e6f7g8h9i0"
+    patient: "patient-3",
+    referringProvider: "user-2",
+    receivingProvider: "user-5",
+    reason: "COPD management coordination — pulmonary function follow-up and primary care co-management",
+    urgency: "routine",
+    status: "completed",
+    notes: "Thomas Brown needs ongoing COPD monitoring. Coordinating with general practice for comprehensive care.",
+    createdAt: new Date(2026, 0, 12),
+    updatedAt: new Date(2026, 0, 29),
+    completionDate: new Date(2026, 0, 29),
   },
   {
     _id: "referral-3",
-    patientId: "patient-2",
-    referringProviderId: "user-2",
-    specialistId: "user-5",
-    specialty: "General Practice",
-    reason: "Annual wellness exam and preventive care follow-up",
+    patient: "patient-5",
+    referringProvider: "user-2",
+    receivingProvider: "user-4",
+    reason: "Atrial fibrillation — neurological risk assessment for stroke prevention protocol",
+    urgency: "urgent",
+    status: "completed",
+    notes: "David Lee has paroxysmal AFib. Need neuro clearance before escalating anticoagulation.",
+    createdAt: new Date(2026, 0, 20),
+    updatedAt: new Date(2026, 1, 8),
+    completionDate: new Date(2026, 1, 8),
+  },
+  // ── February 2026 — 2 completed, 1 accepted ───────────────────────────────
+  {
+    _id: "referral-4",
+    patient: "patient-7",
+    referringProvider: "user-2",
+    receivingProvider: "user-5",
+    reason: "Congestive heart failure — primary care co-management and medication reconciliation",
+    urgency: "routine",
+    status: "completed",
+    notes: "Robert Johnson needs coordinated care between cardiology and general practice for CHF management.",
+    createdAt: new Date(2026, 1, 3),
+    updatedAt: new Date(2026, 1, 22),
+    completionDate: new Date(2026, 1, 22),
+  },
+  {
+    _id: "referral-5",
+    patient: "patient-2",
+    referringProvider: "user-2",
+    receivingProvider: "user-4",
+    reason: "Recurrent headaches with asthma — neurological evaluation to rule out migraine with aura",
+    urgency: "routine",
     status: "accepted",
-    priority: "low",
-    notes: "Patient needs routine bloodwork review",
-    createdAt: new Date(2023, 8, 5).toISOString(),
-    updatedAt: new Date(2023, 8, 10).toISOString(),
-    blockchainTransactionId: "tx_r3c4d5e6f7g8h9i0j1"
-  }
+    notes: "Emily Rodriguez has asthma-related dyspnea and recurring headaches. Neurology consult requested.",
+    createdAt: new Date(2026, 1, 10),
+    updatedAt: new Date(2026, 1, 14),
+  },
+  {
+    _id: "referral-6",
+    patient: "patient-10",
+    referringProvider: "user-2",
+    receivingProvider: "user-5",
+    reason: "Post-breast cancer survivorship care — annual surveillance coordination with primary care",
+    urgency: "routine",
+    status: "completed",
+    notes: "Linda Chen is 5 years post-remission. Need comprehensive primary care coordination for survivorship plan.",
+    createdAt: new Date(2026, 1, 18),
+    updatedAt: new Date(2026, 2, 5),
+    completionDate: new Date(2026, 2, 5),
+  },
+  // ── March 2026 — 1 completed, 2 accepted, 1 pending ──────────────────────
+  {
+    _id: "referral-7",
+    patient: "patient-4",
+    referringProvider: "user-2",
+    receivingProvider: "user-4",
+    reason: "Chronic migraines — comprehensive neurological evaluation and prophylactic treatment planning",
+    urgency: "routine",
+    status: "accepted",
+    notes: "Maria Garcia has 1-2 migraines/month. Requesting neurology eval for prophylaxis options.",
+    createdAt: new Date(2026, 2, 5),
+    updatedAt: new Date(2026, 2, 10),
+  },
+  {
+    _id: "referral-8",
+    patient: "patient-9",
+    referringProvider: "user-2",
+    receivingProvider: "user-3",
+    reason: "Major depressive disorder — care coordination and monitoring support for high-risk patient",
+    urgency: "routine",
+    status: "accepted",
+    notes: "Marcus Thompson showing improvement on PHQ-9 but needs coordinated nursing support for medication adherence.",
+    createdAt: new Date(2026, 2, 12),
+    updatedAt: new Date(2026, 2, 15),
+  },
+  {
+    _id: "referral-9",
+    patient: "patient-1",
+    referringProvider: "user-2",
+    receivingProvider: "user-5",
+    reason: "Hypertension and type 2 diabetes co-management — comprehensive primary care integration",
+    urgency: "routine",
+    status: "completed",
+    notes: "James Wilson requires joint management of hypertension and diabetes. Coordinating with GP for holistic approach.",
+    createdAt: new Date(2026, 2, 20),
+    updatedAt: new Date(2026, 3, 8),
+    completionDate: new Date(2026, 3, 8),
+  },
+  {
+    _id: "referral-10",
+    patient: "patient-6",
+    referringProvider: "user-2",
+    receivingProvider: "user-4",
+    reason: "Anxiety disorder with possible neurological component — psychiatric-neurological evaluation",
+    urgency: "routine",
+    status: "pending",
+    notes: "Aisha Patel has generalized anxiety. Requesting neurology consult to rule out organic causes.",
+    createdAt: new Date(2026, 2, 28),
+    updatedAt: new Date(2026, 2, 28),
+  },
+  // ── April 2026 — 1 accepted, 1 rejected, 1 accepted, 1 pending ───────────
+  {
+    _id: "referral-11",
+    patient: "patient-3",
+    referringProvider: "user-2",
+    receivingProvider: "user-3",
+    reason: "Coronary artery disease — nursing care coordination for post-stent monitoring protocol",
+    urgency: "urgent",
+    status: "accepted",
+    notes: "Thomas Brown needs intensive nursing support for dual antiplatelet therapy monitoring.",
+    createdAt: new Date(2026, 3, 2),
+    updatedAt: new Date(2026, 3, 6),
+  },
+  {
+    _id: "referral-12",
+    patient: "patient-5",
+    referringProvider: "user-2",
+    receivingProvider: "user-5",
+    reason: "CKD dietary management — primary care follow-up for nutritional counseling",
+    urgency: "routine",
+    status: "rejected",
+    notes: "Rejected: Patient already under nephrology dietary protocol. Please coordinate directly with nephrologist.",
+    createdAt: new Date(2026, 3, 8),
+    updatedAt: new Date(2026, 3, 12),
+  },
+  {
+    _id: "referral-13",
+    patient: "patient-8",
+    referringProvider: "user-2",
+    receivingProvider: "user-4",
+    reason: "Seasonal allergic rhinitis with migraine overlap — neurological evaluation for prophylaxis",
+    urgency: "routine",
+    status: "accepted",
+    notes: "Sophia Kim's allergic rhinitis may be contributing to migraine frequency. Neurology evaluation requested.",
+    createdAt: new Date(2026, 3, 15),
+    updatedAt: new Date(2026, 3, 20),
+  },
+  {
+    _id: "referral-14",
+    patient: "patient-7",
+    referringProvider: "user-2",
+    receivingProvider: "user-3",
+    reason: "Diabetes insulin management — nursing education and support program for complex regimen",
+    urgency: "urgent",
+    status: "pending",
+    notes: "Robert Johnson requires intensive diabetes education and nursing oversight for new insulin regimen.",
+    createdAt: new Date(2026, 3, 25),
+    updatedAt: new Date(2026, 3, 25),
+  },
+  // ── May 2026 — 1 completed, 1 accepted, 1 pending, 1 rejected, 1 completed
+  {
+    _id: "referral-15",
+    patient: "patient-2",
+    referringProvider: "user-2",
+    receivingProvider: "user-5",
+    reason: "Iron deficiency anemia follow-up — coordination for IV iron infusion therapy",
+    urgency: "routine",
+    status: "completed",
+    notes: "Emily Rodriguez needs IV iron infusion; coordinating with GP for infusion appointment.",
+    createdAt: new Date(2026, 4, 5),
+    updatedAt: new Date(2026, 4, 22),
+    completionDate: new Date(2026, 4, 22),
+  },
+  {
+    _id: "referral-16",
+    patient: "patient-10",
+    referringProvider: "user-2",
+    receivingProvider: "user-4",
+    reason: "Breast cancer survivorship — cognitive assessment for chemotherapy-related cognitive impairment",
+    urgency: "routine",
+    status: "accepted",
+    notes: "Linda Chen reports memory difficulties post-chemo. Requesting neuropsychological assessment.",
+    createdAt: new Date(2026, 4, 12),
+    updatedAt: new Date(2026, 4, 16),
+  },
+  {
+    _id: "referral-17",
+    patient: "patient-4",
+    referringProvider: "user-2",
+    receivingProvider: "user-3",
+    reason: "Chronic migraine — multidisciplinary care coordination for lifestyle modification program",
+    urgency: "routine",
+    status: "pending",
+    notes: "Maria Garcia needs structured multidisciplinary approach including nursing-led migraine management.",
+    createdAt: new Date(2026, 4, 18),
+    updatedAt: new Date(2026, 4, 18),
+  },
+  {
+    _id: "referral-18",
+    patient: "patient-9",
+    referringProvider: "user-2",
+    receivingProvider: "user-5",
+    reason: "Hypertension treatment optimization — blood pressure monitoring and medication adjustment",
+    urgency: "routine",
+    status: "rejected",
+    notes: "Rejected: Patient BP is now at goal (128/78). Specialist evaluation not warranted at this time.",
+    createdAt: new Date(2026, 4, 22),
+    updatedAt: new Date(2026, 4, 25),
+  },
+  {
+    _id: "referral-19",
+    patient: "patient-6",
+    referringProvider: "user-2",
+    receivingProvider: "user-4",
+    reason: "PCOS with neurological symptoms — evaluation for hormonal influence on neurological function",
+    urgency: "routine",
+    status: "completed",
+    notes: "Aisha Patel PCOS may be causing neurological symptoms. Neurology evaluation completed.",
+    createdAt: new Date(2026, 4, 28),
+    updatedAt: new Date(2026, 5, 15),
+    completionDate: new Date(2026, 5, 15),
+  },
+  // ── June 2026 — 1 pending, 1 accepted, 1 pending, 1 completed, 2 cancelled
+  {
+    _id: "referral-20",
+    patient: "patient-1",
+    referringProvider: "user-2",
+    receivingProvider: "user-3",
+    reason: "High-risk patient care coordination — combined diabetes, CAD management support",
+    urgency: "urgent",
+    status: "pending",
+    notes: "James Wilson is high-risk with multiple comorbidities. Requesting nursing care coordination.",
+    createdAt: new Date(2026, 5, 5),
+    updatedAt: new Date(2026, 5, 5),
+  },
+  {
+    _id: "referral-21",
+    patient: "patient-3",
+    referringProvider: "user-2",
+    receivingProvider: "user-4",
+    reason: "Post-stent cardiac-neurological workup — annual neurovascular risk assessment",
+    urgency: "urgent",
+    status: "accepted",
+    notes: "Thomas Brown post-LAD stent requires annual neurological assessment for stroke risk.",
+    createdAt: new Date(2026, 5, 10),
+    updatedAt: new Date(2026, 5, 14),
+  },
+  {
+    _id: "referral-22",
+    patient: "patient-5",
+    referringProvider: "user-2",
+    receivingProvider: "user-5",
+    reason: "AFib anticoagulation monitoring — coordination with primary care for renal function tracking",
+    urgency: "routine",
+    status: "pending",
+    notes: "David Lee rivaroxaban therapy needs primary care monitoring for renal function.",
+    createdAt: new Date(2026, 5, 15),
+    updatedAt: new Date(2026, 5, 15),
+  },
+  {
+    _id: "referral-23",
+    patient: "patient-7",
+    referringProvider: "user-2",
+    receivingProvider: "user-4",
+    reason: "Emergency: CHF acute decompensation with neurological symptoms — urgent neuro consult",
+    urgency: "emergency",
+    status: "completed",
+    notes: "Robert Johnson presented with acute CHF. Neurology consult completed. Adjusted medications accordingly.",
+    createdAt: new Date(2026, 5, 18),
+    updatedAt: new Date(2026, 5, 20),
+    completionDate: new Date(2026, 5, 20),
+  },
+  {
+    _id: "referral-24",
+    patient: "patient-8",
+    referringProvider: "user-2",
+    receivingProvider: "user-3",
+    reason: "Follow-up nursing care coordination",
+    urgency: "routine",
+    status: "cancelled",
+    notes: "Cancelled: Patient moved to telehealth model. Coordination no longer required.",
+    createdAt: new Date(2026, 5, 22),
+    updatedAt: new Date(2026, 5, 23),
+  },
+  {
+    _id: "referral-25",
+    patient: "patient-10",
+    referringProvider: "user-2",
+    receivingProvider: "user-5",
+    reason: "Cancer surveillance annual coordination — primary care integration for survivorship plan",
+    urgency: "routine",
+    status: "cancelled",
+    notes: "Cancelled: Patient switched primary care provider. New referral to be submitted under new PCP.",
+    createdAt: new Date(2026, 5, 25),
+    updatedAt: new Date(2026, 5, 26),
+  },
+  // ── Referrals RECEIVED by Dr. John Smith (user-2) ─────────────────────────
+  {
+    _id: "referral-26",
+    patient: "patient-1",
+    referringProvider: "user-5",
+    receivingProvider: "user-2",
+    reason: "Cardiovascular evaluation — hypertension not responding to primary care management",
+    urgency: "routine",
+    status: "completed",
+    notes: "Cardiologist consultation completed. Adjusted antihypertensive regimen.",
+    createdAt: new Date(2026, 0, 15),
+    updatedAt: new Date(2026, 1, 5),
+    completionDate: new Date(2026, 1, 5),
+  },
+  {
+    _id: "referral-27",
+    patient: "patient-3",
+    referringProvider: "user-4",
+    receivingProvider: "user-2",
+    reason: "Cardiovascular consultation — cardiac risk stratification for neurology patient",
+    urgency: "routine",
+    status: "accepted",
+    notes: "Accepted for cardiology consultation. Scheduling within 2 weeks.",
+    createdAt: new Date(2026, 1, 20),
+    updatedAt: new Date(2026, 1, 22),
+  },
+  {
+    _id: "referral-28",
+    patient: "patient-7",
+    referringProvider: "user-3",
+    receivingProvider: "user-2",
+    reason: "Cardiac management — CHF patient requiring specialist oversight",
+    urgency: "urgent",
+    status: "completed",
+    notes: "Cardiology consultation completed. EF improved. Medication optimized.",
+    createdAt: new Date(2026, 2, 8),
+    updatedAt: new Date(2026, 2, 28),
+    completionDate: new Date(2026, 2, 28),
+  },
+  {
+    _id: "referral-29",
+    patient: "patient-9",
+    referringProvider: "user-5",
+    receivingProvider: "user-2",
+    reason: "Cardiovascular risk assessment — patient with hypertension and depression",
+    urgency: "routine",
+    status: "accepted",
+    notes: "Cardiology workup in progress. Holter monitor ordered.",
+    createdAt: new Date(2026, 3, 10),
+    updatedAt: new Date(2026, 3, 14),
+  },
+  {
+    _id: "referral-30",
+    patient: "patient-2",
+    referringProvider: "user-4",
+    receivingProvider: "user-2",
+    reason: "Cardiac evaluation — arrhythmia noted on routine ECG",
+    urgency: "urgent",
+    status: "completed",
+    notes: "Cardiac evaluation complete. SVT confirmed and treated. Follow-up in 3 months.",
+    createdAt: new Date(2026, 4, 8),
+    updatedAt: new Date(2026, 4, 25),
+    completionDate: new Date(2026, 4, 25),
+  },
+  {
+    _id: "referral-31",
+    patient: "patient-5",
+    referringProvider: "user-3",
+    receivingProvider: "user-2",
+    reason: "Cardiac care coordination — CKD patient with AFib needing cardiologist input",
+    urgency: "routine",
+    status: "pending",
+    notes: "Pending: Waiting for patient recent renal labs before scheduling.",
+    createdAt: new Date(2026, 5, 20),
+    updatedAt: new Date(2026, 5, 20),
+  },
 ];
 await db.collection('referrals').insertMany(referrals);
 
@@ -877,352 +1234,565 @@ await db.collection('referrals').insertMany(referrals);
 console.log("Creating analytics collection...");
 const analytics = [
   {
-    _id: "ar-001",
-    name: "Q2 Patient Outcome Analysis",
-    type: "Outcome Analysis",
-    status: "completed",
-    createdAt: new Date(2023, 6, 28).toISOString(),
-    updatedAt: new Date(2023, 6, 30).toISOString(),
-    author: "Dr. Sarah Johnson",
-    authorId: "user-3",
-    insights: 5,
-    recommendations: 3,
-    summary: "This analysis shows a 15% improvement in patient outcomes for Q2 compared to Q1, with notable improvements in post-surgical recovery times and medication adherence.",
-    data: {
-      metrics: {
-        patientSatisfaction: 4.7,
-        readmissionRate: 0.05,
-        averageLOS: 3.2
-      },
-      trends: [
-        { month: "April", value: 0.82 },
-        { month: "May", value: 0.87 },
-        { month: "June", value: 0.91 }
+    _id: "analytics-1",
+    type: "patientRisk",
+    name: "Q1 Cardiac Patient Risk Assessment",
+    description: "Comprehensive risk stratification for cardiology patients in Q1 2026",
+    creator: "user-2",
+    organization: "Metro Heart Institute",
+    parameters: { patientCohort: "cardiology", riskThreshold: 0.7, period: "Q1-2026" },
+    results: {
+      summary: "4 high-risk patients identified requiring immediate intervention. 4 medium-risk patients flagged for enhanced monitoring.",
+      insights: [
+        { title: "High Cardiac Risk Cluster", description: "4 patients with riskScore >= 75 identified", severity: "high", actionable: true, recommendations: ["Schedule urgent follow-ups", "Review medication adherence"] },
+        { title: "AFib Stroke Risk Elevated", description: "Patient-5 showing elevated stroke risk markers on anticoagulation", severity: "high", actionable: true, recommendations: ["Escalate anticoagulation monitoring protocol"] }
       ]
-    }
+    },
+    dataUsed: [{ source: "EHR", type: "patient", recordCount: 10, anonymized: true }],
+    modelVersion: "v2.1.0",
+    confidenceScore: 0.88,
+    status: "completed",
+    tokenReward: 20,
+    createdAt: new Date(2026, 0, 15),
+    updatedAt: new Date(2026, 0, 16),
   },
   {
-    _id: "ar-002",
-    name: "Diabetes Risk Stratification",
-    type: "Risk Analysis",
-    status: "completed",
-    createdAt: new Date(2023, 6, 25).toISOString(),
-    updatedAt: new Date(2023, 6, 26).toISOString(),
-    author: "Dr. Michael Chen",
-    authorId: "user-4",
-    insights: 7,
-    recommendations: 4,
-    summary: "This analysis identifies 37 high-risk patients who would benefit from proactive intervention. Key risk factors include family history, BMI > 30, and A1C levels > 5.7%.",
-    data: {
-      riskGroups: {
-        high: 37,
-        medium: 124,
-        low: 87
-      },
-      keyFactors: [
-        "Family history",
-        "BMI > 30",
-        "A1C > 5.7%",
-        "Sedentary lifestyle"
+    _id: "analytics-2",
+    type: "operationalEfficiency",
+    name: "Cardiology Department Efficiency Q1 2026",
+    description: "Analysis of referral throughput, appointment utilization and workflow efficiency for Q1",
+    creator: "user-2",
+    organization: "Metro Heart Institute",
+    parameters: { department: "Cardiology", period: "Q1-2026" },
+    results: {
+      summary: "Referral completion rate 100% for January. Average response time 17 hours. 3 completed referrals with full documentation.",
+      insights: [
+        { title: "High Referral Completion", description: "100% referral completion rate in January exceeds network average of 72%", severity: "low", actionable: false, recommendations: [] }
       ]
-    }
+    },
+    dataUsed: [{ source: "Referrals", type: "referral", recordCount: 3, anonymized: true }],
+    modelVersion: "v1.8.0",
+    confidenceScore: 0.91,
+    status: "completed",
+    tokenReward: 20,
+    createdAt: new Date(2026, 0, 28),
+    updatedAt: new Date(2026, 0, 29),
   },
   {
-    _id: "ar-003",
-    name: "Cardiology Department Efficiency",
-    type: "Operational Analysis",
-    status: "in-progress",
-    createdAt: new Date(2023, 7, 1).toISOString(),
-    updatedAt: new Date(2023, 7, 1).toISOString(),
-    author: "Dr. Robert Williams",
-    authorId: "user-5",
-    insights: 0,
-    recommendations: 0,
-    summary: "Analysis in progress",
-    data: {
-      metrics: {
-        averageWaitTime: 18.5,
-        patientVolume: 342,
-        staffUtilization: 0.78
-      }
-    }
-  }
+    _id: "analytics-3",
+    type: "patientRisk",
+    name: "High-Risk Cardiac Patient Stratification",
+    description: "Risk stratification focused on CHF, CAD, and AFib patients requiring escalated care",
+    creator: "user-2",
+    organization: "Metro Heart Institute",
+    parameters: { riskThreshold: 0.8, focusConditions: ["CHF", "CAD", "AFib"] },
+    results: {
+      summary: "3 patients (patient-3, patient-5, patient-7) identified as critical — immediate intervention protocol activated.",
+      insights: [
+        { title: "Critical CHF Risk", description: "Robert Johnson — EF < 40%, high readmission risk score 88", severity: "critical", actionable: true, recommendations: ["Increase monitoring frequency", "Review diuretic dosing"] }
+      ]
+    },
+    dataUsed: [{ source: "EHR", type: "patient", recordCount: 10, anonymized: true }],
+    modelVersion: "v2.1.0",
+    confidenceScore: 0.86,
+    status: "completed",
+    tokenReward: 20,
+    createdAt: new Date(2026, 1, 10),
+    updatedAt: new Date(2026, 1, 11),
+  },
+  {
+    _id: "analytics-4",
+    type: "patientOutcomes",
+    name: "February Treatment Outcomes Review",
+    description: "Analysis of treatment effectiveness and patient outcomes for February 2026",
+    creator: "user-2",
+    organization: "Metro Heart Institute",
+    parameters: { period: "2026-02", outcomeTypes: ["medication_adherence", "referral_followup"] },
+    results: {
+      summary: "Treatment adherence rate 78%. 2 completed referrals showed improved patient outcomes.",
+      insights: [
+        { title: "Improved Diabetic Control", description: "HbA1c improvement noted in 2/3 diabetic patients on current regimen", severity: "medium", actionable: true, recommendations: ["Continue current medication protocol", "Schedule 3-month HbA1c recheck"] }
+      ]
+    },
+    dataUsed: [{ source: "EHR", type: "patient", recordCount: 10, anonymized: true }],
+    modelVersion: "v1.9.0",
+    confidenceScore: 0.92,
+    status: "completed",
+    tokenReward: 20,
+    createdAt: new Date(2026, 1, 25),
+    updatedAt: new Date(2026, 1, 26),
+  },
+  {
+    _id: "analytics-5",
+    type: "patientRisk",
+    name: "March Monthly Risk Assessment",
+    description: "Monthly cardiac patient risk assessment for March 2026",
+    creator: "user-2",
+    organization: "Metro Heart Institute",
+    parameters: { period: "2026-03", riskFactors: ["hypertension", "diabetes", "CAD", "CHF"] },
+    results: {
+      summary: "Risk profile stable. 4 high-risk, 4 medium-risk, 2 low-risk patients. No new critical escalations.",
+      insights: [
+        { title: "Stable Risk Profile", description: "No significant risk escalation from prior month across 10-patient cohort", severity: "low", actionable: false, recommendations: [] }
+      ]
+    },
+    dataUsed: [{ source: "EHR", type: "patient", recordCount: 10, anonymized: true }],
+    modelVersion: "v2.1.0",
+    confidenceScore: 0.87,
+    status: "completed",
+    tokenReward: 20,
+    createdAt: new Date(2026, 2, 15),
+    updatedAt: new Date(2026, 2, 16),
+  },
+  {
+    _id: "analytics-6",
+    type: "financialMetrics",
+    name: "Q1 Financial Performance Analysis",
+    description: "Token economy and financial performance metrics for Q1 2026",
+    creator: "user-2",
+    organization: "Metro Heart Institute",
+    parameters: { period: "Q1-2026", metrics: ["token_earnings", "referral_revenue", "service_costs"] },
+    results: {
+      summary: "Token earnings: 105 tokens from 6 referral completions and 4 analytics jobs. Net positive token balance growth of 35%.",
+      insights: [
+        { title: "Strong Token Economy Growth", description: "Token balance grew 35% in Q1 vs Q4 2025 benchmark", severity: "low", actionable: false, recommendations: [] }
+      ]
+    },
+    dataUsed: [{ source: "TokenTransactions", type: "analytics", recordCount: 15, anonymized: true }],
+    modelVersion: "v1.5.0",
+    confidenceScore: 0.89,
+    status: "completed",
+    tokenReward: 20,
+    createdAt: new Date(2026, 2, 28),
+    updatedAt: new Date(2026, 2, 29),
+  },
+  {
+    _id: "analytics-7",
+    type: "patientRisk",
+    name: "April Risk Stratification",
+    description: "Monthly patient risk stratification with updated clinical data for April 2026",
+    creator: "user-2",
+    organization: "Metro Heart Institute",
+    parameters: { period: "2026-04", includeNewData: true },
+    results: {
+      summary: "Patient-7 risk score increased due to worsening CHF symptoms. Escalation protocol initiated for emergency referral.",
+      insights: [
+        { title: "CHF Deterioration Alert", description: "Robert Johnson shows worsening EF — risk escalated to critical, emergency neuro referral filed", severity: "critical", actionable: true, recommendations: ["Increase diuretic dosage", "Schedule urgent cardiology review within 48h"] }
+      ]
+    },
+    dataUsed: [{ source: "EHR", type: "patient", recordCount: 10, anonymized: true }],
+    modelVersion: "v2.2.0",
+    confidenceScore: 0.93,
+    status: "completed",
+    tokenReward: 20,
+    createdAt: new Date(2026, 3, 12),
+    updatedAt: new Date(2026, 3, 13),
+  },
+  {
+    _id: "analytics-8",
+    type: "patientOutcomes",
+    name: "Treatment Effectiveness Q1 Analysis",
+    description: "Comprehensive analysis of treatment effectiveness across all patient cohorts for Q1 2026",
+    creator: "user-2",
+    organization: "Metro Heart Institute",
+    parameters: { period: "Q1-2026", treatmentCategories: ["cardiac", "diabetes", "COPD", "renal"] },
+    results: {
+      summary: "81% of completed referrals resulted in documented clinical improvement. Cardiac outcomes above network average.",
+      insights: [
+        { title: "Strong Cardiac Outcomes", description: "Cardiology referrals show 85% positive outcome rate vs 70% network average", severity: "low", actionable: false, recommendations: [] }
+      ]
+    },
+    dataUsed: [{ source: "Referrals", type: "referral", recordCount: 9, anonymized: true }],
+    modelVersion: "v1.9.0",
+    confidenceScore: 0.90,
+    status: "completed",
+    tokenReward: 20,
+    createdAt: new Date(2026, 3, 25),
+    updatedAt: new Date(2026, 3, 26),
+  },
+  {
+    _id: "analytics-9",
+    type: "patientRisk",
+    name: "May Cardiac Risk Assessment",
+    description: "Monthly cardiac patient risk assessment for May 2026",
+    creator: "user-2",
+    organization: "Metro Heart Institute",
+    parameters: { period: "2026-05", riskFactors: ["cardiac", "renal", "metabolic"] },
+    results: {
+      summary: "Stable risk profile. CHF patient improving post-medication adjustment. AFib patient stable on rivaroxaban.",
+      insights: [
+        { title: "CHF Improvement Noted", description: "Patient-7 EF improved to 40% after medication optimization in April", severity: "medium", actionable: true, recommendations: ["Continue current regimen", "Recheck EF in 6 weeks"] }
+      ]
+    },
+    dataUsed: [{ source: "EHR", type: "patient", recordCount: 10, anonymized: true }],
+    modelVersion: "v2.2.0",
+    confidenceScore: 0.85,
+    status: "completed",
+    tokenReward: 20,
+    createdAt: new Date(2026, 4, 14),
+    updatedAt: new Date(2026, 4, 15),
+  },
+  {
+    _id: "analytics-10",
+    type: "patientRisk",
+    name: "June 2026 Cardiac Risk Review",
+    description: "Comprehensive June 2026 cardiac patient risk review with updated predictive model v2.3.0",
+    creator: "user-2",
+    organization: "Metro Heart Institute",
+    parameters: { period: "2026-06", modelVersion: "v2.3.0", confidenceThreshold: 0.85 },
+    results: {
+      summary: "All 4 high-risk patients stable. 2 recent emergency referrals handled successfully. Model accuracy at 94%.",
+      insights: [
+        { title: "Emergency Case Resolved", description: "Patient-7 acute CHF decompensation fully resolved. Complete neuro-cardio workup documented.", severity: "high", actionable: false, recommendations: [] },
+        { title: "Predictive Model Updated", description: "New v2.3.0 model shows 6% improvement in 30-day cardiac event prediction accuracy", severity: "low", actionable: false, recommendations: [] }
+      ]
+    },
+    dataUsed: [{ source: "EHR", type: "patient", recordCount: 10, anonymized: true }],
+    modelVersion: "v2.3.0",
+    confidenceScore: 0.94,
+    status: "completed",
+    tokenReward: 20,
+    createdAt: new Date(2026, 5, 10),
+    updatedAt: new Date(2026, 5, 11),
+  },
+  {
+    _id: "analytics-11",
+    type: "operationalEfficiency",
+    name: "Cardiology Department Efficiency June 2026",
+    description: "June 2026 operational efficiency analysis for Metro Heart Institute cardiology department",
+    creator: "user-2",
+    organization: "Metro Heart Institute",
+    parameters: { department: "Cardiology", period: "2026-06" },
+    results: {
+      summary: "Referral response time improved to 14 hours average. 78% of referrals responded to within 24 hours.",
+      insights: [
+        { title: "Improved Response Times", description: "Average referral response time decreased by 4 hours vs prior month — trending positively", severity: "low", actionable: false, recommendations: [] }
+      ]
+    },
+    dataUsed: [{ source: "Referrals", type: "referral", recordCount: 6, anonymized: true }],
+    modelVersion: "v1.8.0",
+    confidenceScore: 0.91,
+    status: "completed",
+    tokenReward: 20,
+    createdAt: new Date(2026, 5, 20),
+    updatedAt: new Date(2026, 5, 21),
+  },
 ];
 await db.collection('analytics').insertMany(analytics);
 
 // Create token transactions collection
 console.log("Creating token transactions collection...");
 const tokenTransactions = [
+  // ── Dr. John Smith (user-2) token history — Jan–Jun 2026 ─────────────────
   {
-    _id: "tx-1",
-    type: "earned",
-    amount: 15,
-    description: "Reward for Patient Risk Analysis",
-    timestamp: new Date(2023, 6, 15),
-    transactionId: "tx_a1b2c3d4e5f6",
-    userId: "user-4",
-    status: "completed",
-    category: "data_contribution",
-    source: "ai_risk_assessment",
-    metadata: {
-      patientCount: 12,
-      datasetId: "ds-456",
-      contributionType: "risk_factors"
-    },
-    blockchainTxHash: "0x1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t"
-  },
-  {
-    _id: "tx-2",
-    type: "earned",
-    amount: 20,
-    description: "Reward for Data Contribution",
-    timestamp: new Date(2023, 5, 21),
-    transactionId: "tx_g7h8i9j0k1l2",
-    userId: "user-2",
-    status: "completed",
-    category: "data_contribution",
-    source: "clinical_outcomes",
-    metadata: {
-      patientCount: 8,
-      datasetId: "ds-123",
-      contributionType: "treatment_outcomes"
-    },
-    blockchainTxHash: "0x2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u"
-  },
-  {
-    _id: "tx-3",
-    type: "spent",
+    _id: "ttx-1",
+    user: "user-2",
+    type: "earn",
     amount: 25,
-    description: "Redeemed for Premium Analytics Report",
-    timestamp: new Date(2023, 5, 10),
-    transactionId: "tx_m3n4o5p6q7r8",
-    userId: "user-5",
+    reason: "KYC verification completion bonus",
+    relatedEntity: { entityType: "service", entityId: "kyc-verified" },
     status: "completed",
-    category: "service_redemption",
-    serviceId: "svc-1",
-    metadata: {
-      serviceName: "Premium Analytics Report",
-      reportId: "ar-001",
-      validUntil: new Date(2023, 8, 10)
-    },
-    blockchainTxHash: "0x3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v"
+    balanceAfter: 25,
+    createdAt: new Date(2026, 0, 5),
   },
   {
-    _id: "tx-4",
-    type: "transfer",
+    _id: "ttx-2",
+    user: "user-2",
+    type: "earn",
+    amount: 20,
+    reason: "Analytics job completed: Q1 Cardiac Patient Risk Assessment",
+    relatedEntity: { entityType: "analytics", entityId: "analytics-1" },
+    status: "completed",
+    balanceAfter: 45,
+    createdAt: new Date(2026, 0, 16),
+  },
+  {
+    _id: "ttx-3",
+    user: "user-2",
+    type: "earn",
     amount: 10,
-    description: "Transferred to Dr. Robert Williams",
-    recipient: "Dr. Robert Williams",
-    recipientId: "user-5",
-    timestamp: new Date(2023, 4, 25),
-    transactionId: "tx_s9t8u7v6w5x4y3z2",
-    userId: "user-2",
+    reason: "Referral completed: cardiac arrhythmia neurological evaluation (referral-1)",
+    relatedEntity: { entityType: "referral", entityId: "referral-1" },
     status: "completed",
-    category: "peer_transfer",
-    metadata: {
-      reason: "Consultation assistance",
-      message: "Thanks for your help with the complex case"
-    },
-    blockchainTxHash: "0x4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w"
+    balanceAfter: 55,
+    createdAt: new Date(2026, 0, 25),
   },
   {
-    _id: "tx-5",
-    type: "earned",
-    amount: 15,
-    description: "Reward for Patient Outcomes Analysis",
-    timestamp: new Date(2023, 4, 11),
-    transactionId: "tx_a2b3c4d5e6f7g8h9",
-    userId: "user-3",
+    _id: "ttx-4",
+    user: "user-2",
+    type: "earn",
+    amount: 10,
+    reason: "Referral completed: COPD management coordination (referral-2)",
+    relatedEntity: { entityType: "referral", entityId: "referral-2" },
     status: "completed",
-    category: "data_contribution",
-    source: "outcomes_reporting",
-    metadata: {
-      patientCount: 15,
-      datasetId: "ds-789",
-      contributionType: "nursing_outcomes"
-    },
-    blockchainTxHash: "0x5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x"
+    balanceAfter: 65,
+    createdAt: new Date(2026, 0, 29),
   },
   {
-    _id: "tx-6",
-    type: "earned",
-    amount: 30,
-    description: "Reward for Research Participation",
-    timestamp: new Date(2023, 6, 5),
-    transactionId: "tx_b2c3d4e5f6g7h8i9",
-    userId: "user-4",
+    _id: "ttx-5",
+    user: "user-2",
+    type: "earn",
+    amount: 20,
+    reason: "Analytics job completed: Cardiology Department Efficiency Q1 2026",
+    relatedEntity: { entityType: "analytics", entityId: "analytics-2" },
     status: "completed",
-    category: "research",
-    source: "clinical_trial_data",
-    metadata: {
-      studyId: "study-456",
-      contributionType: "patient_enrollment",
-      patientsEnrolled: 3
-    },
-    blockchainTxHash: "0x6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y"
+    balanceAfter: 85,
+    createdAt: new Date(2026, 0, 29),
   },
   {
-    _id: "tx-7",
-    type: "spent",
+    _id: "ttx-6",
+    user: "user-2",
+    type: "earn",
+    amount: 10,
+    reason: "Referral completed: AFib stroke prevention assessment (referral-3)",
+    relatedEntity: { entityType: "referral", entityId: "referral-3" },
+    status: "completed",
+    balanceAfter: 95,
+    createdAt: new Date(2026, 1, 8),
+  },
+  {
+    _id: "ttx-7",
+    user: "user-2",
+    type: "earn",
+    amount: 20,
+    reason: "Analytics job completed: High-Risk Cardiac Patient Stratification",
+    relatedEntity: { entityType: "analytics", entityId: "analytics-3" },
+    status: "completed",
+    balanceAfter: 115,
+    createdAt: new Date(2026, 1, 11),
+  },
+  {
+    _id: "ttx-8",
+    user: "user-2",
+    type: "spend",
     amount: 50,
-    description: "Redeemed for AI Consultation Assistant",
-    timestamp: new Date(2023, 6, 12),
-    transactionId: "tx_c3d4e5f6g7h8i9j0",
-    userId: "user-2",
+    reason: "AI Consultation Assistant subscription — 1 month access",
+    relatedEntity: { entityType: "service", entityId: "svc-4" },
     status: "completed",
-    category: "service_redemption",
-    serviceId: "svc-4",
-    metadata: {
-      serviceName: "AI Consultation Assistant",
-      subscriptionPeriod: "1 month",
-      validUntil: new Date(2023, 7, 12)
-    },
-    blockchainTxHash: "0x7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z"
+    balanceAfter: 65,
+    createdAt: new Date(2026, 1, 20),
   },
   {
-    _id: "tx-8",
-    type: "earned",
-    amount: 5,
-    description: "Reward for Peer Review",
-    timestamp: new Date(2023, 6, 18),
-    transactionId: "tx_d4e5f6g7h8i9j0k1",
-    userId: "user-5",
-    status: "completed",
-    category: "peer_review",
-    source: "case_review",
-    metadata: {
-      reviewType: "Treatment Plan Review",
-      caseId: "case-789",
-      specialtyArea: "Cardiology"
-    },
-    blockchainTxHash: "0x8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7a"
-  },
-  {
-    _id: "tx-9",
-    type: "spent",
-    amount: 15,
-    description: "Redeemed for Priority Referral Processing",
-    timestamp: new Date(2023, 6, 20),
-    transactionId: "tx_e5f6g7h8i9j0k1l2",
-    userId: "user-3",
-    status: "completed",
-    category: "service_redemption",
-    serviceId: "svc-2",
-    metadata: {
-      serviceName: "Priority Referral Processing",
-      referralId: "ref-005",
-      patientId: "pt-003"
-    },
-    blockchainTxHash: "0x9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7a8b"
-  },
-  {
-    _id: "tx-10",
-    type: "earned",
-    amount: 25,
-    description: "Reward for Quality Reporting",
-    timestamp: new Date(2023, 6, 25),
-    transactionId: "tx_f6g7h8i9j0k1l2m3",
-    userId: "user-2",
-    status: "pending",
-    category: "quality_metrics",
-    source: "quality_improvement",
-    metadata: {
-      reportId: "qr-123",
-      metricsSubmitted: 12,
-      improvementArea: "Medication Reconciliation"
-    },
-    blockchainTxHash: null
-  },
-  {
-    _id: "tx-11",
-    type: "adjustment",
+    _id: "ttx-9",
+    user: "user-2",
+    type: "earn",
     amount: 10,
-    description: "Administrative Token Adjustment",
-    timestamp: new Date(2023, 6, 28),
-    transactionId: "tx_g7h8i9j0k1l2m3n4",
-    userId: "user-4",
+    reason: "Referral completed: CHF primary care co-management (referral-4)",
+    relatedEntity: { entityType: "referral", entityId: "referral-4" },
     status: "completed",
-    category: "administrative",
-    source: "admin_adjustment",
-    metadata: {
-      reason: "Correction for system error",
-      approvedBy: "user-1",
-      originalTransactionId: "tx_a1b2c3d4e5f6"
-    },
-    blockchainTxHash: "0xa0b1c2d3e4f5g6h7i8j9k0l1m2n3o4p5q6r7s8t9"
+    balanceAfter: 75,
+    createdAt: new Date(2026, 1, 22),
   },
   {
-    _id: "tx-12",
-    type: "transfer",
-    amount: 15,
-    description: "Transferred to Dr. Sarah Johnson",
-    recipient: "Dr. Sarah Johnson",
-    recipientId: "user-3",
-    timestamp: new Date(2023, 7, 2),
-    transactionId: "tx_h8i9j0k1l2m3n4o5",
-    userId: "user-5",
-    status: "completed",
-    category: "peer_transfer",
-    metadata: {
-      reason: "Collaboration on research project",
-      message: "For your contribution to our joint research"
-    },
-    blockchainTxHash: "0xb1c2d3e4f5g6h7i8j9k0l1m2n3o4p5q6r7s8t9u0"
-  },
-  {
-    _id: "tx-13",
-    type: "earned",
+    _id: "ttx-10",
+    user: "user-2",
+    type: "earn",
     amount: 20,
-    description: "Reward for AI Model Feedback",
-    timestamp: new Date(2023, 7, 5),
-    transactionId: "tx_i9j0k1l2m3n4o5p6",
-    userId: "user-2",
+    reason: "Analytics job completed: February Treatment Outcomes Review",
+    relatedEntity: { entityType: "analytics", entityId: "analytics-4" },
     status: "completed",
-    category: "ai_feedback",
-    source: "model_improvement",
-    metadata: {
-      feedbackType: "False Positive Correction",
-      modelId: "ai-model-456",
-      improvementCategory: "Readmission Risk"
-    },
-    blockchainTxHash: "0xc2d3e4f5g6h7i8j9k0l1m2n3o4p5q6r7s8t9u0v1"
+    balanceAfter: 95,
+    createdAt: new Date(2026, 1, 26),
   },
   {
-    _id: "tx-14",
-    type: "spent",
+    _id: "ttx-11",
+    user: "user-2",
+    type: "earn",
+    amount: 10,
+    reason: "Referral completed: post-cancer survivorship coordination (referral-6)",
+    relatedEntity: { entityType: "referral", entityId: "referral-6" },
+    status: "completed",
+    balanceAfter: 105,
+    createdAt: new Date(2026, 2, 5),
+  },
+  {
+    _id: "ttx-12",
+    user: "user-2",
+    type: "earn",
+    amount: 20,
+    reason: "Analytics job completed: March Monthly Risk Assessment",
+    relatedEntity: { entityType: "analytics", entityId: "analytics-5" },
+    status: "completed",
+    balanceAfter: 125,
+    createdAt: new Date(2026, 2, 16),
+  },
+  {
+    _id: "ttx-13",
+    user: "user-2",
+    type: "spend",
     amount: 30,
-    description: "Redeemed for Extended Data Storage",
-    timestamp: new Date(2023, 7, 8),
-    transactionId: "tx_j0k1l2m3n4o5p6q7",
-    userId: "user-4",
-    status: "processing",
-    category: "service_redemption",
-    serviceId: "svc-3",
-    metadata: {
-      serviceName: "Extended Data Storage",
-      storageIncrease: "500GB",
-      validUntil: new Date(2024, 7, 8)
-    },
-    blockchainTxHash: null
+    reason: "Premium Analytics Report — extended clinical insights package",
+    relatedEntity: { entityType: "service", entityId: "svc-1" },
+    status: "completed",
+    balanceAfter: 95,
+    createdAt: new Date(2026, 2, 20),
   },
   {
-    _id: "tx-15",
-    type: "earned",
-    amount: 15,
-    description: "Reward for Educational Content Creation",
-    timestamp: new Date(2023, 7, 10),
-    transactionId: "tx_k1l2m3n4o5p6q7r8",
-    userId: "user-5",
+    _id: "ttx-14",
+    user: "user-2",
+    type: "earn",
+    amount: 20,
+    reason: "Analytics job completed: Q1 Financial Performance Analysis",
+    relatedEntity: { entityType: "analytics", entityId: "analytics-6" },
     status: "completed",
-    category: "education",
-    source: "content_creation",
-    metadata: {
-      contentType: "Clinical Guidelines",
-      contentId: "edu-789",
-      specialtyArea: "Cardiology"
-    },
-    blockchainTxHash: "0xd3e4f5g6h7i8j9k0l1m2n3o4p5q6r7s8t9u0v1w2"
-  }
+    balanceAfter: 115,
+    createdAt: new Date(2026, 2, 29),
+  },
+  {
+    _id: "ttx-15",
+    user: "user-2",
+    type: "earn",
+    amount: 10,
+    reason: "Referral completed: hypertension and diabetes co-management (referral-9)",
+    relatedEntity: { entityType: "referral", entityId: "referral-9" },
+    status: "completed",
+    balanceAfter: 125,
+    createdAt: new Date(2026, 3, 8),
+  },
+  {
+    _id: "ttx-16",
+    user: "user-2",
+    type: "earn",
+    amount: 20,
+    reason: "Analytics job completed: April Risk Stratification",
+    relatedEntity: { entityType: "analytics", entityId: "analytics-7" },
+    status: "completed",
+    balanceAfter: 145,
+    createdAt: new Date(2026, 3, 13),
+  },
+  {
+    _id: "ttx-17",
+    user: "user-2",
+    type: "earn",
+    amount: 20,
+    reason: "Analytics job completed: Treatment Effectiveness Q1 Analysis",
+    relatedEntity: { entityType: "analytics", entityId: "analytics-8" },
+    status: "completed",
+    balanceAfter: 165,
+    createdAt: new Date(2026, 3, 26),
+  },
+  {
+    _id: "ttx-18",
+    user: "user-2",
+    type: "earn",
+    amount: 25,
+    reason: "Data contribution: anonymized cardiac outcomes dataset — 180 patient records",
+    relatedEntity: { entityType: "analytics", entityId: "analytics-9" },
+    status: "completed",
+    balanceAfter: 190,
+    createdAt: new Date(2026, 4, 5),
+  },
+  {
+    _id: "ttx-19",
+    user: "user-2",
+    type: "spend",
+    amount: 20,
+    reason: "Priority Referral Processing — expedited cardiology referral handling",
+    relatedEntity: { entityType: "service", entityId: "svc-2" },
+    status: "completed",
+    balanceAfter: 170,
+    createdAt: new Date(2026, 4, 10),
+  },
+  {
+    _id: "ttx-20",
+    user: "user-2",
+    type: "earn",
+    amount: 20,
+    reason: "Analytics job completed: May Cardiac Risk Assessment",
+    relatedEntity: { entityType: "analytics", entityId: "analytics-9" },
+    status: "completed",
+    balanceAfter: 190,
+    createdAt: new Date(2026, 4, 15),
+  },
+  {
+    _id: "ttx-21",
+    user: "user-2",
+    type: "earn",
+    amount: 10,
+    reason: "Referral completed: anemia IV iron infusion coordination (referral-15)",
+    relatedEntity: { entityType: "referral", entityId: "referral-15" },
+    status: "completed",
+    balanceAfter: 200,
+    createdAt: new Date(2026, 4, 22),
+  },
+  {
+    _id: "ttx-22",
+    user: "user-2",
+    type: "earn",
+    amount: 20,
+    reason: "Analytics job completed: June 2026 Cardiac Risk Review",
+    relatedEntity: { entityType: "analytics", entityId: "analytics-10" },
+    status: "completed",
+    balanceAfter: 220,
+    createdAt: new Date(2026, 5, 11),
+  },
+  {
+    _id: "ttx-23",
+    user: "user-2",
+    type: "earn",
+    amount: 10,
+    reason: "Referral completed: PCOS neurological evaluation (referral-19)",
+    relatedEntity: { entityType: "referral", entityId: "referral-19" },
+    status: "completed",
+    balanceAfter: 230,
+    createdAt: new Date(2026, 5, 15),
+  },
+  {
+    _id: "ttx-24",
+    user: "user-2",
+    type: "earn",
+    amount: 10,
+    reason: "Referral completed: CHF emergency neuro-cardio consult (referral-23)",
+    relatedEntity: { entityType: "referral", entityId: "referral-23" },
+    status: "completed",
+    balanceAfter: 240,
+    createdAt: new Date(2026, 5, 20),
+  },
+  {
+    _id: "ttx-25",
+    user: "user-2",
+    type: "earn",
+    amount: 20,
+    reason: "Analytics job completed: Cardiology Department Efficiency June 2026",
+    relatedEntity: { entityType: "analytics", entityId: "analytics-11" },
+    status: "completed",
+    balanceAfter: 260,
+    createdAt: new Date(2026, 5, 21),
+  },
+  // ── Network token transactions from other providers ────────────────────────
+  {
+    _id: "ttx-26",
+    user: "user-4",
+    type: "earn",
+    amount: 15,
+    reason: "Referral accepted: neurological consultation for cardiology patient",
+    relatedEntity: { entityType: "referral", entityId: "referral-1" },
+    status: "completed",
+    balanceAfter: 435,
+    createdAt: new Date(2026, 0, 9),
+  },
+  {
+    _id: "ttx-27",
+    user: "user-5",
+    type: "earn",
+    amount: 10,
+    reason: "Referral accepted: primary care COPD coordination",
+    relatedEntity: { entityType: "referral", entityId: "referral-2" },
+    status: "completed",
+    balanceAfter: 300,
+    createdAt: new Date(2026, 0, 13),
+  },
+  {
+    _id: "ttx-28",
+    user: "user-3",
+    type: "earn",
+    amount: 10,
+    reason: "Referral accepted: depression care coordination for cardiology patient",
+    relatedEntity: { entityType: "referral", entityId: "referral-8" },
+    status: "completed",
+    balanceAfter: 185,
+    createdAt: new Date(2026, 2, 15),
+  },
 ];
 await db.collection('tokentransactions').insertMany(tokenTransactions);
 
@@ -4135,17 +4705,6 @@ await db.collection('scheduleexceptions').insertMany([
 console.log("Schedule exceptions created: " + (await db.collection('scheduleexceptions').countDocuments()));
 
 // ═══════════════════════════════════════════════════════════════════════════
-// WAITLIST ENTRIES
-// ═══════════════════════════════════════════════════════════════════════════
-console.log("Creating waitlistentries collection...");
-await db.collection('waitlistentries').insertMany([
-  { patientId: 'PT-100001', patientName: 'James Wilson', providerId: 'user-2', providerName: 'Dr. John Smith', appointmentType: 'new_patient', requestedDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), flexibleDates: true, status: 'waiting', priority: 'normal', notes: 'Patient prefers morning appointments, Monday or Wednesday.', createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) },
-  { patientId: 'PT-100002', patientName: 'Emily Rodriguez', providerId: 'user-2', providerName: 'Dr. John Smith', appointmentType: 'follow_up', requestedDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), flexibleDates: false, status: 'waiting', priority: 'high', notes: 'Post-discharge follow-up — needs earliest available slot.', createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) },
-  { patientId: 'PT-100003', patientName: 'Thomas Brown', providerId: 'user-3', providerName: 'Nurse Sarah Johnson', appointmentType: 'procedure', requestedDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), flexibleDates: true, status: 'waiting', priority: 'normal', notes: 'Procedure requires prior authorization — patient has been notified to expect a 1-2 week wait.', createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) }
-]);
-console.log("Waitlist entries created: " + (await db.collection('waitlistentries').countDocuments()));
-
-// ═══════════════════════════════════════════════════════════════════════════
 // AMBIENT SESSIONS (ACI - Ambient Clinical Intelligence)
 // ═══════════════════════════════════════════════════════════════════════════
 console.log("Creating ambientSessions collection...");
@@ -5009,7 +5568,7 @@ console.log("DTx prescriptions created: " + (await db.collection('dtxprescriptio
 // ── END ANALYTICS SEED ────────────────────────────────────────────────────────
 
 // ── LOGIN HISTORY SEED ────────────────────────────────────────────────────────
-// Populates loginHistory on each user so the Admin Login Audit page has data.
+// Inserts login history into the dedicated `loginhistories` collection.
 {
   const USER_AGENTS = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -5026,31 +5585,39 @@ console.log("DTx prescriptions created: " + (await db.collection('dtxprescriptio
   const _p = arr => arr[_r(0, arr.length - 1)];
   const _da = d => new Date(Date.now() - d * 86_400_000);
 
-  const providerUsers = await db.collection('users').find({}, { projection: { _id: 1 } }).toArray();
+  // Drop existing seed data so re-runs are idempotent
+  await db.collection('loginhistories').deleteMany({});
 
+  const providerUsers = await db.collection('users').find({}, {
+    projection: { _id: 1, name: 1, email: 1, role: 1 }
+  }).toArray();
+
+  const allEntries = [];
   for (const u of providerUsers) {
-    const entries = [];
-    // 30 days of history — 2-5 logins per day, occasional failures
+    // 30 days of history — 1-4 logins per day, ~8% failure rate
     for (let day = 30; day >= 0; day--) {
       const count = _r(1, 4);
       for (let i = 0; i < count; i++) {
         const base = _da(day);
         base.setHours(_r(6, 22), _r(0, 59), _r(0, 59), 0);
-        const successful = Math.random() > 0.08; // ~8% failure rate
-        entries.push({
-          timestamp: base,
+        allEntries.push({
+          userId: u._id,
+          userName: u.name,
+          userEmail: u.email,
+          userRole: u.role,
           ipAddress: _p(IPS),
           userAgent: _p(USER_AGENTS),
-          successful,
+          successful: Math.random() > 0.08,
+          timestamp: base,
         });
       }
     }
-    await db.collection('users').updateOne(
-      { _id: u._id },
-      { $set: { loginHistory: entries } }
-    );
   }
-  console.log(`Login history seeded for ${providerUsers.length} users (last 30 days).`);
+
+  if (allEntries.length > 0) {
+    await db.collection('loginhistories').insertMany(allEntries, { ordered: false });
+  }
+  console.log(`Login history seeded: ${allEntries.length} entries for ${providerUsers.length} users (last 30 days).`);
 }
 // ── END LOGIN HISTORY SEED ────────────────────────────────────────────────────
 

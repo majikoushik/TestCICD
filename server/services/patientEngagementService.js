@@ -362,7 +362,7 @@ async function triggerAutomaticNotification(type, relatedData, patient) {
       title = 'Prior Authorization Approved';
       message = processTemplate(
         'Great news, {{patientName}}! Your prior authorization for {{serviceName}} has been approved. ' +
-          'Authorization number: {{authNumber}}.',
+          'Authorization number: {{authNumber}}. Please contact your provider to schedule the service.',
         {
           patientName,
           serviceName: relatedData.serviceName || 'the requested service',
@@ -375,11 +375,37 @@ async function triggerAutomaticNotification(type, relatedData, patient) {
       title = 'Prior Authorization Update';
       message = processTemplate(
         'Hi {{patientName}}, your prior authorization request for {{serviceName}} has been denied. ' +
-          'Reason: {{reason}}. You may appeal this decision by contacting your insurance provider.',
+          'Reason: {{reason}}. Your provider may submit an appeal on your behalf. ' +
+          'Please contact your care team for next steps.',
         {
           patientName,
           serviceName: relatedData.serviceName || 'the requested service',
           reason: relatedData.reason || 'Not specified',
+        }
+      );
+      break;
+
+    case 'prior_auth_under_review':
+      title = 'Prior Authorization Under Review';
+      message = processTemplate(
+        'Hi {{patientName}}, your prior authorization request for {{serviceName}} has been received ' +
+          'and is currently under clinical review. You will be notified once a decision is made.',
+        {
+          patientName,
+          serviceName: relatedData.serviceName || 'the requested service',
+        }
+      );
+      break;
+
+    case 'prior_auth_expired':
+      title = 'Prior Authorization Expired';
+      message = processTemplate(
+        'Hi {{patientName}}, your prior authorization for {{serviceName}} (auth #{{authNumber}}) ' +
+          'has expired. Please contact your provider to request a renewal if the service is still needed.',
+        {
+          patientName,
+          serviceName: relatedData.serviceName || 'the requested service',
+          authNumber: relatedData.authNumber || 'N/A',
         }
       );
       break;

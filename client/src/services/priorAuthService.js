@@ -41,6 +41,15 @@ export const submitAppeal = async (id, appealNotes) => {
   }
 };
 
+export const getAppealDraft = async (id) => {
+  try {
+    return await post(`${BASE}/${id}/appeal-draft`, {});
+  } catch (err) {
+    console.error('getAppealDraft error:', err);
+    throw err;
+  }
+};
+
 export const triggerAIAnalysis = async (id) => {
   try {
     return await post(`${BASE}/${id}/analyze`, {});
@@ -70,9 +79,15 @@ export const adminGetPriorAuth = async (id) => {
   }
 };
 
-export const adminReviewPriorAuth = async (id, decision, reviewerNotes) => {
+/**
+ * @param {string} id
+ * @param {string} decision  'Approved' | 'Denied'
+ * @param {string} reviewerNotes
+ * @param {object} extra  { denialReasonCode?, approvalDurationDays? }
+ */
+export const adminReviewPriorAuth = async (id, decision, reviewerNotes, extra = {}) => {
   try {
-    return await put(`${ADMIN_BASE}/${id}/review`, { decision, reviewerNotes });
+    return await put(`${ADMIN_BASE}/${id}/review`, { decision, reviewerNotes, ...extra });
   } catch (err) {
     console.error('adminReviewPriorAuth error:', err);
     throw err;
@@ -97,9 +112,19 @@ export const adminTriggerAI = async (id) => {
   }
 };
 
+export const getAdminPAAnalytics = async () => {
+  try {
+    return await get(`${ADMIN_BASE}/analytics`);
+  } catch (err) {
+    console.error('getAdminPAAnalytics error:', err);
+    throw err;
+  }
+};
+
 const priorAuthService = {
-  getPriorAuths, getPriorAuth, createPriorAuth, submitAppeal, triggerAIAnalysis,
-  adminGetPriorAuths, adminGetPriorAuth, adminReviewPriorAuth, adminReviewAppeal, adminTriggerAI
+  getPriorAuths, getPriorAuth, createPriorAuth, submitAppeal, getAppealDraft,
+  triggerAIAnalysis, adminGetPriorAuths, adminGetPriorAuth, adminReviewPriorAuth,
+  adminReviewAppeal, adminTriggerAI, getAdminPAAnalytics,
 };
 
 export default priorAuthService;

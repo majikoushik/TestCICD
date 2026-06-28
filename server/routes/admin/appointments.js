@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const Appointment = require('../../models/Appointment');
-const WaitlistEntry = require('../../models/WaitlistEntry');
 
 // GET /stats - Platform-wide stats
 router.get('/stats', async (req, res) => {
@@ -136,38 +135,6 @@ router.get('/no-show-report', async (req, res) => {
     const total = noShowAppointments.length;
 
     return res.json({ success: true, data: { report, total } });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// GET /waitlist - All waitlist entries with optional filters, paginated
-router.get('/waitlist', async (req, res) => {
-  try {
-    const { status, providerId, page = 1, limit = 15 } = req.query;
-
-    const filter = {};
-    if (status) filter.status = status;
-    if (providerId) filter.providerId = providerId;
-
-    const pageNum = parseInt(page, 10);
-    const limitNum = parseInt(limit, 10);
-    const skip = (pageNum - 1) * limitNum;
-
-    const [entries, total] = await Promise.all([
-      WaitlistEntry.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limitNum).lean(),
-      WaitlistEntry.countDocuments(filter)
-    ]);
-
-    return res.json({
-      success: true,
-      data: {
-        entries,
-        total,
-        page: pageNum,
-        limit: limitNum
-      }
-    });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }

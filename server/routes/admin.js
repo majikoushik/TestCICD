@@ -4,6 +4,7 @@ const { protect, authorize } = require('../middleware/auth');
 const AdminSetting = require('../models/Admin');
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
+const LoginHistory = require('../models/LoginHistory');
 const bcrypt = require('bcryptjs');
 const logger = require('../utils/logger');
 
@@ -811,67 +812,25 @@ router.put('/users/:id/unlock', protect, authorize('admin', 'superadmin'), async
  */
 router.get('/audit/login', protect, authorize('admin', 'superadmin'), async (req, res) => {
   try {
-    // Get query parameters for filtering
     const { userId, startDate, endDate, status } = req.query;
-    
-    // Build query
-    const query = {};
-    
-    if (userId) {
-      query._id = userId;
-    }
-    
-    // Find users with login history
-    const users = await User.find(query).select('name email role loginHistory');
-    
-    // Extract and format login history
-    let auditLogs = [];
-    
-    users.forEach(user => {
-      if (user.loginHistory && user.loginHistory.length > 0) {
-        const userLogs = user.loginHistory.map(log => ({
-          userId: user._id,
-          userName: user.name,
-          userEmail: user.email,
-          userRole: user.role,
-          timestamp: log.timestamp,
-          ipAddress: log.ipAddress,
-          userAgent: log.userAgent,
-          successful: log.successful
-        }));
-        
-        auditLogs = [...auditLogs, ...userLogs];
-      }
-    });
-    
-    // Apply date filtering if provided
+
+    const filter = {};
+    if (userId) filter.userId = userId;
     if (startDate || endDate) {
-      auditLogs = auditLogs.filter(log => {
-        const logDate = new Date(log.timestamp);
-        
-        if (startDate && endDate) {
-          return logDate >= new Date(startDate) && logDate <= new Date(endDate);
-        } else if (startDate) {
-          return logDate >= new Date(startDate);
-        } else {
-          return logDate <= new Date(endDate);
-        }
-      });
+      filter.timestamp = {};
+      if (startDate) filter.timestamp.$gte = new Date(startDate);
+      if (endDate) filter.timestamp.$lte = new Date(endDate);
     }
-    
-    // Apply status filtering if provided
-    if (status) {
-      const isSuccessful = status === 'success';
-      auditLogs = auditLogs.filter(log => log.successful === isSuccessful);
-    }
-    
-    // Sort by timestamp (most recent first)
-    auditLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    
-    res.json({ 
-      success: true, 
-      count: auditLogs.length, 
-      data: auditLogs 
+    if (status) filter.successful = status === 'success';
+
+    const auditLogs = await LoginHistory.find(filter)
+      .sort({ timestamp: -1 })
+      .lean();
+
+    res.json({
+      success: true,
+      count: auditLogs.length,
+      data: auditLogs,
     });
   } catch (error) {
     logger.error('Error fetching login audit logs', logger.reqCtx(req, error));

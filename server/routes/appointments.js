@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const Appointment = require('../models/Appointment');
-const WaitlistEntry = require('../models/WaitlistEntry');
 const Referral = require('../models/Referral');
 const User = require('../models/User');
 const appointmentSlotService = require('../services/appointmentSlotService');
 const { processTokenTransaction } = require('../blockchain/contracts');
 const { sendPatientNotification } = require('../services/patientEngagementService');
+const { sendEmail, appointmentConfirmationHtml, appointmentConfirmationText } = require('../services/emailService');
 const logger = require('../utils/logger');
 
 const PROVIDER_TOKEN_REWARD = 15;
@@ -32,6 +32,7 @@ router.get('/available-slots', async (req, res) => {
 
     return res.json({ success: true, data: { slots, providerId } });
   } catch (err) {
+    logger.error('available-slots error', { providerId: req.query.providerId, err: err.message, stack: err.stack });
     return res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -97,16 +98,6 @@ router.get('/my-schedule', async (req, res) => {
   }
 });
 
-// GET /waitlist (patient's waitlist entries)
-router.get('/waitlist', async (req, res) => {
-  try {
-    const patientId = req.user._id || req.user.patientId;
-    const entries = await WaitlistEntry.find({ patientId });
-    return res.json({ success: true, data: { entries } });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
-});
 
 // GET / (patient's appointments)
 router.get('/', async (req, res) => {
@@ -231,6 +222,29 @@ router.post('/', async (req, res) => {
       }
     }
 
+    // Send confirmation email to patient (fire-and-forget — never blocks response)
+    if (patientEmail) {
+      const emailPayload = {
+        patientName:       patientName || 'Patient',
+        providerName:      providerName || '',
+        providerSpecialty: providerSpecialty || '',
+        appointmentType,
+        scheduledDate,
+        startTime,
+        endTime,
+        location,
+        appointmentId:    appointment.appointmentId,
+        organizationName: organizationName || '',
+      };
+      sendEmail({
+        to:       patientEmail,
+        subject:  `Appointment Confirmed — ${new Date(scheduledDate + (scheduledDate.includes('T') ? '' : 'T00:00:00Z')).toDateString()}`,
+        html:     appointmentConfirmationHtml(emailPayload),
+        text:     appointmentConfirmationText(emailPayload),
+        category: 'appointment',
+      }).catch(err => logger.error('Appointment confirmation email failed', { patientEmail, err: err.message }));
+    }
+
     return res.status(201).json({ success: true, data: appointment });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -283,31 +297,6 @@ router.post('/:id/check-in', async (req, res) => {
   }
 });
 
-// POST /:id/waitlist
-router.post('/:id/waitlist', async (req, res) => {
-  try {
-    const { preferredDates, preferredTimeOfDay, notes } = req.body;
-
-    const appointment = await Appointment.findById(req.params.id);
-
-    if (!appointment) {
-      return res.status(404).json({ success: false, message: 'Appointment not found' });
-    }
-
-    const entry = await WaitlistEntry.create({
-      patientId: req.user._id,
-      providerId: appointment.providerId,
-      appointmentType: appointment.appointmentType,
-      preferredDates,
-      preferredTimeOfDay,
-      notes
-    });
-
-    return res.status(201).json({ success: true, data: entry });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message });
-  }
-});
 
 // PUT /:id/cancel
 router.put('/:id/cancel', async (req, res) => {
@@ -353,27 +342,6 @@ router.put('/:id/cancel', async (req, res) => {
     appointment.cancelledAt = new Date();
     appointment.cancelledBy = req.user._id;
     await appointment.save();
-
-    const waitlistEntry = await WaitlistEntry.findOne({
-      providerId: appointment.providerId,
-      appointmentType: appointment.appointmentType,
-      status: { $nin: ['fulfilled', 'expired'] }
-    });
-
-    if (waitlistEntry) {
-      const responseDeadline = new Date();
-      responseDeadline.setHours(responseDeadline.getHours() + 24);
-
-      waitlistEntry.status = 'offered';
-      waitlistEntry.offeredSlot = {
-        scheduledDate: appointment.scheduledDate,
-        startTime: appointment.startTime,
-        endTime: appointment.endTime
-      };
-      waitlistEntry.offeredAt = new Date();
-      waitlistEntry.responseDeadline = responseDeadline;
-      await waitlistEntry.save();
-    }
 
     return res.json({ success: true, data: appointment });
   } catch (err) {

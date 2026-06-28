@@ -10,6 +10,7 @@ const mongoose = require('mongoose');
 dotenv.config();
 
 const logger = require('./utils/logger');
+const { runExpirePriorAuths } = require('./jobs/expirePriorAuths');
 
 // Fail fast if required secrets are missing
 const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET', 'JWT_REFRESH_SECRET', 'JWT_RESET_SECRET'];
@@ -232,6 +233,9 @@ async function startServer() {
 
   if (dbConnected) {
     mountLiveRoutes();
+
+    // Schedule nightly PA expiry job at 00:05 server time
+    scheduleNightlyJob();
   } else {
     mountSyntheticRoutes();
   }
@@ -242,6 +246,29 @@ async function startServer() {
   app.listen(PORT, '0.0.0.0', () =>
     logger.info(`Server running on port ${PORT} [${dbConnected ? 'LIVE DB' : 'SYNTHETIC DATA'}]`)
   );
+}
+
+// ── Nightly PA expiry cron (runs only in live-DB mode) ───────────────────────
+function scheduleNightlyJob() {
+  function msUntilNextRun() {
+    const now = new Date();
+    const next = new Date(now);
+    next.setHours(0, 5, 0, 0); // 00:05 today
+    if (next <= now) next.setDate(next.getDate() + 1); // already past → tomorrow
+    return next.getTime() - now.getTime();
+  }
+
+  function scheduleNext() {
+    const delay = msUntilNextRun();
+    logger.info(`[expirePriorAuths] Next run in ${Math.round(delay / 60000)} minutes`);
+    setTimeout(async () => {
+      const result = await runExpirePriorAuths();
+      logger.info('[expirePriorAuths] Job complete', result);
+      scheduleNext(); // reschedule for the next day
+    }, delay);
+  }
+
+  scheduleNext();
 }
 
 startServer();

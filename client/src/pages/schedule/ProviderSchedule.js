@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Container,
   Typography,
@@ -40,9 +41,14 @@ import {
   Event as EventIcon,
   Refresh as RefreshIcon,
   EventBusy as BlockIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
+  Today as TodayIcon,
+  EventAvailable as AppointmentsIcon,
 } from '@mui/icons-material'
 import { getAvailability, saveAvailability, getExceptions, addException, deleteException } from '../../services/scheduleService'
 import { getMySchedule, updateAppointmentStatus, sendReminder } from '../../services/appointmentService'
+import AllAppointmentsTab from '../../components/appointments/AllAppointmentsTab'
 import AppointmentCard from '../../components/appointments/AppointmentCard'
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -121,10 +127,18 @@ const EXCEPTION_TYPE_LABELS = {
   modified_hours: 'Modified Hours',
 }
 
+const TAB_NAMES = ['schedule', 'appointments', 'availability', 'exceptions']
+
 export default function ProviderSchedule() {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const providerId = getProviderId()
 
-  const [tab, setTab] = useState(0)
+  const [tab, setTab] = useState(() => {
+    const t = searchParams.get('tab')
+    const idx = TAB_NAMES.indexOf(t)
+    return idx >= 0 ? idx : 0
+  })
 
   // Tab 0 — My Schedule
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
@@ -159,10 +173,6 @@ export default function ProviderSchedule() {
   const [outcomeDialog, setOutcomeDialog] = useState({ open: false, appointment: null })
   const [outcomeForm, setOutcomeForm] = useState({ outcomeNotes: '', diagnosis: '', followUpNeeded: false, followUpTimeframe: '' })
   const [outcomeSaving, setOutcomeSaving] = useState(false)
-
-  // Waitlist tab
-  const [waitlist, setWaitlist] = useState([])
-  const [waitlistLoading, setWaitlistLoading] = useState(false)
 
   // Shared error/success
   const [error, setError] = useState(null)
@@ -238,24 +248,7 @@ export default function ProviderSchedule() {
     }
   }
 
-  const loadWaitlist = useCallback(async () => {
-    if (!providerId) return
-    setWaitlistLoading(true)
-    try {
-      const res = await getAvailability(providerId)
-      // Waitlist comes from schedules/:providerId/waitlist — reuse availability base path
-      const data = res?.data || res || {}
-      setWaitlist(data.waitlist || [])
-    } catch {
-      setWaitlist([])
-    } finally {
-      setWaitlistLoading(false)
-    }
-  }, [providerId])
 
-  useEffect(() => {
-    if (tab === 3) loadWaitlist()
-  }, [tab, loadWaitlist])
 
   // Group appointments by date
   const appointmentsByDate = {}
@@ -264,7 +257,12 @@ export default function ProviderSchedule() {
     appointmentsByDate[formatDateKey(d)] = []
   }
   scheduleData.forEach(appt => {
-    const key = appt.date || (appt.scheduledAt && appt.scheduledAt.slice(0, 10)) || (appt.startTime && appt.startTime.slice(0, 10))
+    const raw = appt.scheduledDate || appt.date || appt.scheduledAt
+    const key = raw
+      ? typeof raw === 'string'
+        ? raw.slice(0, 10)
+        : new Date(raw).toISOString().slice(0, 10)
+      : null
     if (key && appointmentsByDate[key] !== undefined) {
       appointmentsByDate[key].push(appt)
     }
@@ -304,7 +302,7 @@ export default function ProviderSchedule() {
   }, [providerId])
 
   useEffect(() => {
-    if (tab === 1) {
+    if (tab === 2) {
       loadAvailability()
     }
   }, [tab, loadAvailability])
@@ -367,7 +365,7 @@ export default function ProviderSchedule() {
   }, [providerId])
 
   useEffect(() => {
-    if (tab === 2) {
+    if (tab === 3) {
       loadExceptions()
     }
   }, [tab, loadExceptions])
@@ -439,26 +437,49 @@ export default function ProviderSchedule() {
   const renderMySchedule = () => (
     <Box>
       {/* Week navigation */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3, flexWrap: 'wrap' }}>
-        <Button variant="outlined" size="small" onClick={handlePrevWeek}>
-          &laquo; Previous
-        </Button>
-        <Button variant="outlined" size="small" onClick={handleToday}>
-          Today
-        </Button>
-        <Button variant="outlined" size="small" onClick={handleNextWeek}>
-          Next &raquo;
-        </Button>
-        <Typography variant="subtitle1" sx={{ ml: 1 }}>
-          {formatShortDate(weekStart)} &mdash; {formatShortDate(addDays(weekStart, 6))}
-        </Typography>
-        <Box sx={{ ml: 'auto' }}>
-          <Tooltip title="Refresh">
-            <IconButton onClick={loadWeekSchedule} disabled={scheduleLoading}>
-              <RefreshIcon />
-            </IconButton>
-          </Tooltip>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          mb: 3,
+          p: 1.5,
+          bgcolor: 'grey.50',
+          borderRadius: 2,
+          border: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Tooltip title="Previous week">
+          <IconButton size="small" onClick={handlePrevWeek} sx={{ border: '1px solid', borderColor: 'divider' }}>
+            <ChevronLeftIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Current week">
+          <IconButton size="small" onClick={handleToday} sx={{ border: '1px solid', borderColor: 'divider' }}>
+            <TodayIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Next week">
+          <IconButton size="small" onClick={handleNextWeek} sx={{ border: '1px solid', borderColor: 'divider' }}>
+            <ChevronRightIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Box sx={{ mx: 1, flex: 1 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+            {formatShortDate(weekStart)} &mdash; {formatShortDate(addDays(weekStart, 6))}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {formatDateKey(weekStart) <= formatDateKey(new Date()) && formatDateKey(new Date()) <= formatDateKey(addDays(weekStart, 6))
+              ? 'Current week'
+              : ''}
+          </Typography>
         </Box>
+        <Tooltip title="Refresh">
+          <IconButton onClick={loadWeekSchedule} disabled={scheduleLoading} size="small">
+            <RefreshIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
       </Box>
 
       {scheduleError && (
@@ -473,48 +494,89 @@ export default function ProviderSchedule() {
         </Box>
       ) : (
         <Box>
-          {Object.entries(appointmentsByDate).map(([dateKey, appts]) => (
-            <Box key={dateKey} sx={{ mb: 3 }}>
-              <Typography
-                variant="h6"
-                sx={{
-                  mb: 1,
-                  pb: 0.5,
-                  borderBottom: '2px solid',
-                  borderColor: 'primary.main',
-                  color: formatDateKey(new Date()) === dateKey ? 'primary.main' : 'text.primary',
-                  fontWeight: formatDateKey(new Date()) === dateKey ? 700 : 600,
-                }}
-              >
-                {formatDateDisplay(dateKey)}
-                {formatDateKey(new Date()) === dateKey && (
-                  <Chip label="Today" size="small" color="primary" sx={{ ml: 1 }} />
-                )}
-              </Typography>
+          {Object.entries(appointmentsByDate).map(([dateKey, appts]) => {
+            const isToday = formatDateKey(new Date()) === dateKey
+            return (
+              <Box key={dateKey} sx={{ mb: 3 }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    mb: 1.5,
+                    pl: 1.5,
+                    py: 0.75,
+                    borderLeft: '3px solid',
+                    borderColor: isToday ? 'primary.main' : appts.length > 0 ? 'primary.light' : 'grey.200',
+                    bgcolor: isToday ? 'rgba(25, 118, 210, 0.06)' : 'transparent',
+                    borderRadius: '0 4px 4px 0',
+                  }}
+                >
+                  <Box sx={{ flex: 1 }}>
+                    <Typography
+                      variant="subtitle1"
+                      sx={{
+                        fontWeight: isToday ? 700 : 600,
+                        color: isToday ? 'primary.main' : 'text.primary',
+                        lineHeight: 1.3,
+                      }}
+                    >
+                      {formatDateDisplay(dateKey)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {appts.length === 0
+                        ? 'No appointments'
+                        : `${appts.length} appointment${appts.length !== 1 ? 's' : ''}`}
+                    </Typography>
+                  </Box>
+                  {isToday && <Chip label="Today" size="small" color="primary" />}
+                  {appts.length > 0 && !isToday && (
+                    <Chip
+                      label={appts.length}
+                      size="small"
+                      variant="outlined"
+                      color="primary"
+                      sx={{ height: 20, fontSize: '0.7rem' }}
+                    />
+                  )}
+                </Box>
 
-              {appts.length === 0 ? (
-                <Typography variant="body2" color="text.secondary" sx={{ ml: 1, fontStyle: 'italic' }}>
-                  No appointments
-                </Typography>
-              ) : (
-                <Grid container spacing={2}>
-                  {appts.map(appt => (
-                    <Grid item xs={12} sm={6} md={4} key={appt._id}>
-                      <AppointmentCard
-                        appointment={appt}
-                        showProviderActions={true}
-                        compact={true}
-                        onCheckIn={() => handleCheckIn(appt)}
-                        onComplete={() => handleOpenOutcomeDialog(appt)}
-                        onSendReminder={() => handleSendReminder(appt)}
-                        onStatusUpdate={(id, data) => updateAppointmentStatus(id, data).then(loadWeekSchedule)}
-                      />
-                    </Grid>
-                  ))}
-                </Grid>
-              )}
-            </Box>
-          ))}
+                {appts.length === 0 ? (
+                  <Box
+                    sx={{
+                      ml: 3,
+                      py: 1.5,
+                      px: 2,
+                      borderRadius: 1,
+                      bgcolor: 'grey.50',
+                      border: '1px dashed',
+                      borderColor: 'grey.200',
+                    }}
+                  >
+                    <Typography variant="body2" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                      No appointments scheduled
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Grid container spacing={2}>
+                    {appts.map(appt => (
+                      <Grid item xs={12} sm={6} md={4} key={appt._id}>
+                        <AppointmentCard
+                          appointment={appt}
+                          showProviderActions={true}
+                          compact={true}
+                          onCheckIn={() => handleCheckIn(appt)}
+                          onComplete={() => handleOpenOutcomeDialog(appt)}
+                          onSendReminder={() => handleSendReminder(appt)}
+                          onStatusUpdate={(id, data) => updateAppointmentStatus(id, data).then(loadWeekSchedule)}
+                        />
+                      </Grid>
+                    ))}
+                  </Grid>
+                )}
+              </Box>
+            )
+          })}
         </Box>
       )}
     </Box>
@@ -847,90 +909,49 @@ export default function ProviderSchedule() {
     </Box>
   )
 
-  // ---- Render Tab 3: Waitlist ----
-  const renderWaitlist = () => (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Box>
-          <Typography variant="h6">Waitlist Entries</Typography>
-          <Typography variant="body2" color="text.secondary">Patients waiting for an available slot</Typography>
-        </Box>
-        <Tooltip title="Refresh">
-          <IconButton onClick={loadWaitlist} disabled={waitlistLoading}><RefreshIcon /></IconButton>
-        </Tooltip>
-      </Box>
-      {waitlistLoading ? (
-        <LinearProgress sx={{ mb: 2 }} />
-      ) : waitlist.length === 0 ? (
-        <Box sx={{ py: 6, textAlign: 'center' }}>
-          <Typography variant="body1" color="text.secondary">No waitlist entries found.</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            When a patient is added to the waitlist, they will appear here.
-          </Typography>
-        </Box>
-      ) : (
-        <TableContainer component={Paper} variant="outlined">
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 700 }}>Patient</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Type</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Offered Slot</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Response Deadline</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Added</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {waitlist.map((entry, idx) => (
-                <TableRow key={entry._id || idx} hover>
-                  <TableCell><Typography variant="body2">{entry.patientName || entry.patientId || '—'}</Typography></TableCell>
-                  <TableCell>
-                    <Chip label={entry.appointmentType?.replace('_', ' ') || '—'} size="small" variant="outlined" />
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={entry.status}
-                      size="small"
-                      color={entry.status === 'offered' ? 'warning' : entry.status === 'booked' ? 'success' : 'default'}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {entry.offeredSlot ? (
-                      <Typography variant="caption">
-                        {new Date(entry.offeredSlot.scheduledDate).toLocaleDateString()} {entry.offeredSlot.startTime}
-                      </Typography>
-                    ) : '—'}
-                  </TableCell>
-                  <TableCell>
-                    {entry.responseDeadline ? (
-                      <Typography variant="caption" color={new Date(entry.responseDeadline) < new Date() ? 'error' : 'text.secondary'}>
-                        {new Date(entry.responseDeadline).toLocaleString()}
-                      </Typography>
-                    ) : '—'}
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="caption" color="text.secondary">
-                      {entry.createdAt ? new Date(entry.createdAt).toLocaleDateString() : '—'}
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
-    </Box>
-  )
-
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       {/* Page Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-        <ScheduleIcon color="primary" sx={{ fontSize: 32 }} />
-        <Typography variant="h4" component="h1">
-          Provider Schedule
-        </Typography>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          mb: 3,
+          pb: 2.5,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Box
+          sx={{
+            width: 48,
+            height: 48,
+            borderRadius: 2,
+            bgcolor: 'primary.main',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <ScheduleIcon sx={{ fontSize: 26, color: '#fff' }} />
+        </Box>
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="h5" component="h1" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+            My Schedule
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            View appointments, manage availability, and schedule new visits
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<AppointmentsIcon />}
+          onClick={() => navigate('/app/appointments/book')}
+        >
+          Schedule Appointment
+        </Button>
       </Box>
 
       {error && (
@@ -945,7 +966,14 @@ export default function ProviderSchedule() {
       )}
 
       {/* Tabs */}
-      <Paper sx={{ mb: 3 }}>
+      <Paper
+        sx={{
+          mb: 0,
+          borderRadius: '8px 8px 0 0',
+          borderBottom: 'none',
+        }}
+        variant="outlined"
+      >
         <Tabs
           value={tab}
           onChange={(_, newTab) => setTab(newTab)}
@@ -953,20 +981,33 @@ export default function ProviderSchedule() {
           textColor="primary"
           variant="scrollable"
           scrollButtons="auto"
+          sx={{
+            '& .MuiTab-root': {
+              minHeight: 52,
+              textTransform: 'none',
+              fontWeight: 500,
+              fontSize: '0.875rem',
+            },
+            '& .Mui-selected': { fontWeight: 700 },
+          }}
         >
-          <Tab icon={<EventIcon />} iconPosition="start" label="My Schedule" />
-          <Tab icon={<ScheduleIcon />} iconPosition="start" label="Manage Availability" />
-          <Tab icon={<BlockIcon />} iconPosition="start" label="Exceptions" />
-          <Tab icon={<AddIcon />} iconPosition="start" label="Waitlist" />
+          <Tab icon={<EventIcon fontSize="small" />} iconPosition="start" label="My Schedule" />
+          <Tab icon={<AppointmentsIcon fontSize="small" />} iconPosition="start" label="All Appointments" />
+          <Tab icon={<ScheduleIcon fontSize="small" />} iconPosition="start" label="Manage Availability" />
+          <Tab icon={<BlockIcon fontSize="small" />} iconPosition="start" label="Exceptions" />
         </Tabs>
       </Paper>
 
       {/* Tab Content */}
-      <Paper sx={{ p: 3 }}>
+      <Paper sx={{ p: 3, borderRadius: '0 0 8px 8px' }} variant="outlined">
         {tab === 0 && renderMySchedule()}
-        {tab === 1 && renderManageAvailability()}
-        {tab === 2 && renderExceptions()}
-        {tab === 3 && renderWaitlist()}
+        {tab === 1 && (
+          <AllAppointmentsTab
+            onBookNew={() => navigate('/app/appointments/book')}
+          />
+        )}
+        {tab === 2 && renderManageAvailability()}
+        {tab === 3 && renderExceptions()}
       </Paper>
 
       {/* Outcome Capture Dialog */}

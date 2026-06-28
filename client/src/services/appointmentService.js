@@ -66,14 +66,6 @@ export async function checkInAppointment(id) {
   }
 }
 
-export async function joinWaitlist(id, data) {
-  try {
-    return await post(BASE + '/' + id + '/waitlist', data);
-  } catch (error) {
-    throw error;
-  }
-}
-
 export async function getMySchedule(params = {}) {
   try {
     return await get(BASE + '/my-schedule', params);
@@ -98,14 +90,6 @@ export async function sendReminder(id) {
   }
 }
 
-export async function getWaitlist(providerId) {
-  try {
-    return await get('/schedules/' + providerId + '/waitlist');
-  } catch (error) {
-    throw error;
-  }
-}
-
 const appointmentService = {
   getAvailableSlots,
   getMyAppointments,
@@ -115,11 +99,9 @@ const appointmentService = {
   rescheduleAppointment,
   updateAppointmentStatus,
   checkInAppointment,
-  joinWaitlist,
   getMySchedule,
   getStats,
   sendReminder,
-  getWaitlist,
 };
 
 export default appointmentService;

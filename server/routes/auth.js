@@ -3,6 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/User');
+const LoginHistory = require('../models/LoginHistory');
 const { protect } = require('../middleware/auth');
 const ProviderProfile = require('../models/ProviderProfile');
 const { sendEmail, verificationEmailHtml, verificationEmailText, kycStatusUpdateHtml } = require('../services/emailService');
@@ -160,12 +161,17 @@ router.post('/login', async (req, res) => {
 
     const isMatch = await user.matchPassword(password);
 
-    // Always record the attempt (success or failure) on the user document
-    user.loginHistory.push({ timestamp, ipAddress, userAgent, successful: isMatch });
-    // Keep only the 500 most recent entries to prevent unbounded growth
-    if (user.loginHistory.length > 500) {
-      user.loginHistory = user.loginHistory.slice(-500);
-    }
+    // Record the attempt in the dedicated LoginHistory collection
+    LoginHistory.create({
+      userId: user._id,
+      userName: user.name,
+      userEmail: user.email,
+      userRole: user.role,
+      ipAddress,
+      userAgent,
+      successful: isMatch,
+      timestamp,
+    }).catch(err => logger.error('Failed to write login history', { err }));
 
     if (!isMatch) {
       user.loginAttempts = (user.loginAttempts || 0) + 1;

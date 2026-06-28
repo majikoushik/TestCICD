@@ -672,6 +672,108 @@ function referralStatusUpdateText({ toName, actorName, status, referralId, speci
   ].filter(l => l !== undefined).join('\n');
 }
 
+/* ── Appointment confirmation ────────────────────────────────────────────── */
+
+/**
+ * appointmentConfirmationHtml / Text
+ * Sent to the patient when a provider schedules an appointment.
+ * PHI note: no diagnosis, no clinical details — only scheduling metadata.
+ */
+function appointmentConfirmationHtml({ patientName, providerName, providerSpecialty, appointmentType, scheduledDate, startTime, endTime, location, appointmentId, organizationName }) {
+  const apptTypeLabel = {
+    new_patient: 'New Patient Consultation',
+    follow_up:   'Follow-Up Visit',
+    telehealth:  'Telehealth Visit',
+    urgent:      'Urgent Care',
+    procedure:   'Procedure / Treatment',
+  }[appointmentType] || appointmentType;
+
+  const locationLabel = location === 'telehealth' ? 'Telehealth (virtual)' : 'In-Person';
+
+  const formattedDate = scheduledDate
+    ? new Date(scheduledDate + (scheduledDate.includes('T') ? '' : 'T00:00:00Z'))
+        .toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    : 'To be confirmed';
+
+  const formatTime = (t) => {
+    if (!t) return '';
+    const [h, m] = t.split(':');
+    const hr = parseInt(h, 10);
+    return `${hr > 12 ? hr - 12 : hr || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
+  };
+
+  return wrap({
+    preheader: `Your appointment with ${providerName} is confirmed for ${formattedDate}.`,
+    headerBg: 'linear-gradient(135deg,#00695c 0%,#004d40 100%)',
+    headerHtml: `
+      <p style="margin:0;color:#ffffff;font-size:22px;font-weight:bold;letter-spacing:0.5px">${BRAND}</p>
+      <p style="margin:6px 0 0;color:#b2dfdb;font-size:13px;letter-spacing:0.3px">Appointment Confirmation</p>`,
+    bodyHtml: `
+      <p style="margin:0 0 18px">Hi <strong>${patientName}</strong>,</p>
+      <p style="margin:0 0 18px">Your appointment has been scheduled. Please review the details below and contact us if you need to make any changes.</p>
+
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+        style="background:#f9fbe7;border-radius:8px;margin:0 0 24px">
+        <tr><td style="padding:20px 24px">
+          <p style="margin:0 0 12px;font-size:13px;color:#777777;text-transform:uppercase;letter-spacing:0.8px;font-weight:bold">Appointment Details</p>
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+            ${dataRow('Appointment ID', appointmentId || '—')}
+            ${dataRow('Type', apptTypeLabel)}
+            ${dataRow('Date', formattedDate)}
+            ${dataRow('Time', startTime ? `${formatTime(startTime)}${endTime ? ' – ' + formatTime(endTime) : ''}` : '—')}
+            ${dataRow('Location', locationLabel)}
+            ${dataRow('Provider', providerName + (providerSpecialty ? ` · ${providerSpecialty}` : ''))}
+            ${organizationName ? dataRow('Organization', organizationName) : ''}
+          </table>
+        </td></tr>
+      </table>
+
+      ${notice(`
+        <strong>Need to reschedule or cancel?</strong><br/>
+        Please contact your provider's office as early as possible so your slot can be offered to another patient.
+        You can also manage your appointments via the ${BRAND} portal.
+      `, '#00695c', '#e8f5e9')}
+
+      <p style="margin:28px 0 8px;font-size:13px;color:#888888">
+        This is an automated notification from ${BRAND}. Please do not reply to this email.
+      </p>
+      <p style="margin:0;font-size:12px;color:#aaaaaa">${BRAND} &bull; ${PHYSICAL_ADDRESS}</p>`,
+  });
+}
+
+function appointmentConfirmationText({ patientName, providerName, providerSpecialty, appointmentType, scheduledDate, startTime, endTime, location, appointmentId }) {
+  const apptTypeLabel = {
+    new_patient: 'New Patient Consultation',
+    follow_up:   'Follow-Up Visit',
+    telehealth:  'Telehealth Visit',
+    urgent:      'Urgent Care',
+    procedure:   'Procedure / Treatment',
+  }[appointmentType] || appointmentType;
+
+  const formattedDate = scheduledDate
+    ? new Date(scheduledDate + (scheduledDate.includes('T') ? '' : 'T00:00:00Z')).toDateString()
+    : 'To be confirmed';
+
+  return [
+    `Hi ${patientName},`,
+    '',
+    `Your appointment has been confirmed. Here are the details:`,
+    '',
+    `Appointment ID : ${appointmentId || '—'}`,
+    `Type           : ${apptTypeLabel}`,
+    `Date           : ${formattedDate}`,
+    `Time           : ${startTime || '—'}${endTime ? ' – ' + endTime : ''}`,
+    `Location       : ${location === 'telehealth' ? 'Telehealth (virtual)' : 'In-Person'}`,
+    `Provider       : ${providerName}${providerSpecialty ? ' · ' + providerSpecialty : ''}`,
+    '',
+    `To reschedule or cancel, please contact your provider's office.`,
+    '',
+    '---',
+    `${BRAND} | ${PHYSICAL_ADDRESS}`,
+    `Support: ${SUPPORT}`,
+  ].join('\n');
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    EXPORTS
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -693,4 +795,8 @@ module.exports = {
   referralReceivedText,
   referralStatusUpdateHtml,
   referralStatusUpdateText,
+
+  // Appointments
+  appointmentConfirmationHtml,
+  appointmentConfirmationText,
 };

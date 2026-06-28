@@ -178,7 +178,7 @@ function Patients() {
 
   const handleScheduleAppointment = useCallback(() => {
     if (selectedPatient) {
-      navigate(`/app/appointments/schedule?patientId=${selectedPatient.patientId}`);
+      navigate(`/app/appointments/book?patientId=${selectedPatient.patientId}`);
     }
     handleActionClose();
   }, [selectedPatient, navigate, handleActionClose]);

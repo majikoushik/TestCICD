@@ -15,5 +15,6 @@ router.get('/analytics', dashboardController.getRecentAnalytics);
 router.get('/provider-performance', dashboardController.getProviderPerformance);
 router.get('/token-economy', dashboardController.getTokenEconomyStats);
 router.get('/ai-analytics', dashboardController.getAIAnalyticsStats);
+router.get('/clinical-outcomes', dashboardController.getClinicalOutcomesData);
 
 module.exports = router;

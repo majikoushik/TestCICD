@@ -2284,14 +2284,6 @@ router.post('/schedules/:providerId/exceptions', protect, (req, res) => {
   res.status(201).json({ success: true, data: { _id: 'exc' + Date.now(), providerId: req.params.providerId, ...req.body, createdAt: new Date() } });
 });
 
-router.get('/schedules/:providerId/waitlist', protect, (req, res) => {
-  const syntheticWaitlist = [
-    { _id: 'wl-001', providerId: req.params.providerId, patientName: 'Alice Thompson', patientId: 'PT-100006', patientPhone: '+15556789012', patientEmail: 'alice.thompson@email.com', appointmentType: 'follow_up', chiefComplaint: 'Chronic back pain', preferredDates: ['Monday', 'Wednesday'], preferredTimeOfDay: 'morning', requestedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), priority: 'normal', status: 'waiting', notes: 'Patient available on short notice' },
-    { _id: 'wl-002', providerId: req.params.providerId, patientName: 'Robert Kim', patientId: 'PT-100007', patientPhone: '+15557890123', patientEmail: 'robert.kim@email.com', appointmentType: 'urgent', chiefComplaint: 'Persistent chest discomfort', preferredDates: ['Any'], preferredTimeOfDay: 'any', requestedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), priority: 'high', status: 'waiting', notes: 'Flagged by referring physician' },
-    { _id: 'wl-003', providerId: req.params.providerId, patientName: 'Sandra Patel', patientId: 'PT-100008', patientPhone: '+15558901234', patientEmail: 'sandra.patel@email.com', appointmentType: 'new_patient', chiefComplaint: 'Annual physical, new to practice', preferredDates: ['Tuesday', 'Thursday', 'Friday'], preferredTimeOfDay: 'afternoon', requestedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), priority: 'normal', status: 'waiting', notes: '' },
-  ];
-  res.json({ success: true, data: { waitlist: syntheticWaitlist, total: syntheticWaitlist.length } });
-});
 
 // ---------------------------------------------------------------------------
 // Digital Therapeutics (DTx) Marketplace routes (synthetic mode)
