@@ -15,8 +15,10 @@ import {
   AssignmentInd as LicenseIcon, Close as CloseIcon, Email as EmailIcon,
   Edit as EditIcon, Print as FaxIcon, Badge as BadgeIcon,
   MedicalServices as MedicalIcon, PeopleAlt as PeopleIcon,
+  DeleteOutline as DeleteIcon, WarningAmber as WarnIcon,
+  ForwardToInbox as ResendEmailIcon,
 } from '@mui/icons-material';
-import { get, patch } from '../../utils/apiUtils';
+import { get, post, patch, del } from '../../utils/apiUtils';
 import { authStorage } from '../../utils/storageUtils';
 
 const _RAW = process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -174,6 +176,23 @@ export default function AdminKYC() {
   const [editForm, setEditForm] = useState(EDIT_FORM_INIT);
   const [editSaving, setEditSaving] = useState(false);
 
+  // Delete confirmation dialog
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Approve confirmation dialog
+  const [approveConfirmOpen, setApproveConfirmOpen] = useState(false);
+  const [approveTarget, setApproveTarget] = useState(null);
+
+  // Reject confirmation dialog
+  const [rejectConfirmOpen, setRejectConfirmOpen] = useState(false);
+  const [rejectTarget, setRejectTarget] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+
+  // Admin resend verification email
+  const [resending, setResending] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -212,6 +231,78 @@ export default function AdminKYC() {
   };
 
   const showSnack = (msg, severity = 'success') => setSnack({ open: true, msg, severity });
+
+  const handleDeleteClick = (p, e) => {
+    if (e) e.stopPropagation();
+    setDeleteTarget(p);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await del(`/admin/kyc/${deleteTarget._id}`);
+      showSnack(`Provider "${deleteTarget.user?.name || deleteTarget.user?.email || 'Unknown'}" deleted.`);
+      setDeleteConfirmOpen(false);
+      setDeleteTarget(null);
+      load();
+    } catch (e) {
+      showSnack(e.response?.data?.error || 'Delete failed', 'error');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleApproveClick = (p, e) => {
+    if (e) e.stopPropagation();
+    setApproveTarget(p);
+    setApproveConfirmOpen(true);
+  };
+
+  const handleApproveConfirm = async () => {
+    if (!approveTarget) return;
+    await handleDecision(approveTarget._id, 'verified');
+    setApproveConfirmOpen(false);
+    setApproveTarget(null);
+  };
+
+  const handleRejectClick = (p, e) => {
+    if (e) e.stopPropagation();
+    setRejectTarget(p);
+    setRejectReason('');
+    setRejectConfirmOpen(true);
+  };
+
+  const handleRejectConfirm = async () => {
+    if (!rejectTarget) return;
+    setActioning(true);
+    try {
+      await patch(`/admin/kyc/${rejectTarget._id}`, { status: 'rejected', rejectionReason: rejectReason });
+      showSnack('Provider rejected.');
+      setRejectConfirmOpen(false);
+      setRejectTarget(null);
+      setRejectReason('');
+      load();
+    } catch (e) {
+      showSnack(e.response?.data?.error || 'Action failed', 'error');
+    } finally {
+      setActioning(false);
+    }
+  };
+
+  const handleAdminResend = async () => {
+    if (!selected) return;
+    setResending(true);
+    try {
+      await post(`/admin/kyc/${selected._id}/resend-verification`, {});
+      showSnack(`Verification email resent to ${selected.user?.email}`);
+    } catch (e) {
+      showSnack(e.response?.data?.error || 'Failed to resend verification email', 'error');
+    } finally {
+      setResending(false);
+    }
+  };
 
   const handleEditOpen = (p, e) => {
     if (e) e.stopPropagation();
@@ -397,13 +488,18 @@ export default function AdminKYC() {
                             {isReviewable && (
                               <>
                                 <Tooltip title="Approve">
-                                  <IconButton size="small" color="success" onClick={() => handleDecision(p._id, 'verified')}><ApproveIcon fontSize="small" /></IconButton>
+                                  <IconButton size="small" color="success" onClick={(e) => handleApproveClick(p, e)}><ApproveIcon fontSize="small" /></IconButton>
                                 </Tooltip>
                                 <Tooltip title="Reject">
-                                  <IconButton size="small" color="error" onClick={() => { setSelected(p); setDialogOpen(true); }}><RejectIcon fontSize="small" /></IconButton>
+                                  <IconButton size="small" color="error" onClick={(e) => handleRejectClick(p, e)}><RejectIcon fontSize="small" /></IconButton>
                                 </Tooltip>
                               </>
                             )}
+                            <Tooltip title="Delete provider">
+                              <IconButton size="small" color="error" onClick={(e) => handleDeleteClick(p, e)}>
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
                           </Stack>
                         </TableCell>
                       </TableRow>
@@ -583,6 +679,12 @@ export default function AdminKYC() {
             {selected.kycStatus === 'rejected' && selected.kycRejectionReason && (
               <Alert severity="error" sx={{ mb: 2 }}><strong>Rejection reason:</strong> {selected.kycRejectionReason}</Alert>
             )}
+            {selected.kycStatus === 'pending_email' && (
+              <Alert severity="warning" icon={<ResendEmailIcon />} sx={{ mb: 2 }}>
+                This provider has not yet verified their email address.
+                Use the <strong>Resend Verification Email</strong> button below to send a new link.
+              </Alert>
+            )}
             {selected.kycStatus === 'under_review' && (
               <TextField fullWidth multiline rows={2} label="Rejection reason (if rejecting)"
                 value={rejectionReason} onChange={e => setRejectionReason(e.target.value)}
@@ -592,7 +694,18 @@ export default function AdminKYC() {
           <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
             <Button onClick={() => { setDialogOpen(false); setRejectionReason(''); }}>Close</Button>
             <Box flex={1} />
-            {selected.kycStatus !== 'verified' && (
+            {selected.kycStatus === 'pending_email' && (
+              <Button
+                variant="contained"
+                color="warning"
+                startIcon={<ResendEmailIcon />}
+                disabled={resending}
+                onClick={handleAdminResend}
+              >
+                {resending ? 'Sending…' : 'Resend Verification Email'}
+              </Button>
+            )}
+            {selected.kycStatus !== 'verified' && selected.kycStatus !== 'pending_email' && (
               <Button variant="outlined" startIcon={<EditIcon />}
                 onClick={() => { setDialogOpen(false); handleEditOpen(selected, null); }}>
                 Edit Profile
@@ -863,6 +976,135 @@ export default function AdminKYC() {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         <Alert severity={snack.severity} onClose={() => setSnack(s => ({ ...s, open: false }))}>{snack.msg}</Alert>
       </Snackbar>
+
+      {/* ── Approve Confirmation Dialog ──────────────────────────────────── */}
+      <Dialog
+        open={approveConfirmOpen}
+        onClose={() => { if (!actioning) { setApproveConfirmOpen(false); setApproveTarget(null); } }}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'success.main' }}>
+          <ApproveIcon color="success" />
+          Approve Provider?
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" mb={1}>
+            You are about to approve:
+          </Typography>
+          <Typography variant="body2" fontWeight={700} mb={2}>
+            {approveTarget?.user?.name || 'Unknown'} &mdash; {approveTarget?.user?.email}
+          </Typography>
+          <Alert severity="success" icon={false}>
+            Approving will grant this provider <strong>full platform access</strong> and send them a confirmation email.
+            A blockchain wallet will be created for their account.
+          </Alert>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => { setApproveConfirmOpen(false); setApproveTarget(null); }} disabled={actioning}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="success"
+            onClick={handleApproveConfirm}
+            disabled={actioning}
+            startIcon={<ApproveIcon />}
+          >
+            {actioning ? 'Approving…' : 'Approve'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Reject Confirmation Dialog ────────────────────────────────────── */}
+      <Dialog
+        open={rejectConfirmOpen}
+        onClose={() => { if (!actioning) { setRejectConfirmOpen(false); setRejectTarget(null); setRejectReason(''); } }}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'error.main' }}>
+          <RejectIcon color="error" />
+          Reject Provider?
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" mb={1}>
+            You are about to reject:
+          </Typography>
+          <Typography variant="body2" fontWeight={700} mb={2}>
+            {rejectTarget?.user?.name || 'Unknown'} &mdash; {rejectTarget?.user?.email}
+          </Typography>
+          <Alert severity="warning" icon={false} sx={{ mb: 2 }}>
+            The provider will be notified by email. Their account access will be <strong>disabled</strong>.
+          </Alert>
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            label="Rejection reason (recommended)"
+            placeholder="Explain why this application is being rejected…"
+            value={rejectReason}
+            onChange={e => setRejectReason(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => { setRejectConfirmOpen(false); setRejectTarget(null); setRejectReason(''); }} disabled={actioning}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleRejectConfirm}
+            disabled={actioning}
+            startIcon={<RejectIcon />}
+          >
+            {actioning ? 'Rejecting…' : 'Reject'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Delete Confirmation Dialog ───────────────────────────────────── */}
+      <Dialog
+        open={deleteConfirmOpen}
+        onClose={() => { if (!deleting) { setDeleteConfirmOpen(false); setDeleteTarget(null); } }}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'error.main' }}>
+          <WarnIcon color="error" />
+          Delete Provider?
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" mb={1}>
+            You are about to permanently delete:
+          </Typography>
+          <Typography variant="body2" fontWeight={700} mb={2}>
+            {deleteTarget?.user?.name || 'Unknown'} &mdash; {deleteTarget?.user?.email}
+          </Typography>
+          <Alert severity="error" icon={false}>
+            This will hard-delete <strong>all records</strong> for this provider — account,
+            profile, wallet, blockchain identity, and all related data.
+            The email address will become available for new sign-up. <strong>This cannot be undone.</strong>
+          </Alert>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => { setDeleteConfirmOpen(false); setDeleteTarget(null); }}
+            disabled={deleting}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleDeleteConfirm}
+            disabled={deleting}
+            startIcon={<DeleteIcon />}
+          >
+            {deleting ? 'Deleting…' : 'Delete Permanently'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

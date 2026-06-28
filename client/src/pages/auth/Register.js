@@ -12,6 +12,7 @@ import {
   Person as PersonIcon, Business as OrgIcon
 } from '@mui/icons-material';
 import onboardingService from '../../services/onboardingService';
+import { authStorage } from '../../utils/storageUtils';
 
 const _RAW = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 const API_BASE = _RAW.replace(/\/api$/, '');
@@ -41,6 +42,8 @@ export default function Register() {
   const [registeredToken, setRegisteredToken] = useState('');
   const [error, setError] = useState('');
   const [emailExists, setEmailExists] = useState(false);
+  const [npiStatus, setNpiStatus] = useState('');
+  const [resendMsg, setResendMsg] = useState('');
 
   const [form, setForm] = useState({
     name: '', email: '', password: '', confirmPassword: '',
@@ -55,9 +58,11 @@ export default function Register() {
     setNpiLoading(true);
     setNpiError('');
     setNpiResult(null);
+    setNpiStatus('');
     try {
       const res = await onboardingService.lookupNpi(npiInput);
       if (res.alreadyRegistered) {
+        setNpiStatus(res.npiStatus || '');
         setNpiError(res.message || 'This NPI is already registered.');
       } else {
         setNpiResult(res.data);
@@ -116,7 +121,7 @@ export default function Register() {
       };
       const { data } = await axios.post(`${API_BASE}/api/auth/register`, payload);
       if (data.success) {
-        localStorage.setItem('token', data.token);
+        authStorage.set('token', data.token);
         setRegisteredEmail(form.email);
         setRegisteredToken(data.token);
         setStep(2);
@@ -125,9 +130,18 @@ export default function Register() {
       }
     } catch (err) {
       const serverError = err.response?.data?.error || 'Registration failed. Please try again.';
-      setError(serverError);
-      if (serverError === 'Email already registered') {
-        setEmailExists(true);
+      const serverNpiStatus = err.response?.data?.npiStatus;
+      if (serverNpiStatus) {
+        // NPI conflict — go back to step 0 and show the status-aware card
+        setNpiStatus(serverNpiStatus);
+        setNpiError(serverError);
+        setNpiResult(null);
+        setStep(0);
+      } else {
+        setError(serverError);
+        if (serverError === 'Email already registered') {
+          setEmailExists(true);
+        }
       }
     } finally {
       setSubmitting(false);
@@ -135,8 +149,10 @@ export default function Register() {
   };
 
   const handleResend = async () => {
+    setResendMsg('');
     try {
       await onboardingService.resendVerification();
+      setResendMsg('success');
       let t = 60;
       setResendCooldown(t);
       const iv = setInterval(() => {
@@ -146,6 +162,7 @@ export default function Register() {
       }, 1000);
     } catch (e) {
       console.error(e);
+      setResendMsg('error');
     }
   };
 
@@ -182,7 +199,7 @@ export default function Register() {
           <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
             <TextField
               fullWidth label="NPI Number" value={npiInput}
-              onChange={e => { setNpiInput(e.target.value.replace(/\D/g, '').slice(0, 10)); setNpiError(''); setNpiResult(null); }}
+              onChange={e => { setNpiInput(e.target.value.replace(/\D/g, '').slice(0, 10)); setNpiError(''); setNpiResult(null); setNpiStatus(''); }}
               placeholder="10-digit NPI number"
               onKeyDown={e => e.key === 'Enter' && handleNpiLookup()}
               InputProps={{ startAdornment: <InputAdornment position="start"><NpiIcon color="action" /></InputAdornment> }}
@@ -192,13 +209,31 @@ export default function Register() {
             </Button>
           </Box>
 
-          {npiError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {npiError}
-              {npiError.includes('already registered') && (
-                <> — <Link component={RouterLink} to="/login">Sign in instead</Link></>
-              )}
-            </Alert>
+          {npiError && !npiStatus && (
+            <Alert severity="error" sx={{ mb: 2 }}>{npiError}</Alert>
+          )}
+
+          {npiError && npiStatus && (
+            <Card variant="outlined" sx={{ mb: 2, borderColor: npiStatus === 'verified' ? 'success.main' : 'warning.main', bgcolor: npiStatus === 'verified' ? 'success.50' : 'warning.50' }}>
+              <CardContent sx={{ pb: '12px !important' }}>
+                <Typography fontWeight={700} color={npiStatus === 'verified' ? 'success.dark' : 'warning.dark'} mb={0.5}>
+                  NPI Already Registered
+                </Typography>
+                <Typography variant="body2" color="text.secondary" mb={1.5}>{npiError}</Typography>
+                {npiStatus === 'pending_email' ? (
+                  <Button
+                    variant="contained" size="small" component={RouterLink} to="/login"
+                    sx={{ bgcolor: 'warning.main', '&:hover': { bgcolor: 'warning.dark' } }}
+                  >
+                    Sign In &amp; Verify Email
+                  </Button>
+                ) : (
+                  <Button variant="outlined" size="small" component={RouterLink} to="/login">
+                    Sign In
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
           )}
 
           {npiResult && (
@@ -353,6 +388,12 @@ export default function Register() {
           <Alert severity="info" sx={{ mb: 3, textAlign: 'left' }}>
             Click the link in the email to verify your account, then sign in to continue your onboarding.
           </Alert>
+          {resendMsg === 'success' && (
+            <Alert severity="success" sx={{ mb: 2 }}>Verification email resent! Check your inbox.</Alert>
+          )}
+          {resendMsg === 'error' && (
+            <Alert severity="error" sx={{ mb: 2 }}>Failed to resend email. Please try again.</Alert>
+          )}
           <Button variant="outlined" onClick={handleResend} disabled={resendCooldown > 0} sx={{ mb: 2 }}>
             {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Didn't receive it? Resend"}
           </Button>

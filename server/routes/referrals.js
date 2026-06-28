@@ -9,6 +9,11 @@ const { processTokenTransaction } = require('../blockchain/contracts');
 const { ehiAudit } = require('../middleware/ehiAudit');
 const { oncDeny } = require('../config/oncExceptions');
 const logger = require('../utils/logger');
+const {
+  sendEmail,
+  referralReceivedHtml, referralReceivedText,
+  referralStatusUpdateHtml, referralStatusUpdateText,
+} = require('../services/emailService');
 
 // @route   POST api/referrals
 // @desc    Create a new referral
@@ -81,6 +86,44 @@ router.post('/', protect, authorize('doctor', 'clinic', 'hospital'), ehiAudit('R
 
     // Save referral to database
     await referral.save();
+
+    // Notify receiving provider — fire-and-forget, non-fatal
+    setImmediate(async () => {
+      try {
+        const sender = await User.findById(req.user.id).select('name firstName organization specialty');
+        const recipient = await User.findById(receivingProviderId).select('name firstName email');
+        if (recipient && recipient.email) {
+          const fromName = sender ? (sender.firstName || sender.name) : 'A colleague';
+          const fromOrg  = sender ? sender.organization : '';
+          const toName   = recipient.firstName || recipient.name;
+          await sendEmail({
+            to: recipient.email,
+            subject: `New${referral.urgency !== 'routine' ? ` ${referral.urgency.toUpperCase()}` : ''} referral received from ${fromName}`,
+            html: referralReceivedHtml({
+              toName,
+              fromName,
+              fromOrg,
+              specialty:       sender ? sender.specialty : '',
+              urgency:         referral.urgency,
+              referralId:      referral._id,
+              reason:          referral.reason,
+              appointmentDate: referral.appointmentDate,
+            }),
+            text: referralReceivedText({
+              toName, fromName, fromOrg,
+              specialty:       sender ? sender.specialty : '',
+              urgency:         referral.urgency,
+              referralId:      referral._id,
+              reason:          referral.reason,
+              appointmentDate: referral.appointmentDate,
+            }),
+            category: 'referral',
+          });
+        }
+      } catch (emailErr) {
+        logger.warn('Referral received email failed (non-fatal)', { error: emailErr.message, referralId: referral._id });
+      }
+    });
 
     res.status(201).json({
       success: true,
@@ -303,6 +346,40 @@ router.put('/:id/status', protect, ehiAudit('Referral', 'UPDATE'), async (req, r
     }
 
     await referral.save();
+
+    // Notify the other party — fire-and-forget, non-fatal
+    setImmediate(async () => {
+      try {
+        const actor     = await User.findById(req.user.id).select('name firstName organization specialty');
+        const othererId = isReceivingProvider ? referral.referringProvider : referral.receivingProvider;
+        const other     = await User.findById(othererId).select('name firstName email specialty');
+        if (other && other.email) {
+          const actorName  = actor ? (actor.firstName || actor.name) : 'Your colleague';
+          const actorOrg   = actor ? actor.organization : '';
+          const toName     = other.firstName || other.name;
+          const specialty  = actor ? actor.specialty : '';
+          const statusSubjects = {
+            accepted:  `Referral accepted by ${actorName}`,
+            rejected:  `Referral declined by ${actorName}`,
+            completed: `Referral marked as completed by ${actorName}`,
+            cancelled: `Referral has been cancelled`,
+          };
+          const html = referralStatusUpdateHtml({ toName, actorName, actorOrg, status, referralId: referral._id, specialty, notes });
+          const text = referralStatusUpdateText({ toName, actorName, status, referralId: referral._id, specialty });
+          if (html) {
+            await sendEmail({
+              to: other.email,
+              subject: statusSubjects[status] || `Referral status updated to ${status}`,
+              html,
+              text,
+              category: 'referral',
+            });
+          }
+        }
+      } catch (emailErr) {
+        logger.warn('Referral status email failed (non-fatal)', { error: emailErr.message, referralId: referral._id, status });
+      }
+    });
 
     res.status(200).json({
       success: true,

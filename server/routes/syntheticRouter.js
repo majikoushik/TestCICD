@@ -54,6 +54,8 @@ function userPayload(user) {
     lastLogin: user.lastLogin,
     profileImage: user.profileImage || null,
     onboardingStatus: user.onboardingStatus || 'verified',
+    accountStatus: user.accountStatus || 'approved',
+    isActive: user.isActive !== false,
   };
 }
 

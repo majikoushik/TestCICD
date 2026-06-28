@@ -98,7 +98,13 @@ export const get = async (url, params = {}, config = {}) => {
  */
 export const post = async (url, data = {}, config = {}) => {
   try {
-    const response = await api.post(url, data, config);
+    // When sending FormData the browser must set Content-Type (it adds the multipart boundary).
+    // The axios instance default 'application/json' would override that, so we remove it.
+    const isFormData = typeof FormData !== 'undefined' && data instanceof FormData;
+    const finalConfig = isFormData
+      ? { ...config, headers: { ...(config.headers || {}), 'Content-Type': undefined } }
+      : config;
+    const response = await api.post(url, data, finalConfig);
     return response.data;
   } catch (error) {
     handleApiError(error);

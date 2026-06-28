@@ -3,13 +3,18 @@ const User = require('../models/User');
 const logger = require('../utils/logger');
 
 const protect = async (req, res, next) => {
-  if (!req.headers.authorization || !req.headers.authorization.startsWith('Bearer')) {
-    return res.status(401).json({ success: false, error: 'Not authorized, no token' });
+  // Primary: Bearer token in Authorization header (API / XHR calls)
+  // Fallback: ?token= query param — used when the browser opens a URL directly
+  //           (e.g. window.open for file previews) where headers cannot be set.
+  let token;
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    token = req.headers.authorization.split(' ')[1];
+  } else if (req.query.token) {
+    token = req.query.token;
   }
 
-  const token = req.headers.authorization.split(' ')[1];
   if (!token) {
-    return res.status(401).json({ success: false, error: 'Not authorized, invalid token format' });
+    return res.status(401).json({ success: false, error: 'Not authorized, no token' });
   }
 
   try {

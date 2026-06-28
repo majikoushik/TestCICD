@@ -53,6 +53,9 @@ await db.collection('targetedalerts').drop().catch(() => {});
 await db.collection('escalationworkflows').drop().catch(() => {});
 await db.collection('settings').drop().catch(() => {});
 await db.collection('activities').drop().catch(() => {});
+await db.collection('wallets').drop().catch(() => {});
+await db.collection('blockchainidentities').drop().catch(() => {});
+await db.collection('blockchaintransactions').drop().catch(() => {});
 
 // Create users collection
 // Password hash for "Demo1234!" with bcrypt cost 10
@@ -70,7 +73,7 @@ const users = [
     role: "admin",
     organization: "ClinicTrust Health Network",
     specialty: "Healthcare Administration",
-    walletAddress: "0xAB23F890CD45E67A8B901C2D3E456F78D9A0B1C2",
+    walletAddress: "0xab23f890cd45e67a8b901c2d3e456f78d9a0b1c2",
     isActive: true,
     accountStatus: "approved",
     kycVerified: true,
@@ -80,7 +83,7 @@ const users = [
     lastLogin: new Date(),
     profileImage: null,
     status: "active",
-    blockchainId: "0x1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t",
+    blockchainId: "user_1a2b3c4d5e6f7a8b",
     tokenBalance: 500
   },
   {
@@ -93,7 +96,7 @@ const users = [
     role: "doctor",
     organization: "Metro Heart Institute",
     specialty: "Cardiology",
-    walletAddress: "0xBC34D567EF89A01B2C3D4E5F67890A1B2C3D4E5F",
+    walletAddress: "0xbc34d567ef89a01b2c3d4e5f67890a1b2c3d4e5f",
     isActive: true,
     accountStatus: "approved",
     kycVerified: true,
@@ -103,7 +106,7 @@ const users = [
     lastLogin: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
     profileImage: null,
     status: "active",
-    blockchainId: "0x2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u",
+    blockchainId: "user_2b3c4d5e6f7a8b9c",
     tokenBalance: 350
   },
   {
@@ -116,7 +119,7 @@ const users = [
     role: "provider",
     organization: "Community Care Hospital",
     specialty: "Pediatric Nursing",
-    walletAddress: "0xDE45F678AB90C12D3E4F56789A0B1C2D3E4F5678",
+    walletAddress: "0xde45f678ab90c12d3e4f56789a0b1c2d3e4f5678",
     isActive: true,
     accountStatus: "approved",
     kycVerified: true,
@@ -126,7 +129,7 @@ const users = [
     lastLogin: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
     profileImage: null,
     status: "active",
-    blockchainId: "0x3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v",
+    blockchainId: "user_3c4d5e6f7a8b9c0d",
     tokenBalance: 175
   },
   {
@@ -139,7 +142,7 @@ const users = [
     role: "doctor",
     organization: "Neuroscience Medical Center",
     specialty: "Neurology",
-    walletAddress: "0xEF56789AB01C2D3E4F56789A0B1C2D3E4F56789A",
+    walletAddress: "0xef56789ab01c2d3e4f56789a0b1c2d3e4f56789a",
     isActive: true,
     accountStatus: "approved",
     kycVerified: true,
@@ -149,7 +152,7 @@ const users = [
     lastLogin: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
     profileImage: null,
     status: "active",
-    blockchainId: "0x4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w",
+    blockchainId: "user_4d5e6f7a8b9c0d1e",
     tokenBalance: 420
   },
   {
@@ -162,7 +165,7 @@ const users = [
     role: "doctor",
     organization: "Westside Family Medicine",
     specialty: "General Practice",
-    walletAddress: "0xF6789AB01C2D3E4F56789A0B1C2D3E4F56789AB0",
+    walletAddress: "0xf6789ab01c2d3e4f56789a0b1c2d3e4f56789ab0",
     isActive: true,
     accountStatus: "approved",
     kycVerified: true,
@@ -172,7 +175,7 @@ const users = [
     lastLogin: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
     profileImage: null,
     status: "active",
-    blockchainId: "0x5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x",
+    blockchainId: "user_5e6f7a8b9c0d1e2f",
     tokenBalance: 290
   },
   // Pending provider — shows up in Pending Approval tab
@@ -233,7 +236,7 @@ const users = [
     role: "doctor",
     organization: "Downtown Health Clinic",
     specialty: "General Practice",
-    walletAddress: "0xC3D4E5F6789012345678901234567890ABCDEF12",
+    walletAddress: "0xc3d4e5f6789012345678901234567890abcdef12",
     isActive: false,
     accountStatus: "suspended",
     kycVerified: true,
@@ -242,12 +245,90 @@ const users = [
     createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
     lastLogin: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
     profileImage: null,
-    blockchainId: "0x8f9g0h1i2j3k4l5m6n7o8p9q0r1s2t3u4v5w6x7y",
+    blockchainId: "user_8f9a0b1c2d3e4f5a",
     tokenBalance: 120,
     suspensionReason: "Multiple billing discrepancies under investigation"
   }
 ];
 await db.collection('users').insertMany(users);
+
+// Create wallets collection (one per verified/active provider)
+console.log("Creating wallets collection...");
+const wallets = [
+  {
+    userId:        "user-1",
+    walletAddress: "0xab23f890cd45e67a8b901c2d3e456f78d9a0b1c2",
+    role:          "admin",
+    organization:  "ClinicTrust Health Network",
+    registeredAt:  new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    isActive:      true,
+    createdAt:     new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    updatedAt:     new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+  },
+  {
+    userId:        "user-2",
+    walletAddress: "0xbc34d567ef89a01b2c3d4e5f67890a1b2c3d4e5f",
+    role:          "doctor",
+    organization:  "Metro Heart Institute",
+    registeredAt:  new Date(Date.now() - 25 * 24 * 60 * 60 * 1000),
+    isActive:      true,
+    createdAt:     new Date(Date.now() - 25 * 24 * 60 * 60 * 1000),
+    updatedAt:     new Date(Date.now() - 25 * 24 * 60 * 60 * 1000),
+  },
+  {
+    userId:        "user-3",
+    walletAddress: "0xde45f678ab90c12d3e4f56789a0b1c2d3e4f5678",
+    role:          "provider",
+    organization:  "Community Care Hospital",
+    registeredAt:  new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
+    isActive:      true,
+    createdAt:     new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
+    updatedAt:     new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
+  },
+  {
+    userId:        "user-4",
+    walletAddress: "0xef56789ab01c2d3e4f56789a0b1c2d3e4f56789a",
+    role:          "doctor",
+    organization:  "Neuroscience Medical Center",
+    registeredAt:  new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+    isActive:      true,
+    createdAt:     new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+    updatedAt:     new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+  },
+  {
+    userId:        "user-5",
+    walletAddress: "0xf6789ab01c2d3e4f56789a0b1c2d3e4f56789ab0",
+    role:          "doctor",
+    organization:  "Westside Family Medicine",
+    registeredAt:  new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+    isActive:      true,
+    createdAt:     new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+    updatedAt:     new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+  },
+  {
+    userId:        "user-8",
+    walletAddress: "0xc3d4e5f6789012345678901234567890abcdef12",
+    role:          "doctor",
+    organization:  "Downtown Health Clinic",
+    registeredAt:  new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
+    isActive:      false,
+    createdAt:     new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
+    updatedAt:     new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
+  },
+];
+await db.collection('wallets').insertMany(wallets);
+
+// Create blockchainidentities collection (one per wallet, linked via walletAddress)
+console.log("Creating blockchainidentities collection...");
+const blockchainIdentities = [
+  { blockchainId: "user_1a2b3c4d5e6f7a8b", walletAddress: "0xab23f890cd45e67a8b901c2d3e456f78d9a0b1c2", registeredAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+  { blockchainId: "user_2b3c4d5e6f7a8b9c", walletAddress: "0xbc34d567ef89a01b2c3d4e5f67890a1b2c3d4e5f", registeredAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000) },
+  { blockchainId: "user_3c4d5e6f7a8b9c0d", walletAddress: "0xde45f678ab90c12d3e4f56789a0b1c2d3e4f5678", registeredAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000) },
+  { blockchainId: "user_4d5e6f7a8b9c0d1e", walletAddress: "0xef56789ab01c2d3e4f56789a0b1c2d3e4f56789a", registeredAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000) },
+  { blockchainId: "user_5e6f7a8b9c0d1e2f", walletAddress: "0xf6789ab01c2d3e4f56789a0b1c2d3e4f56789ab0", registeredAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) },
+  { blockchainId: "user_8f9a0b1c2d3e4f5a", walletAddress: "0xc3d4e5f6789012345678901234567890abcdef12", registeredAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000), createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000), updatedAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000) },
+];
+await db.collection('blockchainidentities').insertMany(blockchainIdentities);
 
 // Create patients collection
 console.log("Creating patients collection...");

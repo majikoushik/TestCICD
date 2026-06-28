@@ -58,9 +58,12 @@ export default function Login() {
   // Form submission handler
   async function onSubmit(formData) {
     try {
-      await login(formData.email, formData.password);
+      const response = await login(formData.email, formData.password);
       notifySuccess('Login successful');
-      startTransition(() => navigate('/app/dashboard'));
+      const isFullyApproved = response?.user?.accountStatus === 'approved' &&
+                              response?.user?.onboardingStatus === 'verified';
+      const isAdmin = ['admin', 'superadmin'].includes(response?.user?.role);
+      startTransition(() => navigate(isAdmin || isFullyApproved ? '/app/dashboard' : '/onboarding'));
     } catch (error) {
       console.error('Login error:', error);
     }

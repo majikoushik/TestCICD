@@ -7,7 +7,7 @@ const fetch = require('node-fetch');
 const { protect } = require('../middleware/auth');
 const User = require('../models/User');
 const ProviderProfile = require('../models/ProviderProfile');
-const { sendEmail, colleagueInviteHtml } = require('../services/emailService');
+const { sendEmail, kycStatusUpdateHtml, colleagueInviteHtml } = require('../services/emailService');
 const logger = require('../utils/logger');
 
 // Multer setup — store KYC docs in server/uploads/kyc/
@@ -44,6 +44,7 @@ router.get('/status', protect, async (req, res) => {
       success: true,
       data: {
         onboardingStatus: user.onboardingStatus,
+        accountStatus: user.accountStatus,
         steps: profile?.onboardingSteps || null,
         kycStatus: profile?.kycStatus || null,
         kycRejectionReason: profile?.kycRejectionReason || '',
@@ -229,6 +230,23 @@ router.patch('/profile', protect, async (req, res) => {
     if (primarySpecialty !== undefined) userUpdate.specialty = primarySpecialty;
     await User.findByIdAndUpdate(req.user.id, userUpdate);
 
+    // Notify provider: next step is document upload
+    try {
+      const notifyUser = await User.findById(req.user.id).select('email name firstName');
+      if (notifyUser) {
+        const name = notifyUser.firstName || notifyUser.name || 'Provider';
+        const html = kycStatusUpdateHtml(name, 'doc_pending');
+        if (html) {
+          await sendEmail({
+            to: notifyUser.email,
+            subject: 'Action required: upload your verification documents',
+            html,
+            category: 'kyc',
+          });
+        }
+      }
+    } catch (e) { logger.warn('Profile step email failed (non-fatal)', { error: e.message }); }
+
     res.json({ success: true, data: profile });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Server error' });
@@ -264,6 +282,23 @@ router.post('/documents', protect, upload.single('document'), async (req, res) =
 
     // Update user's onboarding status
     await User.findByIdAndUpdate(req.user.id, { onboardingStatus: 'under_review' });
+
+    // Notify provider: documents received, application under review
+    try {
+      const notifyUser = await User.findById(req.user.id).select('email name firstName');
+      if (notifyUser) {
+        const name = notifyUser.firstName || notifyUser.name || 'Provider';
+        const html = kycStatusUpdateHtml(name, 'under_review');
+        if (html) {
+          await sendEmail({
+            to: notifyUser.email,
+            subject: 'Your ClinicTrust AI application is now under review',
+            html,
+            category: 'kyc',
+          });
+        }
+      }
+    } catch (e) { logger.warn('Document upload status email failed (non-fatal)', { error: e.message }); }
 
     res.json({ success: true, data: profile, message: 'Documents submitted. Our team will review within 1-2 business days.' });
   } catch (err) {

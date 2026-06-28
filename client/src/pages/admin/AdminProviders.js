@@ -290,8 +290,7 @@ const AdminProviders = () => {
                   <TableCell>{provider.specialty || '—'}</TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                      <Chip label={provider.accountStatus || 'pending'} color={getStatusColor(provider.accountStatus)} size="small" />
-                      <Chip label={getOnboardingLabel(provider.onboardingStatus)} color={getStatusColor(provider.onboardingStatus)} size="small" variant="outlined" />
+                      <Chip label={provider.accountStatus || 'pending'} color={getStatusColor(provider.accountStatus)} size="small" />                      
                     </Box>
                   </TableCell>
                   <TableCell>

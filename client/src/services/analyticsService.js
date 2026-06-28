@@ -92,7 +92,7 @@ export const getAnalyticsReports = async (options = {}) => {
     }
     
     // Real API call
-    return await get('/api/analytics/reports', queryOptions);
+    return await get('/analytics/reports', queryOptions);
   } catch (error) {
     console.error('Get analytics reports error:', error);
     throw error;
@@ -149,7 +149,7 @@ export const createAnalyticsReport = async (reportData) => {
     }
     
     // Real API call
-    return await post('/api/analytics/reports', reportData);
+    return await post('/analytics/reports', reportData);
   } catch (error) {
     console.error('Create analytics report error:', error);
     throw error;
@@ -208,7 +208,7 @@ export const getPatientRiskAnalytics = async (options = {}) => {
     }
     
     // Real API call
-    return await get('/api/analytics/patient-risk', queryOptions);
+    return await get('/analytics/patient-risk', queryOptions);
   } catch (error) {
     console.error('Get patient risk analytics error:', error);
     throw error;
@@ -256,7 +256,7 @@ export const getReferralAnalytics = async (options = {}) => {
     }
     
     // Real API call
-    return await get('/api/analytics/referrals', queryOptions);
+    return await get('/analytics/referrals', queryOptions);
   } catch (error) {
     console.error('Get referral analytics error:', error);
     throw error;
@@ -310,7 +310,7 @@ export const getTokenAnalytics = async (options = {}) => {
     }
     
     // Real API call
-    return await get('/api/analytics/tokens', queryOptions);
+    return await get('/analytics/tokens', queryOptions);
   } catch (error) {
     console.error('Get token analytics error:', error);
     throw error;
@@ -452,7 +452,7 @@ export const getPredictiveAlerts = async (options = {}) => {
     }
     
     // Real API call
-    return await get('/api/analytics/predictive-alerts', queryOptions);
+    return await get('/analytics/predictive-alerts', queryOptions);
   } catch (error) {
     console.error('Get predictive alerts error:', error);
     throw error;
@@ -485,7 +485,7 @@ export const getNaturalLanguageSummary = async (options = {}) => {
     }
     
     // Real API call
-    return await get('/api/analytics/natural-language-summary', queryOptions);
+    return await get('/analytics/natural-language-summary', queryOptions);
   } catch (error) {
     console.error('Get natural language summary error:', error);
     throw error;
@@ -528,7 +528,7 @@ export const getProviderBenchmarking = async (options = {}) => {
     }
     
     // Real API call
-    return await get('/api/analytics/provider-benchmarking', queryOptions);
+    return await get('/analytics/provider-benchmarking', queryOptions);
   } catch (error) {
     console.error('Get provider benchmarking error:', error);
     throw error;

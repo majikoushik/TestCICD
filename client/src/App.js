@@ -126,9 +126,9 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/login" />;
   }
 
-  // Admin/superadmin bypass onboarding
-  const skipOnboarding = ['admin', 'superadmin'].includes(currentUser.role);
-  if (!skipOnboarding && currentUser.onboardingStatus !== 'verified') {
+  // Admin/superadmin bypass account status checks
+  const isAdmin = ['admin', 'superadmin'].includes(currentUser.role);
+  if (!isAdmin && (currentUser.accountStatus !== 'approved' || currentUser.onboardingStatus !== 'verified')) {
     return <Navigate to="/onboarding" />;
   }
 

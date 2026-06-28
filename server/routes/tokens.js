@@ -223,6 +223,69 @@ router.get('/services', protect, async (req, res) => {
   }
 });
 
+// @route   GET api/tokens/earn-sources
+// @desc    Get ways providers can earn tokens on the platform
+// @access  Private
+router.get('/earn-sources', protect, async (req, res) => {
+  try {
+    const earnSources = [
+      {
+        id: 'complete-referral',
+        name: 'Complete a Referral',
+        description: 'Earn tokens when a referral you sent is accepted and completed',
+        tokenReward: 10,
+        category: 'referrals',
+        frequency: 'per_action',
+      },
+      {
+        id: 'accept-referral',
+        name: 'Accept a Referral',
+        description: 'Earn tokens each time you accept an incoming referral',
+        tokenReward: 5,
+        category: 'referrals',
+        frequency: 'per_action',
+      },
+      {
+        id: 'complete-profile',
+        name: 'Complete Your Profile',
+        description: 'One-time bonus for completing all profile fields',
+        tokenReward: 25,
+        category: 'onboarding',
+        frequency: 'one_time',
+      },
+      {
+        id: 'kyc-verified',
+        name: 'KYC Verification',
+        description: 'One-time bonus when your identity is verified by our team',
+        tokenReward: 50,
+        category: 'onboarding',
+        frequency: 'one_time',
+      },
+      {
+        id: 'invite-colleague',
+        name: 'Invite a Colleague',
+        description: 'Earn tokens for each colleague who joins and completes onboarding',
+        tokenReward: 20,
+        category: 'network',
+        frequency: 'per_action',
+      },
+      {
+        id: 'data-contribution',
+        name: 'Contribute Anonymized Data',
+        description: 'Earn tokens monthly for contributing anonymized outcome data to the network',
+        tokenReward: 15,
+        category: 'research',
+        frequency: 'monthly',
+      },
+    ];
+
+    res.status(200).json({ success: true, count: earnSources.length, data: earnSources });
+  } catch (error) {
+    logger.error('Get earn-sources error', logger.reqCtx(req, error));
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
 // @route   POST api/tokens/redeem
 // @desc    Redeem tokens for a service
 // @access  Private

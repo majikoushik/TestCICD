@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
@@ -98,43 +98,39 @@ export default function Referrals() {
     status: reduxFilters.status || 'all',
     urgency: reduxFilters.urgency || 'all'
   });
+  // True until the very first fetch completes — prevents full-page flash on every refetch
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const searchDebounceRef = useRef(null);
+  const prevSearchRef = useRef(searchTerm);
 
-  // Function to load referrals using Redux thunk - memoized with useCallback
-  const loadReferrals = useCallback(() => {
-    dispatch(fetchReferrals({
-      page: currentPage,
-      limit: rowsPerPage,
-      search: searchTerm,
-      sortBy: sortField,
-      sortOrder: sortDirection,
-      status: reduxFilters.status,
-      priority: reduxFilters.urgency
-    }));
-  }, [dispatch, currentPage, rowsPerPage, searchTerm, 
-      sortField, sortDirection, reduxFilters.status, reduxFilters.urgency]);
-
-  // Initial load
+  // Single effect with the real values as deps (not a memoized function reference).
+  // Debounce only when the search term itself changed; all other changes (pagination,
+  // filters, tab) are immediate so there is no artificial 300ms delay on those.
+  // The timer-in-cleanup pattern also prevents React 18 StrictMode double-fire:
+  // StrictMode cancels the first timer before it fires, the second run reschedules it.
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadReferrals();
-    }, 300);
-    return () => clearTimeout(timer);
+    const searchChanged = searchTerm !== prevSearchRef.current;
+    prevSearchRef.current = searchTerm;
+    clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      dispatch(fetchReferrals({
+        page: currentPage,
+        limit: rowsPerPage,
+        search: searchTerm,
+        sortBy: sortField,
+        sortOrder: sortDirection,
+        status: reduxFilters.status,
+        priority: reduxFilters.urgency,
+      }));
+    }, searchChanged ? 300 : 0);
+    return () => clearTimeout(searchDebounceRef.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, rowsPerPage, searchTerm, sortField, sortDirection, reduxFilters.status, reduxFilters.urgency]);
 
-    // Fetch status counts for badges
-    // Commented out for now to use hardcoded values
-    /*
-    const fetchStatusCounts = async () => {
-      try {
-        const response = await referralService.getReferralStatusCounts();
-        setStatusCounts(response);
-      } catch (error) {
-        console.error('Error fetching referral status counts:', error);
-      }
-    };
-
-    fetchStatusCounts();
-    */
-  }, [loadReferrals]);
+  // Flip isInitialLoad off as soon as the first fetch completes
+  useEffect(() => {
+    if (isInitialLoad && !loading) setIsInitialLoad(false);
+  }, [loading, isInitialLoad]);
 
   // Update local filters when Redux filters change
   useEffect(() => {
@@ -300,14 +296,6 @@ export default function Referrals() {
         return <Chip size="small" label={urgency} variant="outlined" />;
     }
   };
-
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
-        <ModernLoadingIndicator variant="dots" message="Loading referrals..." />
-      </Box>
-    );
-  }
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -570,80 +558,90 @@ export default function Referrals() {
           </Box>
         </Box>
         
-        <TabPanel value={tabValue} index={0}>
-          <ReferralsTable
-            referrals={referrals}
-            currentPage={currentPage}
-            rowsPerPage={rowsPerPage}
-            handleChangePage={handleChangePage}
-            handleChangeRowsPerPage={handleChangeRowsPerPage}
-            handleReferralClick={handleReferralClick}
-            handleMenuOpen={handleMenuOpen}
-            getStatusChip={getStatusChip}
-            getUrgencyChip={getUrgencyChip}
-            formatDate={formatDate}
-          />
-        </TabPanel>
-        
-        <TabPanel value={tabValue} index={1}>
-          <ReferralsTable
-            referrals={referrals}
-            currentPage={currentPage}
-            rowsPerPage={rowsPerPage}
-            handleChangePage={handleChangePage}
-            handleChangeRowsPerPage={handleChangeRowsPerPage}
-            handleReferralClick={handleReferralClick}
-            handleMenuOpen={handleMenuOpen}
-            getStatusChip={getStatusChip}
-            getUrgencyChip={getUrgencyChip}
-            formatDate={formatDate}
-          />
-        </TabPanel>
-        
-        <TabPanel value={tabValue} index={2}>
-          <ReferralsTable
-            referrals={referrals}
-            currentPage={currentPage}
-            rowsPerPage={rowsPerPage}
-            handleChangePage={handleChangePage}
-            handleChangeRowsPerPage={handleChangeRowsPerPage}
-            handleReferralClick={handleReferralClick}
-            handleMenuOpen={handleMenuOpen}
-            getStatusChip={getStatusChip}
-            getUrgencyChip={getUrgencyChip}
-            formatDate={formatDate}
-          />
-        </TabPanel>
-        
-        <TabPanel value={tabValue} index={3}>
-          <ReferralsTable
-            referrals={referrals}
-            currentPage={currentPage}
-            rowsPerPage={rowsPerPage}
-            handleChangePage={handleChangePage}
-            handleChangeRowsPerPage={handleChangeRowsPerPage}
-            handleReferralClick={handleReferralClick}
-            handleMenuOpen={handleMenuOpen}
-            getStatusChip={getStatusChip}
-            getUrgencyChip={getUrgencyChip}
-            formatDate={formatDate}
-          />
-        </TabPanel>
-        
-        <TabPanel value={tabValue} index={4}>
-          <ReferralsTable
-            referrals={referrals}
-            currentPage={currentPage}
-            rowsPerPage={rowsPerPage}
-            handleChangePage={handleChangePage}
-            handleChangeRowsPerPage={handleChangeRowsPerPage}
-            handleReferralClick={handleReferralClick}
-            handleMenuOpen={handleMenuOpen}
-            getStatusChip={getStatusChip}
-            getUrgencyChip={getUrgencyChip}
-            formatDate={formatDate}
-          />
-        </TabPanel>
+        {/* First-time load: spinner inside the paper, tabs/search remain visible */}
+        {isInitialLoad && loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
+            <ModernLoadingIndicator variant="dots" message="Loading referrals..." />
+          </Box>
+        ) : (
+          /* Subsequent fetches (tab change, search, pagination): dim the table, no full remount */
+          <Box sx={{ opacity: loading ? 0.5 : 1, pointerEvents: loading ? 'none' : 'auto', transition: 'opacity 0.2s' }}>
+            <TabPanel value={tabValue} index={0}>
+              <ReferralsTable
+                referrals={referrals}
+                currentPage={currentPage}
+                rowsPerPage={rowsPerPage}
+                handleChangePage={handleChangePage}
+                handleChangeRowsPerPage={handleChangeRowsPerPage}
+                handleReferralClick={handleReferralClick}
+                handleMenuOpen={handleMenuOpen}
+                getStatusChip={getStatusChip}
+                getUrgencyChip={getUrgencyChip}
+                formatDate={formatDate}
+              />
+            </TabPanel>
+
+            <TabPanel value={tabValue} index={1}>
+              <ReferralsTable
+                referrals={referrals}
+                currentPage={currentPage}
+                rowsPerPage={rowsPerPage}
+                handleChangePage={handleChangePage}
+                handleChangeRowsPerPage={handleChangeRowsPerPage}
+                handleReferralClick={handleReferralClick}
+                handleMenuOpen={handleMenuOpen}
+                getStatusChip={getStatusChip}
+                getUrgencyChip={getUrgencyChip}
+                formatDate={formatDate}
+              />
+            </TabPanel>
+
+            <TabPanel value={tabValue} index={2}>
+              <ReferralsTable
+                referrals={referrals}
+                currentPage={currentPage}
+                rowsPerPage={rowsPerPage}
+                handleChangePage={handleChangePage}
+                handleChangeRowsPerPage={handleChangeRowsPerPage}
+                handleReferralClick={handleReferralClick}
+                handleMenuOpen={handleMenuOpen}
+                getStatusChip={getStatusChip}
+                getUrgencyChip={getUrgencyChip}
+                formatDate={formatDate}
+              />
+            </TabPanel>
+
+            <TabPanel value={tabValue} index={3}>
+              <ReferralsTable
+                referrals={referrals}
+                currentPage={currentPage}
+                rowsPerPage={rowsPerPage}
+                handleChangePage={handleChangePage}
+                handleChangeRowsPerPage={handleChangeRowsPerPage}
+                handleReferralClick={handleReferralClick}
+                handleMenuOpen={handleMenuOpen}
+                getStatusChip={getStatusChip}
+                getUrgencyChip={getUrgencyChip}
+                formatDate={formatDate}
+              />
+            </TabPanel>
+
+            <TabPanel value={tabValue} index={4}>
+              <ReferralsTable
+                referrals={referrals}
+                currentPage={currentPage}
+                rowsPerPage={rowsPerPage}
+                handleChangePage={handleChangePage}
+                handleChangeRowsPerPage={handleChangeRowsPerPage}
+                handleReferralClick={handleReferralClick}
+                handleMenuOpen={handleMenuOpen}
+                getStatusChip={getStatusChip}
+                getUrgencyChip={getUrgencyChip}
+                formatDate={formatDate}
+              />
+            </TabPanel>
+          </Box>
+        )}
       </Paper>
       
       {/* Action Menu */}

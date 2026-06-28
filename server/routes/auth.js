@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 const ProviderProfile = require('../models/ProviderProfile');
-const { sendEmail, verificationEmailHtml } = require('../services/emailService');
+const { sendEmail, verificationEmailHtml, verificationEmailText, kycStatusUpdateHtml } = require('../services/emailService');
 const logger = require('../utils/logger');
 
 const MIN_PASSWORD_LENGTH = 8;
@@ -75,16 +75,7 @@ router.post('/register', async (req, res) => {
       onboardingStatus: 'pending_email',
     });
 
-    // Blockchain identity (non-fatal)
-    try {
-      const { registerBlockchainIdentity } = require('../blockchain/identity');
-      const identity = await registerBlockchainIdentity('temp', role, organization);
-      user.blockchainId = identity.blockchainId;
-      user.walletAddress = identity.walletAddress;
-    } catch (e) {
-      logger.warn('Blockchain registration error (non-fatal)', { error: e.message, stack: e.stack });
-    }
-
+    // Wallet is created when admin approves KYC (not at registration)
     user.lastLogin = new Date();
     await user.save();
 
@@ -113,8 +104,9 @@ router.post('/register', async (req, res) => {
     try {
       await sendEmail({
         to: email,
-        subject: 'Verify your ClinicTrust AI account',
+        subject: 'Please confirm your ClinicTrust AI account',
         html: verificationEmailHtml(user.firstName || user.name, rawToken),
+        text: verificationEmailText(user.firstName || user.name, rawToken),
       });
     } catch (emailErr) {
       emailSent = false;
@@ -181,14 +173,25 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ success: false, error: 'Invalid credentials' });
     }
 
-    // Block suspended or inactive accounts before issuing a token
+    // Block accounts that must not log in
     if (user.accountStatus === 'suspended') {
       logger.warn('Login blocked: suspended account', { userId: user._id, email, ipAddress });
-      return res.status(403).json({ success: false, error: 'Your account has been suspended. Please contact your administrator.' });
+      await user.save();
+      return res.status(403).json({ success: false, error: 'Your account has been suspended. Please contact support.' });
+    }
+
+    if (user.accountStatus === 'rejected' || user.onboardingStatus === 'rejected') {
+      logger.warn('Login blocked: rejected account', { userId: user._id, email, ipAddress });
+      await user.save();
+      return res.status(403).json({
+        success: false,
+        error: 'Your account application was not approved.' + (user.kycRejectionReason ? ` Reason: ${user.kycRejectionReason}` : ' Please contact support for details.'),
+      });
     }
 
     if (user.isActive === false) {
       logger.warn('Login blocked: inactive account', { userId: user._id, email, ipAddress });
+      await user.save();
       return res.status(403).json({ success: false, error: 'Your account is inactive. Please contact your administrator.' });
     }
 
@@ -398,6 +401,20 @@ router.get('/verify-email', async (req, res) => {
       { 'onboardingSteps.email_verified': true, kycStatus: 'profile_incomplete' }
     );
 
+    // Notify provider: email confirmed, next step is profile completion
+    try {
+      const name = user.firstName || user.name || 'Provider';
+      const html = kycStatusUpdateHtml(name, 'profile_incomplete');
+      if (html) {
+        await sendEmail({
+          to: user.email,
+          subject: 'Email verified — complete your provider profile to continue',
+          html,
+          category: 'kyc',
+        });
+      }
+    } catch (e) { /* non-fatal — user already sees success in the browser */ }
+
     res.json({ success: true, message: 'Email verified successfully.' });
   } catch (err) {
     logger.error('Email verification error', logger.reqCtx(req, err));
@@ -422,8 +439,9 @@ router.post('/resend-verification', protect, async (req, res) => {
     try {
       await sendEmail({
         to: user.email,
-        subject: 'Verify your ClinicTrust AI account',
+        subject: 'Please confirm your ClinicTrust AI account',
         html: verificationEmailHtml(user.firstName || user.name, rawToken),
+        text: verificationEmailText(user.firstName || user.name, rawToken),
       });
       res.json({ success: true, message: 'Verification email sent.' });
     } catch (emailErr) {
@@ -453,6 +471,8 @@ function buildUserPayload(user) {
     lastLogin: user.lastLogin,
     profileImage: user.profileImage || null,
     onboardingStatus: user.onboardingStatus,
+    accountStatus: user.accountStatus,
+    isActive: user.isActive,
   };
 }
 
