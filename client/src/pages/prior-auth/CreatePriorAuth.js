@@ -23,24 +23,34 @@ const INSURANCE_PLANS = [
   'Kaiser Permanente', 'Medicare', 'Medicaid', 'Anthem', 'Centene'
 ];
 
-export default function CreatePriorAuth({ open, onClose, onCreated, prefillReferralId, prefillPatient }) {
+export default function CreatePriorAuth({ open, onClose, onCreated, prefillReferralId, prefillPatient, prefillForm, renewalOf }) {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedPatient, setSelectedPatient] = useState(prefillPatient || null);
-  const [form, setForm] = useState({
-    patientId: prefillPatient?.patientId || '',
-    patientName: prefillPatient?.name || '',
-    referralId: prefillReferralId || '',
-    targetProviderName: '',
-    serviceType: '',
-    serviceCode: '',
-    urgency: 'Routine',
-    insurancePlan: prefillPatient?.insuranceInfo?.provider || '',
-    memberId: prefillPatient?.insuranceInfo?.policyNumber || '',
-    clinicalNotes: '',
-    diagnosisCodes: []
-  });
+
+  const buildInitialPatient = () => {
+    if (prefillForm) return { _id: prefillForm.patientId, patientId: prefillForm.patientId, name: prefillForm.patientName };
+    return prefillPatient || null;
+  };
+  const buildInitialForm = () => {
+    if (prefillForm) return { ...prefillForm, referralId: prefillReferralId || prefillForm.referralId || '' };
+    return {
+      patientId: prefillPatient?.patientId || '',
+      patientName: prefillPatient?.name || '',
+      referralId: prefillReferralId || '',
+      targetProviderName: '',
+      serviceType: '',
+      serviceCode: '',
+      urgency: 'Routine',
+      insurancePlan: prefillPatient?.insuranceInfo?.provider || '',
+      memberId: prefillPatient?.insuranceInfo?.policyNumber || '',
+      clinicalNotes: '',
+      diagnosisCodes: [],
+    };
+  };
+
+  const [selectedPatient, setSelectedPatient] = useState(buildInitialPatient);
+  const [form, setForm] = useState(buildInitialForm);
   const [newDxCode, setNewDxCode] = useState('');
   const [newDxDesc, setNewDxDesc] = useState('');
 
@@ -87,12 +97,8 @@ export default function CreatePriorAuth({ open, onClose, onCreated, prefillRefer
       setLoading(true);
       setError(null);
       await createPriorAuth(form);
-      setForm({
-        patientId: '', patientName: '', referralId: '', targetProviderName: '',
-        serviceType: '', serviceCode: '', urgency: 'Routine',
-        insurancePlan: '', memberId: '', clinicalNotes: '', diagnosisCodes: []
-      });
-      setSelectedPatient(null);
+      setForm(buildInitialForm());
+      setSelectedPatient(buildInitialPatient());
       setStep(0);
       onCreated();
     } catch (err) {
@@ -107,7 +113,14 @@ export default function CreatePriorAuth({ open, onClose, onCreated, prefillRefer
   return (
     <Dialog open={open} onClose={handleClose} fullWidth maxWidth="md">
       <DialogTitle component="div">
-        <Typography variant="h6">New Prior Authorization Request</Typography>
+        <Typography variant="h6">
+          {renewalOf ? `Renew Prior Authorization` : 'New Prior Authorization Request'}
+        </Typography>
+        {renewalOf && (
+          <Alert severity="info" sx={{ mt: 1, py: 0.5 }} icon={false}>
+            Renewal of PA #{String(renewalOf).slice(-8).toUpperCase()} — clinical notes are pre-filled from the expired request. Update as needed.
+          </Alert>
+        )}
         <Stepper activeStep={step} sx={{ mt: 2 }}>
           {STEPS.map(label => <Step key={label}><StepLabel>{label}</StepLabel></Step>)}
         </Stepper>

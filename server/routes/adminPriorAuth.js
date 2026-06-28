@@ -60,10 +60,28 @@ async function notifyPatient(type, pa) {
   }
 }
 
+// Priority score — higher = needs attention sooner
+// Urgency base: Emergent=100, Urgent=80, Routine=50
+// +2 per hour waiting (capped at +40 so routine PAs don't overtake emergent)
+// +20 if AI confidence is 60-80% (borderline, needs human judgment)
+// +50 if appeal is past SLA deadline
+function computePriorityScore(pa, now) {
+  let score = pa.urgency === 'Emergent' ? 100 : pa.urgency === 'Urgent' ? 80 : 50;
+  const hoursWaiting = (now - new Date(pa.createdAt).getTime()) / 3600000;
+  score += Math.min(hoursWaiting * 2, 40);
+  if (pa.aiConfidenceScore != null && pa.aiConfidenceScore >= 60 && pa.aiConfidenceScore <= 80) {
+    score += 20;
+  }
+  if (pa.status === 'Appealing' && pa.appealDeadlineDate && new Date(pa.appealDeadlineDate) < now) {
+    score += 50;
+  }
+  return Math.round(score);
+}
+
 // GET /api/admin/prior-auth - List all PAs with status stats
 router.get('/', async (req, res) => {
   try {
-    const { status, page = 0, limit = 20, search = '' } = req.query;
+    const { status, page = 0, limit = 100, search = '' } = req.query;
     const filter = {};
     if (status && status !== 'all') filter.status = status;
     if (search) {
@@ -75,10 +93,24 @@ router.get('/', async (req, res) => {
     }
 
     const total = await PriorAuthorization.countDocuments(filter);
-    const pas = await PriorAuthorization.find(filter)
+    const rawPas = await PriorAuthorization.find(filter)
       .sort({ createdAt: -1 })
       .skip(parseInt(page) * parseInt(limit))
       .limit(parseInt(limit));
+
+    // Attach priority score to each PA
+    const now = Date.now();
+    const pas = rawPas.map(pa => {
+      const obj = pa.toObject();
+      obj.priorityScore = computePriorityScore(obj, now);
+      return obj;
+    });
+
+    // Sort by priority for action-needed views
+    const ACTION_STATUSES = ['Pending', 'Under Review', 'Appealing'];
+    if (!status || status === 'all' || ACTION_STATUSES.includes(status)) {
+      pas.sort((a, b) => b.priorityScore - a.priorityScore);
+    }
 
     const stats = await PriorAuthorization.aggregate([
       { $group: { _id: '$status', count: { $sum: 1 } } },
@@ -94,7 +126,7 @@ router.get('/', async (req, res) => {
     });
     statMap.overdueAppeals = overdueAppeals;
 
-    res.json({ success: true, data: { priorAuths: pas, total, stats: statMap } });
+    res.json({ success: true, data: { priorAuths: pas, total, stats: statMap, prioritySorted: true } });
   } catch (err) {
     logger.error('Admin get PAs error', { error: err.message });
     res.status(500).json({ success: false, error: 'Server error' });
@@ -227,6 +259,104 @@ router.get('/analytics', async (req, res) => {
   }
 });
 
+// POST /api/admin/prior-auth/bulk-review - Approve or deny multiple PAs at once
+router.post('/bulk-review', async (req, res) => {
+  try {
+    const { ids, decision, reviewerNotes, denialReasonCode, approvalDurationDays } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'ids must be a non-empty array' });
+    }
+    if (!['Approved', 'Denied'].includes(decision)) {
+      return res.status(400).json({ success: false, error: 'Decision must be Approved or Denied' });
+    }
+
+    const pas = await PriorAuthorization.find({
+      _id: { $in: ids },
+      status: { $in: ['Pending', 'Under Review'] },
+    });
+
+    if (pas.length === 0) {
+      return res.status(400).json({ success: false, error: 'No reviewable PAs found for the given IDs' });
+    }
+
+    const now = new Date();
+    const CARC_MAP = {
+      '4': 'Not covered by this payer',
+      '50': 'Not deemed medically necessary',
+      '96': 'Non-covered charge',
+      '167': 'Diagnosis codes not covered',
+      '197': 'Precertification/authorization absent',
+      '252': 'Attachment/documentation required',
+    };
+
+    await Promise.all(pas.map(pa => {
+      pa.status = decision;
+      pa.reviewerNotes = reviewerNotes || '';
+      pa.reviewedBy = req.user.id;
+      pa.reviewedAt = now;
+      if (decision === 'Approved') {
+        pa.approvedDate = now;
+        const durationDays = parseInt(approvalDurationDays) || 90;
+        pa.approvalDurationDays = durationDays;
+        const expiry = new Date(now);
+        expiry.setDate(expiry.getDate() + durationDays);
+        pa.expiryDate = expiry;
+      } else {
+        pa.deniedDate = now;
+        if (denialReasonCode) {
+          pa.denialReasonCode = denialReasonCode;
+          pa.denialReasonDescription = CARC_MAP[denialReasonCode] || denialReasonCode;
+        }
+      }
+      return pa.save();
+    }));
+
+    const auditAction = decision === 'Approved' ? 'PA_APPROVED' : 'PA_DENIED';
+    await AuditLog.insertMany(pas.map(pa => ({
+      action: auditAction,
+      resourceType: 'PriorAuthorization',
+      resourceId: String(pa._id),
+      patientId: pa.patientId,
+      userId: req.user.id,
+      userEmail: req.user.email || null,
+      userRole: req.user.role || null,
+      endpoint: req.originalUrl,
+      method: req.method,
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+      responseStatus: 200,
+    })));
+
+    const notifType = decision === 'Approved' ? 'prior_auth_approved' : 'prior_auth_denied';
+    pas.forEach(pa => notifyPatient(notifType, pa));
+
+    logger.info('PA bulk review complete', { count: pas.length, decision, adminId: req.user.id });
+    res.json({ success: true, data: { processed: pas.length, skipped: ids.length - pas.length, decision } });
+  } catch (err) {
+    logger.error('PA bulk review error', { error: err.message });
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// GET /api/admin/prior-auth/:id/history - Full audit trail for a PA
+router.get('/:id/history', async (req, res) => {
+  try {
+    const pa = await PriorAuthorization.findById(req.params.id);
+    if (!pa) return res.status(404).json({ success: false, error: 'Not found' });
+
+    const history = await AuditLog.find({
+      resourceType: 'PriorAuthorization',
+      resourceId: String(req.params.id),
+    }).sort({ timestamp: 1 });
+
+    res.json({ success: true, data: history });
+  } catch (err) {
+    logger.error('Admin PA history error', { error: err.message });
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
 // GET /api/admin/prior-auth/:id
 router.get('/:id', async (req, res) => {
   try {
@@ -343,6 +473,31 @@ router.put('/:id/appeal-review', async (req, res) => {
     res.json({ success: true, data: pa });
   } catch (err) {
     logger.error('PA appeal review error', { error: err.message });
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// POST /api/admin/prior-auth/:id/notes - Admin adds a clinical note
+router.post('/:id/notes', async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message?.trim()) {
+      return res.status(400).json({ success: false, error: 'Message is required' });
+    }
+    const pa = await PriorAuthorization.findById(req.params.id);
+    if (!pa) return res.status(404).json({ success: false, error: 'Not found' });
+
+    pa.notes.push({
+      authorId:    req.user.id,
+      authorEmail: req.user.email || '',
+      authorRole:  req.user.role || 'admin',
+      message:     message.trim(),
+      createdAt:   new Date(),
+    });
+    await pa.save();
+    res.json({ success: true, data: pa.notes });
+  } catch (err) {
+    logger.error('Admin PA note add error', { error: err.message });
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });

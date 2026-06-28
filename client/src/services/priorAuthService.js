@@ -50,6 +50,33 @@ export const getAppealDraft = async (id) => {
   }
 };
 
+export const renewPriorAuth = async (id, overrides = {}) => {
+  try {
+    return await post(`${BASE}/${id}/renew`, overrides);
+  } catch (err) {
+    console.error('renewPriorAuth error:', err);
+    throw err;
+  }
+};
+
+export const addPANote = async (id, message) => {
+  try {
+    return await post(`${BASE}/${id}/notes`, { message });
+  } catch (err) {
+    console.error('addPANote error:', err);
+    throw err;
+  }
+};
+
+export const getPAHistory = async (id) => {
+  try {
+    return await get(`${BASE}/${id}/history`);
+  } catch (err) {
+    console.error('getPAHistory error:', err);
+    throw err;
+  }
+};
+
 export const triggerAIAnalysis = async (id) => {
   try {
     return await post(`${BASE}/${id}/analyze`, {});
@@ -112,6 +139,33 @@ export const adminTriggerAI = async (id) => {
   }
 };
 
+export const adminAddPANote = async (id, message) => {
+  try {
+    return await post(`${ADMIN_BASE}/${id}/notes`, { message });
+  } catch (err) {
+    console.error('adminAddPANote error:', err);
+    throw err;
+  }
+};
+
+export const adminBulkReview = async (ids, decision, reviewerNotes, extra = {}) => {
+  try {
+    return await post(`${ADMIN_BASE}/bulk-review`, { ids, decision, reviewerNotes, ...extra });
+  } catch (err) {
+    console.error('adminBulkReview error:', err);
+    throw err;
+  }
+};
+
+export const adminGetPAHistory = async (id) => {
+  try {
+    return await get(`${ADMIN_BASE}/${id}/history`);
+  } catch (err) {
+    console.error('adminGetPAHistory error:', err);
+    throw err;
+  }
+};
+
 export const getAdminPAAnalytics = async () => {
   try {
     return await get(`${ADMIN_BASE}/analytics`);
@@ -123,8 +177,9 @@ export const getAdminPAAnalytics = async () => {
 
 const priorAuthService = {
   getPriorAuths, getPriorAuth, createPriorAuth, submitAppeal, getAppealDraft,
-  triggerAIAnalysis, adminGetPriorAuths, adminGetPriorAuth, adminReviewPriorAuth,
-  adminReviewAppeal, adminTriggerAI, getAdminPAAnalytics,
+  renewPriorAuth, addPANote, getPAHistory, triggerAIAnalysis,
+  adminGetPriorAuths, adminGetPriorAuth, adminReviewPriorAuth, adminReviewAppeal,
+  adminTriggerAI, adminAddPANote, adminBulkReview, adminGetPAHistory, getAdminPAAnalytics,
 };
 
 export default priorAuthService;

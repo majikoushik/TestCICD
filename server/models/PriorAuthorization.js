@@ -50,6 +50,21 @@ const priorAuthSchema = new mongoose.Schema({
   appealDeadlineDate: { type: Date, default: null },
   appealReviewedAt: { type: Date, default: null },
   appealOutcome: { type: String, enum: ['Approved', 'Denied', null], default: null },
+
+  // Escalation tracking — prevents duplicate admin alerts
+  escalationSentAt: { type: Date, default: null },
+
+  // Renewal tracking
+  renewedFromId: { type: String, default: null },
+
+  // Provider–Admin clinical communication thread
+  notes: [{
+    authorId:    { type: String, default: null },
+    authorEmail: { type: String, default: '' },
+    authorRole:  { type: String, default: '' },
+    message:     { type: String, required: true },
+    createdAt:   { type: Date, default: Date.now },
+  }],
 }, { timestamps: true });
 
 priorAuthSchema.index({ patientId: 1 });
@@ -57,5 +72,6 @@ priorAuthSchema.index({ requestingProviderId: 1 });
 priorAuthSchema.index({ status: 1 });
 priorAuthSchema.index({ referralId: 1 });
 priorAuthSchema.index({ expiryDate: 1 });
+priorAuthSchema.index({ urgency: 1, status: 1, escalationSentAt: 1 });
 
 module.exports = mongoose.model('PriorAuthorization', priorAuthSchema);

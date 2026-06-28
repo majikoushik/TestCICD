@@ -19,9 +19,9 @@ import {
   Warning as WarningIcon
 } from '@mui/icons-material';
 import { LinearProgress, Stack, Divider } from '@mui/material';
-import { FlashOn as AutoIcon, FormatQuote as GuidelinesIcon } from '@mui/icons-material';
+import { FlashOn as AutoIcon, FormatQuote as GuidelinesIcon, History as HistoryIcon, Autorenew as RenewIcon, Chat as NotesIcon, Send as SendIcon } from '@mui/icons-material';
 import { ModernLoadingIndicator } from '../../components/common';
-import { getPriorAuths, submitAppeal, getAppealDraft } from '../../services/priorAuthService';
+import { getPriorAuths, submitAppeal, getAppealDraft, getPAHistory, addPANote } from '../../services/priorAuthService';
 import CreatePriorAuth from './CreatePriorAuth';
 
 const STATUS_COLOR = {
@@ -41,6 +41,48 @@ const STATUS_ICON = {
   Appealing: <GavelIcon fontSize="small" />,
   Expired: <WarningIcon fontSize="small" />
 };
+
+const PA_ACTION_META = {
+  PA_SUBMITTED:       { label: 'Submitted',            color: 'primary' },
+  PA_AI_ANALYZED:     { label: 'AI Analysis Complete', color: 'info' },
+  PA_AUTO_APPROVED:   { label: 'Auto-Approved by AI',  color: 'success' },
+  PA_APPROVED:        { label: 'Approved',              color: 'success' },
+  PA_DENIED:          { label: 'Denied',                color: 'error' },
+  PA_APPEALED:        { label: 'Appeal Submitted',      color: 'warning' },
+  PA_APPEAL_APPROVED: { label: 'Appeal Approved',       color: 'success' },
+  PA_APPEAL_DENIED:   { label: 'Appeal Denied',         color: 'error' },
+  PA_EXPIRED:         { label: 'Expired',               color: 'default' },
+  PA_ESCALATED:       { label: 'Escalated to Admin',    color: 'error' },
+};
+
+function PATimeline({ history, loading }) {
+  if (loading) return <LinearProgress sx={{ mt: 1 }} />;
+  if (!history || history.length === 0) {
+    return <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>No audit history available.</Typography>;
+  }
+  return (
+    <Box sx={{ mt: 1 }}>
+      {history.map((entry, i) => {
+        const meta = PA_ACTION_META[entry.action] || { label: entry.action, color: 'default' };
+        const isLast = i === history.length - 1;
+        return (
+          <Box key={i} sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', pt: 0.5 }}>
+              <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: `${meta.color}.main`, flexShrink: 0 }} />
+              {!isLast && <Box sx={{ width: 2, flexGrow: 1, bgcolor: 'divider', my: 0.25, minHeight: 16 }} />}
+            </Box>
+            <Box sx={{ pb: isLast ? 0 : 2 }}>
+              <Chip label={meta.label} size="small" color={meta.color} variant="outlined" sx={{ mb: 0.25 }} />
+              <Typography variant="caption" color="text.secondary" display="block">
+                {new Date(entry.timestamp).toLocaleString()}
+              </Typography>
+            </Box>
+          </Box>
+        );
+      })}
+    </Box>
+  );
+}
 
 function SummaryCard({ label, count, color }) {
   return (
@@ -69,6 +111,15 @@ export default function PriorAuth() {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [draftLoading, setDraftLoading] = useState(false);
   const [appealDraft, setAppealDraft] = useState(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [paHistory, setPaHistory] = useState([]);
+  // Renewal
+  const [renewalSource, setRenewalSource] = useState(null);
+  const [renewOpen, setRenewOpen] = useState(false);
+  // Notes
+  const [newNote, setNewNote] = useState('');
+  const [noteLoading, setNoteLoading] = useState(false);
 
   const loadPAs = useCallback(async () => {
     try {
@@ -99,6 +150,35 @@ export default function PriorAuth() {
     Approved: pas.filter(p => p.status === 'Approved').length,
     Denied: pas.filter(p => p.status === 'Denied').length,
     Appealing: pas.filter(p => p.status === 'Appealing').length
+  };
+
+  const handleViewHistory = async () => {
+    if (!selectedPA) return;
+    setHistoryOpen(true);
+    setPaHistory([]);
+    try {
+      setHistoryLoading(true);
+      const res = await getPAHistory(selectedPA._id);
+      setPaHistory(res.data || []);
+    } catch {
+      setError('Failed to load audit history.');
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const handleAddNote = async () => {
+    if (!selectedPA || !newNote.trim()) return;
+    try {
+      setNoteLoading(true);
+      const res = await addPANote(selectedPA._id, newNote.trim());
+      setSelectedPA(prev => prev ? { ...prev, notes: res.data } : prev);
+      setNewNote('');
+    } catch {
+      setError('Failed to add note.');
+    } finally {
+      setNoteLoading(false);
+    }
   };
 
   const handleGetAppealDraft = async () => {
@@ -275,6 +355,13 @@ export default function PriorAuth() {
                           </IconButton>
                         </Tooltip>
                       )}
+                      {pa.status === 'Expired' && (
+                        <Tooltip title="Request Renewal">
+                          <IconButton size="small" color="secondary" onClick={() => { setRenewalSource(pa); setRenewOpen(true); }}>
+                            <RenewIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -297,6 +384,28 @@ export default function PriorAuth() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreated={() => { setCreateOpen(false); loadPAs(); }}
+      />
+
+      {/* Renewal Dialog — key forces remount when renewalSource changes */}
+      <CreatePriorAuth
+        key={renewalSource?._id || 'renewal'}
+        open={renewOpen}
+        onClose={() => { setRenewOpen(false); setRenewalSource(null); }}
+        onCreated={() => { setRenewOpen(false); setRenewalSource(null); loadPAs(); }}
+        renewalOf={renewalSource?._id}
+        prefillForm={renewalSource ? {
+          patientId:         renewalSource.patientId,
+          patientName:       renewalSource.patientName,
+          referralId:        renewalSource.referralId || '',
+          targetProviderName:renewalSource.targetProviderName || '',
+          serviceType:       renewalSource.serviceType,
+          serviceCode:       renewalSource.serviceCode || '',
+          urgency:           renewalSource.urgency || 'Routine',
+          insurancePlan:     renewalSource.insurancePlan || '',
+          memberId:          renewalSource.memberId || '',
+          clinicalNotes:     renewalSource.clinicalNotes || '',
+          diagnosisCodes:    renewalSource.diagnosisCodes || [],
+        } : null}
       />
 
       {/* Detail Dialog */}
@@ -430,6 +539,68 @@ export default function PriorAuth() {
                   </Paper>
                 </Grid>
               )}
+
+              {/* Notes Thread */}
+              <Grid item xs={12}>
+                <Divider sx={{ my: 0.5 }} />
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
+                  <NotesIcon fontSize="small" color="action" />
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Clinical Notes Thread {selectedPA.notes?.length > 0 ? `(${selectedPA.notes.length})` : ''}
+                  </Typography>
+                </Box>
+                {selectedPA.notes?.length > 0 ? (
+                  <Box sx={{ maxHeight: 200, overflowY: 'auto', mb: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 1 }}>
+                    {selectedPA.notes.map((note, i) => {
+                      const isAdmin = ['admin', 'superadmin'].includes(note.authorRole);
+                      return (
+                        <Box key={i} sx={{ mb: i < selectedPA.notes.length - 1 ? 1.5 : 0 }}>
+                          <Box sx={{ display: 'flex', justifyContent: isAdmin ? 'flex-end' : 'flex-start' }}>
+                            <Box sx={{
+                              maxWidth: '85%',
+                              bgcolor: isAdmin ? 'rgba(76,175,80,0.06)' : 'rgba(25,118,210,0.06)',
+                              border: '1px solid',
+                              borderColor: isAdmin ? 'rgba(76,175,80,0.4)' : 'rgba(25,118,210,0.3)',
+                              borderRadius: 1.5,
+                              px: 1.5, py: 0.75,
+                            }}>
+                              <Typography variant="caption" fontWeight={600} color={isAdmin ? 'success.main' : 'primary.main'} display="block">
+                                {note.authorEmail || note.authorRole} {isAdmin ? '(Admin)' : '(Provider)'}
+                              </Typography>
+                              <Typography variant="body2">{note.message}</Typography>
+                              <Typography variant="caption" color="text.secondary">{new Date(note.createdAt).toLocaleString()}</Typography>
+                            </Box>
+                          </Box>
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                ) : (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>No notes yet — start the conversation with the admin team.</Typography>
+                )}
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <TextField
+                    size="small"
+                    fullWidth
+                    placeholder="Add a clinical note or question for the admin team..."
+                    value={newNote}
+                    onChange={(e) => setNewNote(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && newNote.trim()) { e.preventDefault(); handleAddNote(); } }}
+                    multiline
+                    maxRows={3}
+                  />
+                  <Button
+                    variant="contained"
+                    size="small"
+                    disabled={!newNote.trim() || noteLoading}
+                    onClick={handleAddNote}
+                    sx={{ minWidth: 40, px: 1 }}
+                  >
+                    <SendIcon fontSize="small" />
+                  </Button>
+                </Box>
+              </Grid>
+
               <Grid item xs={6} md={3}>
                 <Typography variant="subtitle2" color="text.secondary">Submitted</Typography>
                 <Typography variant="body2">{formatDate(selectedPA.createdAt)}</Typography>
@@ -450,12 +621,37 @@ export default function PriorAuth() {
           )}
         </DialogContent>
         <DialogActions>
+          <Button startIcon={<HistoryIcon />} onClick={handleViewHistory} sx={{ mr: 'auto' }}>
+            Audit Trail
+          </Button>
           {selectedPA?.status === 'Denied' && (
             <Button color="warning" startIcon={<GavelIcon />} onClick={() => { setDetailDialogOpen(false); setAppealDialogOpen(true); }}>
               Appeal
             </Button>
           )}
+          {selectedPA?.status === 'Expired' && (
+            <Button color="secondary" startIcon={<RenewIcon />} onClick={() => { setDetailDialogOpen(false); setRenewalSource(selectedPA); setRenewOpen(true); }}>
+              Renew
+            </Button>
+          )}
           <Button onClick={() => setDetailDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Audit Trail Dialog */}
+      <Dialog open={historyOpen} onClose={() => setHistoryOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <HistoryIcon fontSize="small" />
+          Audit Trail — {selectedPA?.patientName}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+            {selectedPA?.serviceType} · Submitted {selectedPA ? new Date(selectedPA.createdAt).toLocaleDateString() : ''}
+          </Typography>
+          <PATimeline history={paHistory} loading={historyLoading} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setHistoryOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
 

@@ -10,7 +10,7 @@ const mongoose = require('mongoose');
 dotenv.config();
 
 const logger = require('./utils/logger');
-const { runExpirePriorAuths } = require('./jobs/expirePriorAuths');
+const { runExpirePriorAuths, runUrgencyEscalation } = require('./jobs/expirePriorAuths');
 
 // Fail fast if required secrets are missing
 const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET', 'JWT_REFRESH_SECRET', 'JWT_RESET_SECRET'];
@@ -236,6 +236,8 @@ async function startServer() {
 
     // Schedule nightly PA expiry job at 00:05 server time
     scheduleNightlyJob();
+    // Schedule 30-minute urgency escalation check
+    scheduleEscalationCheck();
   } else {
     mountSyntheticRoutes();
   }
@@ -269,6 +271,22 @@ function scheduleNightlyJob() {
   }
 
   scheduleNext();
+}
+
+// ── 30-minute urgency escalation (runs only in live-DB mode) ─────────────────
+function scheduleEscalationCheck() {
+  const INTERVAL_MS = 30 * 60 * 1000;
+  logger.info('[escalation] Starting 30-minute urgency escalation interval');
+  // Run once shortly after startup to catch anything that breached while the server was down
+  setTimeout(async () => {
+    const result = await runUrgencyEscalation();
+    logger.info('[escalation] Startup check complete', result);
+  }, 10000);
+  // Then repeat every 30 minutes
+  setInterval(async () => {
+    const result = await runUrgencyEscalation();
+    logger.info('[escalation] Interval check complete', result);
+  }, INTERVAL_MS);
 }
 
 startServer();

@@ -52,6 +52,28 @@ router.get('/', protect, async (req, res) => {
   }
 });
 
+// GET /api/prior-auth/:id/history - Audit trail for a PA (provider view)
+router.get('/:id/history', protect, async (req, res) => {
+  try {
+    // Verify the requesting provider owns this PA
+    const pa = await PriorAuthorization.findOne({
+      _id: req.params.id,
+      requestingProviderId: req.user.id,
+    });
+    if (!pa) return res.status(404).json({ success: false, error: 'Not found' });
+
+    const history = await AuditLog.find({
+      resourceType: 'PriorAuthorization',
+      resourceId: String(req.params.id),
+    }).sort({ timestamp: 1 });
+
+    res.json({ success: true, data: history });
+  } catch (err) {
+    logger.error('PA history error', { error: err.message });
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
 // GET /api/prior-auth/:id - Get single PA
 router.get('/:id', protect, async (req, res) => {
   try {
@@ -209,6 +231,105 @@ router.post('/:id/appeal-draft', protect, async (req, res) => {
     res.json({ success: true, data: letter });
   } catch (err) {
     logger.error('PA appeal draft error', { error: err.message });
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// POST /api/prior-auth/:id/renew - Create a renewal PA from an Expired one
+router.post('/:id/renew', protect, async (req, res) => {
+  try {
+    const original = await PriorAuthorization.findOne({
+      _id: req.params.id,
+      requestingProviderId: req.user.id,
+    });
+    if (!original) return res.status(404).json({ success: false, error: 'Not found' });
+    if (original.status !== 'Expired') {
+      return res.status(400).json({ success: false, error: 'Only Expired PAs can be renewed' });
+    }
+
+    const renewal = new PriorAuthorization({
+      referralId: original.referralId,
+      patientId: original.patientId,
+      patientName: original.patientName,
+      requestingProviderId: original.requestingProviderId,
+      requestingProviderName: original.requestingProviderName,
+      targetProviderName: original.targetProviderName,
+      serviceType: original.serviceType,
+      serviceCode: original.serviceCode,
+      diagnosisCodes: original.diagnosisCodes,
+      clinicalNotes: req.body.clinicalNotes || original.clinicalNotes,
+      urgency: req.body.urgency || original.urgency,
+      insurancePlan: original.insurancePlan,
+      memberId: original.memberId,
+      renewedFromId: String(original._id),
+      status: 'Pending',
+    });
+
+    await renewal.save();
+    await auditPA('PA_SUBMITTED', renewal, req);
+
+    // Async AI analysis — same pattern as create
+    const renewalId = renewal._id;
+    analyzePriorAuthorization(renewal)
+      .then(async (aiResult) => {
+        const doc = await PriorAuthorization.findById(renewalId);
+        if (!doc) return;
+        doc.aiRecommendation = aiResult.recommendation;
+        doc.aiConfidenceScore = aiResult.confidenceScore;
+        doc.aiReasoning = aiResult.reasoning;
+        doc.aiKeyFactors = aiResult.keyFactors || [];
+        doc.aiSuggestedAction = aiResult.suggestedAction || '';
+        doc.aiGuidelinesCited = aiResult.guidelinesCited || [];
+        doc.aiAnalyzedAt = new Date();
+        if (isEligibleForAutoApproval(doc, aiResult)) {
+          doc.status = 'Approved';
+          doc.autoApproved = true;
+          doc.approvedDate = new Date();
+          const expiry = new Date();
+          expiry.setDate(expiry.getDate() + (doc.approvalDurationDays || 90));
+          doc.expiryDate = expiry;
+          doc.reviewerNotes = `Auto-approved by AI (confidence: ${aiResult.confidenceScore}%). ${aiResult.reasoning}`;
+          await doc.save();
+          await AuditLog.create({ action: 'PA_AUTO_APPROVED', resourceType: 'PriorAuthorization', resourceId: String(doc._id), patientId: doc.patientId, userId: null, userRole: 'system', endpoint: '/internal/ai-analysis', method: 'POST' });
+        } else {
+          doc.status = 'Under Review';
+          await doc.save();
+          await AuditLog.create({ action: 'PA_AI_ANALYZED', resourceType: 'PriorAuthorization', resourceId: String(doc._id), patientId: doc.patientId, userId: null, userRole: 'system', endpoint: '/internal/ai-analysis', method: 'POST' });
+        }
+      })
+      .catch(err => logger.error('Renewal AI analysis error', { error: err.message, renewalId }));
+
+    res.status(201).json({ success: true, data: renewal });
+  } catch (err) {
+    logger.error('PA renew error', { error: err.message });
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// POST /api/prior-auth/:id/notes - Provider adds a clinical note
+router.post('/:id/notes', protect, async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message?.trim()) {
+      return res.status(400).json({ success: false, error: 'Message is required' });
+    }
+    const pa = await PriorAuthorization.findOne({
+      _id: req.params.id,
+      requestingProviderId: req.user.id,
+    });
+    if (!pa) return res.status(404).json({ success: false, error: 'Not found' });
+
+    pa.notes.push({
+      authorId:    req.user.id,
+      authorEmail: req.user.email || '',
+      authorRole:  req.user.role || 'provider',
+      message:     message.trim(),
+      createdAt:   new Date(),
+    });
+    await pa.save();
+    res.json({ success: true, data: pa.notes });
+  } catch (err) {
+    logger.error('PA note add error', { error: err.message });
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });

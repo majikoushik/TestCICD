@@ -5,7 +5,7 @@ import {
   Chip, TextField, FormControl, InputLabel, Select, MenuItem,
   Dialog, DialogTitle, DialogContent, DialogActions,
   IconButton, Tooltip, Grid, Card, CardContent, LinearProgress,
-  Divider, Stack
+  Divider, Stack, Checkbox, Collapse
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -21,7 +21,13 @@ import {
   FlashOn as AutoIcon,
   AccessTime as SLAIcon,
   BarChart as AnalyticsIcon,
-  FormatQuote as GuidelinesIcon
+  FormatQuote as GuidelinesIcon,
+  History as HistoryIcon,
+  PriorityHigh as PriorityIcon,
+  Chat as NotesIcon,
+  Send as SendIcon,
+  DoneAll as BulkIcon,
+  SelectAll as SelectAllIcon
 } from '@mui/icons-material';
 import {
   PieChart, Pie, Cell, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
@@ -33,6 +39,9 @@ import {
   adminReviewPriorAuth,
   adminReviewAppeal,
   adminTriggerAI,
+  adminAddPANote,
+  adminBulkReview,
+  adminGetPAHistory,
   getAdminPAAnalytics
 } from '../../services/priorAuthService';
 
@@ -95,6 +104,68 @@ function SLABadge({ pa }) {
   );
 }
 
+const PA_ACTION_META = {
+  PA_SUBMITTED:       { label: 'Submitted',             color: 'primary' },
+  PA_AI_ANALYZED:     { label: 'AI Analysis Complete',  color: 'info' },
+  PA_AUTO_APPROVED:   { label: 'Auto-Approved by AI',   color: 'success' },
+  PA_APPROVED:        { label: 'Approved',               color: 'success' },
+  PA_DENIED:          { label: 'Denied',                 color: 'error' },
+  PA_APPEALED:        { label: 'Appeal Submitted',       color: 'warning' },
+  PA_APPEAL_APPROVED: { label: 'Appeal Approved',        color: 'success' },
+  PA_APPEAL_DENIED:   { label: 'Appeal Denied',          color: 'error' },
+  PA_EXPIRED:         { label: 'Expired',                color: 'default' },
+  PA_ESCALATED:       { label: 'Escalated to Admin',     color: 'error' },
+  PA_SLA_BREACH:      { label: 'SLA Breach Detected',    color: 'error' },
+};
+
+function PATimeline({ history, loading }) {
+  if (loading) return <LinearProgress sx={{ mt: 1 }} />;
+  if (!history || history.length === 0) {
+    return <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>No audit history found.</Typography>;
+  }
+  return (
+    <Box sx={{ mt: 1 }}>
+      {history.map((entry, i) => {
+        const meta = PA_ACTION_META[entry.action] || { label: entry.action, color: 'default' };
+        const isLast = i === history.length - 1;
+        return (
+          <Box key={i} sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', pt: 0.5 }}>
+              <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: `${meta.color}.main`, flexShrink: 0 }} />
+              {!isLast && <Box sx={{ width: 2, flexGrow: 1, bgcolor: 'divider', my: 0.25, minHeight: 16 }} />}
+            </Box>
+            <Box sx={{ pb: isLast ? 0 : 2 }}>
+              <Chip label={meta.label} size="small" color={meta.color} variant="outlined" sx={{ mb: 0.25 }} />
+              <Typography variant="caption" color="text.secondary" display="block">
+                {new Date(entry.timestamp).toLocaleString()} · {entry.userEmail || entry.userRole || 'System'}
+              </Typography>
+            </Box>
+          </Box>
+        );
+      })}
+    </Box>
+  );
+}
+
+function PriorityBadge({ score }) {
+  if (!score) return null;
+  const isHigh     = score >= 150;
+  const isMedHigh  = score >= 100;
+  const isMed      = score >= 70;
+  const color = isHigh ? 'error' : isMedHigh ? 'warning' : isMed ? 'warning' : 'default';
+  const label = isHigh ? `P1 · ${score}` : isMedHigh ? `P2 · ${score}` : `P3 · ${score}`;
+  return (
+    <Chip
+      icon={isHigh || isMedHigh ? <PriorityIcon /> : undefined}
+      label={label}
+      size="small"
+      color={color}
+      variant={isHigh ? 'filled' : 'outlined'}
+      sx={{ mt: 0.5, height: 18, fontSize: 10 }}
+    />
+  );
+}
+
 export default function AdminPriorAuth() {
   const [pas, setPas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -116,6 +187,20 @@ export default function AdminPriorAuth() {
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [analyticsData, setAnalyticsData] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [paHistory, setPaHistory] = useState([]);
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkDecision, setBulkDecision] = useState('');
+  const [bulkNotes, setBulkNotes] = useState('');
+  const [bulkDenialCode, setBulkDenialCode] = useState('');
+  const [bulkDurationDays, setBulkDurationDays] = useState(90);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  // Notes thread
+  const [adminNote, setAdminNote] = useState('');
+  const [noteLoading, setNoteLoading] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -172,6 +257,81 @@ export default function AdminPriorAuth() {
       setError('AI analysis failed.');
     } finally {
       setAiLoading(false);
+    }
+  };
+
+  const toggleSelectId = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const actionable = displayed.filter(pa => ['Pending', 'Under Review'].includes(pa.status)).map(pa => pa._id);
+    setSelectedIds(prev => {
+      if (actionable.every(id => prev.has(id))) return new Set(); // deselect all
+      return new Set(actionable);
+    });
+  };
+
+  const handleBulkReview = async () => {
+    if (!bulkDecision || selectedIds.size === 0) return;
+    try {
+      setBulkLoading(true);
+      const res = await adminBulkReview(
+        [...selectedIds],
+        bulkDecision,
+        bulkNotes,
+        {
+          denialReasonCode:   bulkDecision === 'Denied'   ? bulkDenialCode   : undefined,
+          approvalDurationDays: bulkDecision === 'Approved' ? bulkDurationDays : undefined,
+        }
+      );
+      setBulkOpen(false);
+      setBulkDecision('');
+      setBulkNotes('');
+      setBulkDenialCode('');
+      setBulkDurationDays(90);
+      setSelectedIds(new Set());
+      setError(null);
+      load();
+      // Show success briefly
+      setError(`✓ Bulk ${bulkDecision.toLowerCase()}: ${res.data?.processed} PA(s) processed.`);
+      setTimeout(() => setError(null), 4000);
+    } catch {
+      setError('Bulk review failed. Some PAs may have already been reviewed.');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleAddAdminNote = async () => {
+    if (!selectedPA || !adminNote.trim()) return;
+    try {
+      setNoteLoading(true);
+      const res = await adminAddPANote(selectedPA._id, adminNote.trim());
+      setSelectedPA(prev => prev ? { ...prev, notes: res.data } : prev);
+      setAdminNote('');
+    } catch {
+      setError('Failed to add note.');
+    } finally {
+      setNoteLoading(false);
+    }
+  };
+
+  const handleViewHistory = async (pa) => {
+    setHistoryOpen(true);
+    setPaHistory([]);
+    try {
+      setHistoryLoading(true);
+      const res = await adminGetPAHistory(pa._id);
+      setPaHistory(res.data || []);
+    } catch {
+      setError('Failed to load audit history.');
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -258,7 +418,40 @@ export default function AdminPriorAuth() {
         </Box>
       </Paper>
 
-      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
+      {error && <Alert severity={error.startsWith('✓') ? 'success' : 'error'} sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
+
+      {/* Bulk Actions Toolbar */}
+      <Collapse in={selectedIds.size > 0}>
+        <Paper sx={{ p: 1.5, mb: 2, bgcolor: 'rgba(25,118,210,0.06)', border: '1px solid', borderColor: 'rgba(25,118,210,0.25)' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              <BulkIcon color="primary" fontSize="small" />
+              <Typography variant="subtitle2" color="primary.main">
+                {selectedIds.size} PA{selectedIds.size !== 1 ? 's' : ''} selected
+              </Typography>
+            </Box>
+            <Button
+              size="small"
+              variant="contained"
+              color="success"
+              onClick={() => { setBulkDecision('Approved'); setBulkOpen(true); }}
+            >
+              Bulk Approve
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              color="error"
+              onClick={() => { setBulkDecision('Denied'); setBulkOpen(true); }}
+            >
+              Bulk Deny
+            </Button>
+            <Button size="small" variant="outlined" onClick={() => setSelectedIds(new Set())}>
+              Clear Selection
+            </Button>
+          </Box>
+        </Paper>
+      </Collapse>
 
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}>
@@ -270,6 +463,16 @@ export default function AdminPriorAuth() {
             <Table size="small">
               <TableHead>
                 <TableRow>
+                  <TableCell padding="checkbox">
+                    <Tooltip title="Select all reviewable on this page">
+                      <Checkbox
+                        size="small"
+                        indeterminate={selectedIds.size > 0 && !displayed.filter(p => ['Pending','Under Review'].includes(p.status)).every(p => selectedIds.has(p._id))}
+                        checked={displayed.filter(p => ['Pending','Under Review'].includes(p.status)).length > 0 && displayed.filter(p => ['Pending','Under Review'].includes(p.status)).every(p => selectedIds.has(p._id))}
+                        onChange={toggleSelectAll}
+                      />
+                    </Tooltip>
+                  </TableCell>
                   <TableCell><strong>Patient</strong></TableCell>
                   <TableCell><strong>Service</strong></TableCell>
                   <TableCell><strong>Provider</strong></TableCell>
@@ -284,20 +487,28 @@ export default function AdminPriorAuth() {
               <TableBody>
                 {displayed.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                    <TableCell colSpan={10} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                       No prior authorizations found
                     </TableCell>
                   </TableRow>
                 ) : displayed.map((pa) => (
-                  <TableRow key={pa._id} hover>
+                  <TableRow key={pa._id} hover selected={selectedIds.has(pa._id)}>
+                    <TableCell padding="checkbox">
+                      {['Pending', 'Under Review'].includes(pa.status) && (
+                        <Checkbox size="small" checked={selectedIds.has(pa._id)} onChange={() => toggleSelectId(pa._id)} />
+                      )}
+                    </TableCell>
                     <TableCell>{pa.patientName}</TableCell>
                     <TableCell>{pa.serviceType}</TableCell>
                     <TableCell>
                       <Typography variant="body2" noWrap>{pa.requestingProviderName}</Typography>
                     </TableCell>
                     <TableCell>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                       <Chip label={pa.urgency} size="small"
                         color={pa.urgency === 'Emergent' ? 'error' : pa.urgency === 'Urgent' ? 'warning' : 'default'} />
+                      <PriorityBadge score={pa.priorityScore} />
+                      </Box>
                     </TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -468,16 +679,145 @@ export default function AdminPriorAuth() {
                   </Paper>
                 </Grid>
               )}
+
+              {/* Notes Thread */}
+              <Grid item xs={12}>
+                <Divider sx={{ my: 0.5 }} />
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
+                  <NotesIcon fontSize="small" color="action" />
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Clinical Notes Thread {selectedPA.notes?.length > 0 ? `(${selectedPA.notes.length})` : ''}
+                  </Typography>
+                </Box>
+                {selectedPA.notes?.length > 0 ? (
+                  <Box sx={{ maxHeight: 200, overflowY: 'auto', mb: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 1 }}>
+                    {selectedPA.notes.map((note, i) => {
+                      const isAdmin = ['admin', 'superadmin'].includes(note.authorRole);
+                      return (
+                        <Box key={i} sx={{ mb: i < selectedPA.notes.length - 1 ? 1.5 : 0 }}>
+                          <Box sx={{ display: 'flex', justifyContent: isAdmin ? 'flex-end' : 'flex-start' }}>
+                            <Box sx={{
+                              maxWidth: '85%',
+                              bgcolor: isAdmin ? 'rgba(76,175,80,0.06)' : 'rgba(25,118,210,0.06)',
+                              border: '1px solid',
+                              borderColor: isAdmin ? 'rgba(76,175,80,0.4)' : 'rgba(25,118,210,0.3)',
+                              borderRadius: 1.5,
+                              px: 1.5, py: 0.75,
+                            }}>
+                              <Typography variant="caption" fontWeight={600} color={isAdmin ? 'success.main' : 'primary.main'} display="block">
+                                {note.authorEmail || note.authorRole} {isAdmin ? '(Admin)' : '(Provider)'}
+                              </Typography>
+                              <Typography variant="body2">{note.message}</Typography>
+                              <Typography variant="caption" color="text.secondary">{formatDateTime(note.createdAt)}</Typography>
+                            </Box>
+                          </Box>
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                ) : (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>No notes yet.</Typography>
+                )}
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <TextField
+                    size="small"
+                    fullWidth
+                    placeholder="Add a clinical note for the provider..."
+                    value={adminNote}
+                    onChange={(e) => setAdminNote(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && adminNote.trim()) { e.preventDefault(); handleAddAdminNote(); } }}
+                    multiline
+                    maxRows={3}
+                  />
+                  <Button
+                    variant="contained"
+                    size="small"
+                    disabled={!adminNote.trim() || noteLoading}
+                    onClick={handleAddAdminNote}
+                    sx={{ minWidth: 40, px: 1 }}
+                  >
+                    <SendIcon fontSize="small" />
+                  </Button>
+                </Box>
+              </Grid>
             </Grid>
           )}
         </DialogContent>
         <DialogActions>
+          <Button startIcon={<HistoryIcon />} onClick={() => selectedPA && handleViewHistory(selectedPA)} sx={{ mr: 'auto' }}>
+            Audit Trail
+          </Button>
           {selectedPA && ['Pending', 'Under Review', 'Appealing'].includes(selectedPA.status) && (
             <Button variant="contained" color="primary" onClick={() => { setDetailOpen(false); setReviewDecision(''); setReviewNotes(''); setDenialReasonCode(''); setApprovalDurationDays(90); setReviewOpen(true); }}>
               Review & Decide
             </Button>
           )}
           <Button onClick={() => setDetailOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Audit Trail / History Dialog */}
+      <Dialog open={historyOpen} onClose={() => setHistoryOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <HistoryIcon fontSize="small" />
+          Audit Trail — {selectedPA?.patientName}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+            {selectedPA?.serviceType} · Submitted {selectedPA ? new Date(selectedPA.createdAt).toLocaleDateString() : ''}
+          </Typography>
+          <PATimeline history={paHistory} loading={historyLoading} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setHistoryOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Review Dialog */}
+      <Dialog open={bulkOpen} onClose={() => setBulkOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <BulkIcon />
+          Bulk {bulkDecision} — {selectedIds.size} PA{selectedIds.size !== 1 ? 's' : ''}
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity={bulkDecision === 'Approved' ? 'success' : 'error'} sx={{ mb: 2 }}>
+            You are about to <strong>{bulkDecision?.toLowerCase()}</strong> <strong>{selectedIds.size}</strong> prior authorization(s). This action will notify each patient.
+          </Alert>
+          {bulkDecision === 'Approved' && (
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Approval Duration</InputLabel>
+              <Select value={bulkDurationDays} label="Approval Duration" onChange={(e) => setBulkDurationDays(e.target.value)}>
+                {APPROVAL_DURATIONS.map(d => <MenuItem key={d.value} value={d.value}>{d.label}</MenuItem>)}
+              </Select>
+            </FormControl>
+          )}
+          {bulkDecision === 'Denied' && (
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Denial Reason Code (CARC)</InputLabel>
+              <Select value={bulkDenialCode} label="Denial Reason Code (CARC)" onChange={(e) => setBulkDenialCode(e.target.value)}>
+                <MenuItem value=""><em>Select a code (optional)</em></MenuItem>
+                {CARC_CODES.map(c => <MenuItem key={c.code} value={c.code}>CARC {c.code} — {c.label}</MenuItem>)}
+              </Select>
+            </FormControl>
+          )}
+          <TextField
+            fullWidth multiline rows={3}
+            label="Reviewer Notes (applied to all selected)"
+            value={bulkNotes}
+            onChange={(e) => setBulkNotes(e.target.value)}
+            placeholder="Provide justification for this bulk decision..."
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBulkOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            color={bulkDecision === 'Approved' ? 'success' : 'error'}
+            disabled={bulkLoading}
+            onClick={handleBulkReview}
+          >
+            {bulkLoading ? 'Processing...' : `Confirm Bulk ${bulkDecision}`}
+          </Button>
         </DialogActions>
       </Dialog>
 
