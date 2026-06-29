@@ -230,6 +230,28 @@ router.patch('/profile', protect, async (req, res) => {
     if (primarySpecialty !== undefined) userUpdate.specialty = primarySpecialty;
     await User.findByIdAndUpdate(req.user.id, userUpdate);
 
+    // One-time profile completion token bonus (fire-and-forget)
+    ;(async () => {
+      try {
+        const providerUser = await User.findById(req.user.id).select('tokenBalance profileTokenBonusPaid').lean();
+        if (providerUser && !providerUser.profileTokenBonusPaid) {
+          const TokenEarnPolicy = require('../models/TokenEarnPolicy');
+          const { Token } = require('../models/Token');
+          const { processTokenTransaction } = require('../blockchain/contracts');
+          const policy = await TokenEarnPolicy.getSingleton();
+          const bonus = policy.profileCompleted || 25;
+          const blockchainTx = await processTokenTransaction(String(req.user.id), 'system', bonus, 'Profile completion bonus', { source: 'profile_completed' }).catch(() => ({ transactionId: null }));
+          await User.findByIdAndUpdate(req.user.id, { $inc: { tokenBalance: bonus }, profileTokenBonusPaid: true });
+          const updatedUser = await User.findById(req.user.id).select('tokenBalance').lean();
+          let token = await Token.findOne();
+          if (!token) token = new Token({ contractAddress: `0x${require('crypto').randomBytes(20).toString('hex')}` });
+          token.transactions.push({ user: req.user.id, type: 'earn', amount: bonus, reason: 'Profile completion bonus', relatedEntity: { entityType: 'onboarding', entityId: String(req.user.id) }, blockchainTransactionId: blockchainTx.transactionId, status: 'completed', balanceAfter: (updatedUser || {}).tokenBalance || bonus, metadata: { source: 'profile_completed' } });
+          await token.save();
+          logger.info('Profile completion token bonus awarded', { userId: String(req.user.id), amount: bonus });
+        }
+      } catch (e) { logger.warn('Profile token bonus error (non-fatal)', { error: e.message }); }
+    })();
+
     // Notify provider: next step is document upload
     try {
       const notifyUser = await User.findById(req.user.id).select('email name firstName');
@@ -354,6 +376,26 @@ router.post('/invite', protect, async (req, res) => {
         'onboardingSteps.colleague_invited': true,
       }
     );
+
+    // Award invite colleague token bonus (fire-and-forget)
+    ;(async () => {
+      try {
+        const TokenEarnPolicy = require('../models/TokenEarnPolicy');
+        const { Token } = require('../models/Token');
+        const { processTokenTransaction } = require('../blockchain/contracts');
+        const policy = await TokenEarnPolicy.getSingleton();
+        const bonus = policy.inviteColleague || 20;
+        if (bonus > 0) {
+          const blockchainTx = await processTokenTransaction(String(req.user.id), 'system', bonus, 'Colleague invite bonus', { source: 'invite_colleague', invitedEmail: email }).catch(() => ({ transactionId: null }));
+          const updatedUser = await User.findByIdAndUpdate(req.user.id, { $inc: { tokenBalance: bonus } }, { new: true }).select('tokenBalance');
+          let token = await Token.findOne();
+          if (!token) token = new Token({ contractAddress: `0x${require('crypto').randomBytes(20).toString('hex')}` });
+          token.transactions.push({ user: req.user.id, type: 'earn', amount: bonus, reason: 'Colleague invite bonus', relatedEntity: { entityType: 'onboarding', entityId: String(req.user.id) }, blockchainTransactionId: blockchainTx.transactionId, status: 'completed', balanceAfter: (updatedUser || {}).tokenBalance || bonus, metadata: { source: 'invite_colleague', invitedEmail: email } });
+          await token.save();
+          logger.info('Invite colleague token bonus awarded', { userId: String(req.user.id), amount: bonus, invitedEmail: email });
+        }
+      } catch (e) { logger.warn('Invite colleague token bonus error (non-fatal)', { error: e.message }); }
+    })();
 
     res.json({
       success: true,

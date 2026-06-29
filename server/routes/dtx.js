@@ -122,7 +122,13 @@ router.put('/prescriptions/:id/status', protect, async (req, res) => {
 
     if (status === 'completed' && !prescription.tokenRewardIssued) {
       const program = await DtxProgram.findById(prescription.programId);
-      const reward = program?.tokenReward || DTX_TOKEN_REWARD;
+      let policyDtxReward = DTX_TOKEN_REWARD;
+      try {
+        const TokenEarnPolicy = require('../models/TokenEarnPolicy');
+        const policy = await TokenEarnPolicy.getSingleton();
+        if (policy.dtxCompleted > 0) policyDtxReward = policy.dtxCompleted;
+      } catch (_) {}
+      const reward = program?.tokenReward || policyDtxReward;
       update.tokenRewardIssued = true;
       update.tokenRewardAmount = reward;
       try {

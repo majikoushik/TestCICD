@@ -32,6 +32,15 @@
 
 const logger = require('../utils/logger');
 
+// Lazy-require to avoid circular deps at load time
+let _PatientNotification = null;
+function getPatientNotificationModel() {
+  if (!_PatientNotification) {
+    try { _PatientNotification = require('../models/PatientNotification'); } catch (_) {}
+  }
+  return _PatientNotification;
+}
+
 // ─── Uncomment these requires once the packages are installed ─────────────────
 // const sgMail = require('@sendgrid/mail');
 // const twilio = require('twilio');
@@ -445,6 +454,67 @@ async function triggerAutomaticNotification(type, relatedData, patient) {
   };
 }
 
+/**
+ * saveNotificationLog
+ *
+ * Persists a PatientNotification record after a notification is dispatched.
+ * Non-fatal — logs and returns null on any error.
+ *
+ * @param {Object} opts
+ * @param {string} opts.paId          - PA ObjectId (string) if related to a prior auth
+ * @param {string} opts.patientId     - Patient user ID
+ * @param {string} opts.patientName
+ * @param {string} opts.patientEmail
+ * @param {string} opts.patientPhone
+ * @param {Object} opts.notifObj      - Notification object from triggerAutomaticNotification
+ * @param {Object} opts.sendResult    - Result from sendPatientNotification
+ * @returns {Promise<Object|null>}
+ */
+async function saveNotificationLog({ paId, patientId, patientName, patientEmail, patientPhone, notifObj, sendResult }) {
+  const PatientNotification = getPatientNotificationModel();
+  if (!PatientNotification) return null;
+  try {
+    const sentAt = sendResult.sentAt || new Date();
+    const channelStatus = {};
+    if (sendResult.channels) {
+      for (const [ch, r] of Object.entries(sendResult.channels)) {
+        if (ch === 'email') {
+          channelStatus.email = { sent: Boolean(r.success), sentAt: r.success ? sentAt : undefined, error: r.error || undefined, messageId: r.messageId || undefined };
+        } else if (ch === 'sms') {
+          channelStatus.sms = { sent: Boolean(r.success), sentAt: r.success ? sentAt : undefined, error: r.error || undefined, sid: r.sid || undefined };
+        } else if (ch === 'push') {
+          channelStatus.push = { sent: Boolean(r.success), sentAt: r.success ? sentAt : undefined, error: r.error || undefined };
+        } else if (ch === 'in_app') {
+          channelStatus.in_app = { sent: true };
+        }
+      }
+    }
+
+    const record = new PatientNotification({
+      patientId: patientId || 'system',
+      patientName: patientName || 'Patient',
+      patientEmail: patientEmail || undefined,
+      patientPhone: patientPhone || undefined,
+      title: notifObj.title,
+      message: notifObj.message,
+      type: 'prior_auth_update',
+      priority: 'normal',
+      channels: notifObj.channels || [],
+      channelStatus,
+      status: sendResult.overall === 'failed' ? 'failed' : 'sent',
+      relatedId: paId ? String(paId) : undefined,
+      relatedType: paId ? 'prior_auth' : undefined,
+      sentAt,
+    });
+
+    await record.save();
+    return record;
+  } catch (err) {
+    logger.warn('[patientEngagementService][saveNotificationLog] Failed (non-fatal)', { error: err.message });
+    return null;
+  }
+}
+
 // ─── Exports ──────────────────────────────────────────────────────────────────
 module.exports = {
   processTemplate,
@@ -453,4 +523,5 @@ module.exports = {
   sendPushNotification,
   sendPatientNotification,
   triggerAutomaticNotification,
+  saveNotificationLog,
 };

@@ -55,6 +55,14 @@ const UserSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  stakedBalance: {
+    type: Number,
+    default: 0
+  },
+  tokenLastActivity: {
+    type: Date,
+    default: Date.now
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -102,6 +110,9 @@ const UserSchema = new mongoose.Schema({
   },
   kycRejectionReason: { type: String, default: '' },
   profileImage: { type: String, default: null },
+  // One-time token bonus flags — prevent double-awarding
+  kycTokenBonusPaid: { type: Boolean, default: false },
+  profileTokenBonusPaid: { type: Boolean, default: false },
 });
 
 // Encrypt password using bcrypt

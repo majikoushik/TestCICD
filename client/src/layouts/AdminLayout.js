@@ -41,6 +41,7 @@ import {
   ContactMail as ContactMailIcon,
   VerifiedUser as VerifiedUserIcon,
   TuneRounded as TuneIcon,
+  AccountTree as BlockchainIcon,
 } from '@mui/icons-material';
 import adminAuthService from '../services/adminAuthService';
 import { isAuthenticated, hasRole } from '../utils/authUtils';
@@ -110,6 +111,7 @@ const getMenuItems = () => [
   { text: 'Referrals', icon: <ReferralsIcon />, path: '/admin/referrals' },
   { text: 'AI Management', icon: <AIIcon />, path: '/admin/ai-management' },
   { text: 'Token Management', icon: <TokenIcon />, path: '/admin/token-management' },
+  { text: 'Blockchain Ledger', icon: <BlockchainIcon />, path: '/admin/blockchain' },
   { text: 'Messaging', icon: <MessageIcon />, path: '/admin/messaging' },
   { text: 'KYC Verification', icon: <VerifiedUserIcon />, path: '/admin/kyc' },
   { text: 'Contact Inquiries', icon: <ContactMailIcon />, path: '/admin/contacts' },

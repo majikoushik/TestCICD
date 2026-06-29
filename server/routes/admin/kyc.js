@@ -108,6 +108,27 @@ router.patch('/:id', async (req, res) => {
       { new: true }
     );
 
+    // Award one-time KYC verification token bonus
+    if (status === 'verified' && user && !user.kycTokenBonusPaid) {
+      try {
+        const TokenEarnPolicy = require('../../models/TokenEarnPolicy');
+        const { Token } = require('../../models/Token');
+        const { processTokenTransaction } = require('../../blockchain/contracts');
+        const policy = await TokenEarnPolicy.getSingleton();
+        const bonus = policy.kycVerified || 50;
+        const blockchainTx = await processTokenTransaction(String(user._id), 'system', bonus, 'KYC verification bonus', { source: 'kyc_verified' }).catch(() => ({ transactionId: null }));
+        await User.findByIdAndUpdate(user._id, { $inc: { tokenBalance: bonus }, kycTokenBonusPaid: true });
+        let token = await Token.findOne();
+        if (!token) token = new (require('../../models/Token').Token)({ contractAddress: `0x${require('crypto').randomBytes(20).toString('hex')}` });
+        const updatedUser = await User.findById(user._id).select('tokenBalance').lean();
+        token.transactions.push({ user: user._id, type: 'earn', amount: bonus, reason: 'KYC verification bonus', relatedEntity: { entityType: 'kyc', entityId: String(user._id) }, blockchainTransactionId: blockchainTx.transactionId, status: 'completed', balanceAfter: (updatedUser || {}).tokenBalance || bonus, metadata: { source: 'kyc_verified' } });
+        await token.save();
+        logger.info('KYC token bonus awarded', { userId: String(user._id), amount: bonus });
+      } catch (e) {
+        logger.error('KYC token bonus error', { error: e.message });
+      }
+    }
+
     // Create blockchain wallet when admin approves the provider
     if (status === 'verified' && user) {
       try {

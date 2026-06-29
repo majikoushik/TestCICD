@@ -674,11 +674,12 @@ router.get('/tokens/transactions', protect, (req, res) => {
 
 router.get('/tokens/services', protect, (req, res) => {
   const services = [
-    { id: 'ai-analysis-basic', name: 'Basic AI Analysis', description: 'Run basic AI analysis on patient data', tokenCost: 10, category: 'analytics' },
-    { id: 'ai-analysis-advanced', name: 'Advanced AI Analysis', description: 'Run advanced AI analysis with predictive modeling', tokenCost: 25, category: 'analytics' },
-    { id: 'priority-referral', name: 'Priority Referral Processing', description: 'Get priority handling for referrals', tokenCost: 5, category: 'operations' },
-    { id: 'extended-data-access', name: 'Extended Network Data Access', description: 'Access anonymized network data for research', tokenCost: 50, category: 'research' },
-    { id: 'premium-support', name: 'Premium Support', description: 'Get priority technical support', tokenCost: 15, category: 'support' },
+    { id: 'ai-analysis-basic',    name: 'Basic AI Analysis',              description: 'Run basic AI analysis on patient data',                     tokenCost: 10, category: 'analytics'  },
+    { id: 'ai-analysis-advanced', name: 'Advanced AI Analysis',           description: 'Run advanced AI analysis with predictive modeling',          tokenCost: 25, category: 'analytics'  },
+    { id: 'priority-referral',    name: 'Priority Referral Processing',   description: 'Get priority handling for referrals',                       tokenCost: 5,  category: 'operations' },
+    { id: 'pa-fast-track',        name: 'PA Fast-Track',                  description: 'Skip the queue and get priority PA review',                 tokenCost: 10, category: 'priority'   },
+    { id: 'extended-data-access', name: 'Extended Network Data Access',   description: 'Access anonymized network data for research',               tokenCost: 50, category: 'research'   },
+    { id: 'premium-support',      name: 'Premium Support',                description: 'Get priority technical support',                            tokenCost: 15, category: 'support'    },
   ];
   res.status(200).json({ success: true, count: services.length, data: services });
 });
@@ -707,8 +708,22 @@ router.post('/tokens/transfer', protect, (req, res) => {
   res.status(200).json({ success: true, data: { amount, recipient: { id: recipient._id, name: recipient.name, organization: recipient.organization }, newBalance: sender.tokenBalance } });
 });
 
+router.get('/tokens/earn-sources', protect, (req, res) => {
+  const p = syntheticEarnPolicy;
+  const sources = [
+    { id: 'complete-referral',  name: 'Complete a Referral',           description: 'Earn tokens when a referral you sent is accepted and completed', tokenReward: p.referralSent       || 10, category: 'referrals',  frequency: 'per_action' },
+    { id: 'accept-referral',    name: 'Accept a Referral',             description: 'Earn tokens each time you accept an incoming referral',           tokenReward: p.referralAccepted   || 5,  category: 'referrals',  frequency: 'per_action' },
+    { id: 'complete-profile',   name: 'Complete Your Profile',         description: 'One-time bonus for completing all profile fields',                tokenReward: p.profileCompleted   || 25, category: 'onboarding', frequency: 'one_time'   },
+    { id: 'kyc-verified',       name: 'KYC Verification',              description: 'One-time bonus when your identity is verified by our team',       tokenReward: p.kycVerified        || 50, category: 'onboarding', frequency: 'one_time'   },
+    { id: 'invite-colleague',   name: 'Invite a Colleague',            description: 'Earn tokens for each colleague who joins and completes onboarding', tokenReward: p.inviteColleague   || 20, category: 'network',    frequency: 'per_action' },
+    { id: 'data-contribution',  name: 'Contribute Anonymized Data',    description: 'Earn tokens monthly for contributing anonymized outcome data',     tokenReward: p.dataContribution   || 15, category: 'research',   frequency: 'monthly'    },
+    { id: 'analytics-complete', name: 'Complete Analytics Report',     description: 'Earn tokens each time you complete and submit an analytics report', tokenReward: p.analyticsCompleted || 15, category: 'research',  frequency: 'per_action' },
+  ].filter(s => s.tokenReward > 0);
+  res.status(200).json({ success: true, count: sources.length, data: sources });
+});
+
 router.post('/tokens/redeem', protect, (req, res) => {
-  const SERVICES = { 'ai-analysis-basic': { name: 'Basic AI Analysis', tokenCost: 10 }, 'ai-analysis-advanced': { name: 'Advanced AI Analysis', tokenCost: 25 }, 'priority-referral': { name: 'Priority Referral Processing', tokenCost: 5 }, 'extended-data-access': { name: 'Extended Network Data Access', tokenCost: 50 }, 'premium-support': { name: 'Premium Support', tokenCost: 15 } };
+  const SERVICES = { 'ai-analysis-basic': { name: 'Basic AI Analysis', tokenCost: 10 }, 'ai-analysis-advanced': { name: 'Advanced AI Analysis', tokenCost: 25 }, 'priority-referral': { name: 'Priority Referral Processing', tokenCost: 5 }, 'pa-fast-track': { name: 'PA Fast-Track', tokenCost: 10 }, 'extended-data-access': { name: 'Extended Network Data Access', tokenCost: 50 }, 'premium-support': { name: 'Premium Support', tokenCost: 15 } };
   const { serviceId } = req.body;
   const service = SERVICES[serviceId];
   if (!service) return res.status(404).json({ success: false, error: 'Service not found' });
@@ -786,12 +801,157 @@ router.delete('/notifications/:id', protect, (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Admin token routes  /api/admin/tokens/*
+// ---------------------------------------------------------------------------
+
+const syntheticTokenProviders = [
+  { id: 'prov-1', name: 'Dr. Sarah Johnson', organization: 'Metro Health', specialty: 'Cardiology', tokenBalance: 420, lastTransaction: new Date(Date.now() - 2 * 86400000).toISOString(), status: 'active', tokenActivity: 'high', email: 'sarah.johnson@metrohealth.com', phoneNumber: '(555) 201-3344' },
+  { id: 'prov-2', name: 'Dr. Michael Chen', organization: 'City Medical', specialty: 'Neurology', tokenBalance: 185, lastTransaction: new Date(Date.now() - 5 * 86400000).toISOString(), status: 'active', tokenActivity: 'medium', email: 'michael.chen@citymedical.com', phoneNumber: '(555) 402-7788' },
+  { id: 'prov-3', name: 'Dr. Emily Davis', organization: 'Regional Care', specialty: 'Orthopedics', tokenBalance: 72, lastTransaction: new Date(Date.now() - 10 * 86400000).toISOString(), status: 'active', tokenActivity: 'low', email: 'emily.davis@regionalcare.com', phoneNumber: '(555) 603-9900' },
+  { id: 'prov-4', name: 'Dr. James Wilson', organization: 'Riverside Clinic', specialty: 'Oncology', tokenBalance: 310, lastTransaction: new Date(Date.now() - 1 * 86400000).toISOString(), status: 'active', tokenActivity: 'high', email: 'james.wilson@riversideclinic.com', phoneNumber: '(555) 804-1122' },
+  { id: 'prov-5', name: 'Dr. Linda Martinez', organization: 'Summit Medical', specialty: 'Dermatology', tokenBalance: 95, lastTransaction: new Date(Date.now() - 7 * 86400000).toISOString(), status: 'inactive', tokenActivity: 'low', email: 'linda.martinez@summitmedical.com', phoneNumber: '(555) 305-6677' },
+];
+
+const syntheticTokenCatalog = [
+  { id: 'catalog-1', serviceId: 'ai-analysis-basic',    name: 'Basic AI Analysis',            description: 'Run basic AI analysis on patient data',                    category: 'analytics',  tokenCost: 10, isActive: true, sortOrder: 1 },
+  { id: 'catalog-2', serviceId: 'ai-analysis-advanced', name: 'Advanced AI Analysis',          description: 'Advanced AI analysis with predictive modeling',            category: 'analytics',  tokenCost: 25, isActive: true, sortOrder: 2 },
+  { id: 'catalog-3', serviceId: 'priority-referral',    name: 'Priority Referral Processing',  description: 'Fast-track referral processing with priority handling',     category: 'operations', tokenCost: 5,  isActive: true, sortOrder: 3 },
+  { id: 'catalog-4', serviceId: 'pa-fast-track',        name: 'PA Fast-Track',                 description: 'Skip the queue and get priority PA review (10 tokens)',    category: 'priority',   tokenCost: 10, isActive: true, sortOrder: 4 },
+  { id: 'catalog-5', serviceId: 'extended-data-access', name: 'Extended Data Access',          description: 'Access to extended historical data and analytics',          category: 'research',   tokenCost: 50, isActive: true, sortOrder: 5 },
+  { id: 'catalog-6', serviceId: 'premium-support',      name: 'Premium Support',               description: 'Get priority technical support',                           category: 'support',    tokenCost: 15, isActive: true, sortOrder: 6 },
+];
+
+const syntheticTokenConversionRules = [
+  { id: 'rule-1', service: 'Basic AI Analysis',          serviceId: 'ai-analysis-basic',    tokenAmount: 10, description: '10 tokens for basic AI analysis of patient data',      category: 'analytics'  },
+  { id: 'rule-2', service: 'Advanced AI Analysis',       serviceId: 'ai-analysis-advanced', tokenAmount: 25, description: '25 tokens for advanced AI analysis with recommendations', category: 'analytics'  },
+  { id: 'rule-3', service: 'Priority Referral',          serviceId: 'priority-referral',    tokenAmount: 5,  description: '5 tokens for priority referral processing',             category: 'operations' },
+  { id: 'rule-4', service: 'PA Fast-Track',              serviceId: 'pa-fast-track',        tokenAmount: 10, description: '10 tokens for priority PA review (skip queue)',         category: 'priority'   },
+  { id: 'rule-5', service: 'Extended Data Access',       serviceId: 'extended-data-access', tokenAmount: 50, description: '50 tokens for extended network data access',            category: 'research'   },
+];
+
+const syntheticProviderTokenHistory = {
+  'prov-1': [
+    { id: 'tx-p1-1', type: 'mint', amount: 200, reason: 'Initial allocation', timestamp: new Date(Date.now() - 30 * 86400000).toISOString(), status: 'completed' },
+    { id: 'tx-p1-2', type: 'earn', amount: 50, reason: 'Referral bonus', timestamp: new Date(Date.now() - 15 * 86400000).toISOString(), status: 'completed' },
+    { id: 'tx-p1-3', type: 'spend', amount: -25, reason: 'Premium AI Report', timestamp: new Date(Date.now() - 5 * 86400000).toISOString(), status: 'completed' },
+    { id: 'tx-p1-4', type: 'bonus', amount: 195, reason: 'Q2 Performance bonus', timestamp: new Date(Date.now() - 2 * 86400000).toISOString(), status: 'completed' },
+  ],
+};
+
+router.get('/admin/tokens/providers', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: syntheticTokenProviders });
+});
+
+router.get('/admin/tokens/providers/:providerId/history', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const history = syntheticProviderTokenHistory[req.params.providerId] || [
+    { id: `tx-${Date.now()}`, type: 'mint', amount: 100, reason: 'Initial allocation', timestamp: new Date(Date.now() - 20 * 86400000).toISOString(), status: 'completed' },
+  ];
+  res.json({ success: true, data: history });
+});
+
+router.post('/admin/tokens/mint', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const { providerId, amount, reason } = req.body;
+  const provider = syntheticTokenProviders.find(p => p.id === providerId);
+  if (provider) { provider.tokenBalance += parseInt(amount) || 0; provider.lastTransaction = new Date().toISOString(); }
+  res.json({ success: true, message: `Minted ${amount} tokens`, data: { providerId, amount, reason, timestamp: new Date().toISOString() } });
+});
+
+router.post('/admin/tokens/burn', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const { providerId, amount, reason } = req.body;
+  const provider = syntheticTokenProviders.find(p => p.id === providerId);
+  if (provider) { provider.tokenBalance = Math.max(0, provider.tokenBalance - (parseInt(amount) || 0)); provider.lastTransaction = new Date().toISOString(); }
+  res.json({ success: true, message: `Burned ${amount} tokens`, data: { providerId, amount, reason, timestamp: new Date().toISOString() } });
+});
+
+router.post('/admin/tokens/bonus', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const { providerId, amount, reason } = req.body;
+  const provider = syntheticTokenProviders.find(p => p.id === providerId);
+  if (provider) { provider.tokenBalance += parseInt(amount) || 0; provider.lastTransaction = new Date().toISOString(); }
+  res.json({ success: true, message: `Bonus of ${amount} tokens approved`, data: { providerId, amount, reason, timestamp: new Date().toISOString() } });
+});
+
+router.get('/admin/tokens/catalog', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: syntheticTokenCatalog });
+});
+
+router.post('/admin/tokens/catalog', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const item = { id: `catalog-${Date.now()}`, ...req.body };
+  syntheticTokenCatalog.push(item);
+  res.status(201).json({ success: true, data: item });
+});
+
+router.delete('/admin/tokens/catalog/:itemId', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const idx = syntheticTokenCatalog.findIndex(i => i.id === req.params.itemId);
+  if (idx !== -1) syntheticTokenCatalog.splice(idx, 1);
+  res.json({ success: true, message: 'Catalog item removed' });
+});
+
+router.get('/admin/tokens/conversion-rules', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: syntheticTokenConversionRules });
+});
+
+router.post('/admin/tokens/conversion-rules', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const rule = { id: `rule-${Date.now()}`, ...req.body };
+  syntheticTokenConversionRules.push(rule);
+  res.status(201).json({ success: true, data: rule });
+});
+
+router.delete('/admin/tokens/conversion-rules/:ruleId', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const idx = syntheticTokenConversionRules.findIndex(r => r.id === req.params.ruleId);
+  if (idx !== -1) syntheticTokenConversionRules.splice(idx, 1);
+  res.json({ success: true, message: 'Conversion rule removed' });
+});
+
+// Earn policy (singleton; in-memory for synthetic mode)
+const syntheticEarnPolicy = {
+  _singleton: 'global', referralSent: 10, referralAccepted: 5,
+  kycVerified: 50, profileCompleted: 25, inviteColleague: 20,
+  dataContribution: 15, analyticsCompleted: 15, dtxCompleted: 0, appointmentCompleted: 15,
+};
+router.get('/admin/tokens/earn-policy', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: syntheticEarnPolicy });
+});
+router.put('/admin/tokens/earn-policy', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const FIELDS = ['referralSent','referralAccepted','kycVerified','profileCompleted','inviteColleague','dataContribution','analyticsCompleted','dtxCompleted','appointmentCompleted'];
+  FIELDS.forEach(f => { if (req.body[f] !== undefined) syntheticEarnPolicy[f] = Number(req.body[f]); });
+  res.json({ success: true, data: syntheticEarnPolicy });
+});
+
+// Token analytics (synthetic aggregation)
+router.get('/admin/tokens/analytics', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const total = syntheticTokenProviders.reduce((s, p) => s + (p.tokenBalance || 0), 0);
+  res.json({
+    success: true,
+    data: {
+      totalCirculating: total,
+      earned30Days: 430,
+      spent30Days: 125,
+      netVelocity30Days: 305,
+      totalTransactions: 48,
+      topEarners: syntheticTokenProviders.slice(0, 5).map(p => ({ name: p.name, email: p.email, tokenBalance: p.tokenBalance })),
+      topServices: [
+        { serviceId: 'ai-analysis-basic', count: 12 },
+        { serviceId: 'priority-referral', count: 8 },
+        { serviceId: 'pa-fast-track', count: 4 },
+        { serviceId: 'premium-support', count: 3 },
+        { serviceId: 'extended-data-access', count: 2 },
+      ],
+      staleBalanceProviders: 2,
+    },
+  });
+});
+
 // Admin routes  /api/admin/*
 // ---------------------------------------------------------------------------
 
 router.get('/admin/users', protect, authorize('admin', 'superadmin'), (req, res) => {
   const users = store.users.findAll().map(({ password: _p, ...u }) => u);
   res.status(200).json({ success: true, count: users.length, data: users });
+});
+
+router.get('/admin/users/emails', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const emails = store.users.findAll().map(u => ({ _id: u._id, name: u.name, email: u.email, role: u.role }));
+  res.json({ success: true, data: emails });
 });
 
 const PROVIDER_ROLES = ['doctor', 'clinic', 'hospital', 'lab', 'provider'];
@@ -955,13 +1115,132 @@ router.get('/admin/referrals/:id', protect, authorize('admin', 'superadmin'), (r
   res.status(200).json({ success: true, data: referral });
 });
 
-// Admin AI management — stub responses so pages load without errors
+// ── Admin AI Management (synthetic stubs) ────────────────────────────────────
+
+const SYNTHETIC_AI_REPORTS = [
+  { _id: 'air-1', title: 'Q2 Referral Matching Accuracy Report', modelType: 'referral_matching', status: 'published', accuracy: 0.934, precision: 0.921, recall: 0.947, f1Score: 0.934, totalPredictions: 1240, correctPredictions: 1158, createdAt: new Date(Date.now() - 15 * 86400000).toISOString(), reviewedAt: new Date(Date.now() - 10 * 86400000).toISOString(), reviewedBy: { name: 'Admin User' } },
+  { _id: 'air-2', title: 'Prior Auth AI Decision Audit', modelType: 'prior_auth', status: 'under_review', accuracy: 0.891, precision: 0.905, recall: 0.877, f1Score: 0.891, totalPredictions: 430, correctPredictions: 383, createdAt: new Date(Date.now() - 5 * 86400000).toISOString(), reviewedAt: null, reviewedBy: null },
+  { _id: 'air-3', title: 'Risk Stratification Model Performance', modelType: 'risk_score', status: 'draft', accuracy: 0.876, precision: 0.862, recall: 0.891, f1Score: 0.876, totalPredictions: 890, correctPredictions: 780, createdAt: new Date(Date.now() - 2 * 86400000).toISOString(), reviewedAt: null, reviewedBy: null },
+];
+
+const SYNTHETIC_AI_MODELS = [
+  { _id: 'aim-1', name: 'Referral Matching v2.1', type: 'referral_matching', version: '2.1.0', status: 'active', accuracy: 0.934, lastTrained: new Date(Date.now() - 30 * 86400000).toISOString(), totalInferences: 15420, description: 'Matches referral requests to optimal specialist providers based on specialty, location, and availability.', thresholds: { minConfidence: 0.75, maxCandidates: 10 }, settings: { enabled: true, fallbackToManual: true } },
+  { _id: 'aim-2', name: 'Prior Auth Analyzer v1.4', type: 'prior_auth', version: '1.4.0', status: 'active', accuracy: 0.891, lastTrained: new Date(Date.now() - 45 * 86400000).toISOString(), totalInferences: 5830, description: 'Analyzes prior authorization requests and generates approve/deny recommendations with clinical reasoning.', thresholds: { minConfidence: 0.80, autoApproveThreshold: 0.95 }, settings: { enabled: true, requireReview: true } },
+  { _id: 'aim-3', name: 'Risk Stratification v3.0', type: 'risk_score', version: '3.0.0', status: 'active', accuracy: 0.876, lastTrained: new Date(Date.now() - 20 * 86400000).toISOString(), totalInferences: 9210, description: 'Assigns AI risk scores to patients based on clinical, behavioral, and demographic factors.', thresholds: { highRiskThreshold: 0.75, criticalRiskThreshold: 0.90 }, settings: { enabled: true, updateFrequency: 'daily' } },
+  { _id: 'aim-4', name: 'Escalation Detector v1.0', type: 'escalation', version: '1.0.0', status: 'beta', accuracy: 0.842, lastTrained: new Date(Date.now() - 10 * 86400000).toISOString(), totalInferences: 1200, description: 'Detects cases requiring clinical escalation from lab results, vitals, and patient history.', thresholds: { flagThreshold: 0.70 }, settings: { enabled: true, notifyProviders: true } },
+];
+
+const SYNTHETIC_AI_THRESHOLDS = {
+  referralMatching: { minConfidence: 0.75, maxCandidates: 10 },
+  priorAuth: { minConfidence: 0.80, autoApproveThreshold: 0.95 },
+  riskScore: { highRiskThreshold: 0.75, criticalRiskThreshold: 0.90 },
+  escalation: { flagThreshold: 0.70 },
+};
+
+// Reports
 router.get('/admin/ai-management/reports', protect, authorize('admin', 'superadmin'), (req, res) => {
-  res.status(200).json({ success: true, count: 0, data: [] });
+  res.json({ success: true, count: SYNTHETIC_AI_REPORTS.length, data: SYNTHETIC_AI_REPORTS });
+});
+
+router.get('/admin/ai-management/reports/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const report = SYNTHETIC_AI_REPORTS.find(r => r._id === req.params.id);
+  if (!report) return res.status(404).json({ success: false, error: 'AI report not found' });
+  res.json({ success: true, data: report });
+});
+
+router.post('/admin/ai-management/reports', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const report = { _id: `air-${Date.now()}`, ...req.body, status: 'draft', createdAt: new Date().toISOString() };
+  res.status(201).json({ success: true, data: report });
+});
+
+router.put('/admin/ai-management/reports/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const report = SYNTHETIC_AI_REPORTS.find(r => r._id === req.params.id);
+  if (!report) return res.status(404).json({ success: false, error: 'AI report not found' });
+  res.json({ success: true, data: { ...report, ...req.body } });
+});
+
+router.delete('/admin/ai-management/reports/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: { message: 'Report deleted (synthetic)' } });
+});
+
+router.put('/admin/ai-management/reports/:id/review', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const report = SYNTHETIC_AI_REPORTS.find(r => r._id === req.params.id);
+  if (!report) return res.status(404).json({ success: false, error: 'AI report not found' });
+  res.json({ success: true, data: { ...report, status: req.body.status || 'published', reviewedAt: new Date().toISOString(), reviewedBy: { name: req.user?.name || 'Admin' } } });
+});
+
+router.post('/admin/ai-management/reports/:id/feedback', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: { message: 'Feedback recorded (synthetic)', reportId: req.params.id } });
+});
+
+router.post('/admin/ai-management/reports/:id/schedule', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: { message: 'Report scheduled (synthetic)', reportId: req.params.id, schedule: req.body } });
+});
+
+// Models
+router.get('/admin/ai-management/models', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, count: SYNTHETIC_AI_MODELS.length, data: SYNTHETIC_AI_MODELS });
+});
+
+router.get('/admin/ai-management/models/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const model = SYNTHETIC_AI_MODELS.find(m => m._id === req.params.id);
+  if (!model) return res.status(404).json({ success: false, error: 'AI model not found' });
+  res.json({ success: true, data: model });
+});
+
+router.get('/admin/ai-management/models/:id/metrics', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const model = SYNTHETIC_AI_MODELS.find(m => m._id === req.params.id);
+  if (!model) return res.status(404).json({ success: false, error: 'AI model not found' });
+  res.json({ success: true, data: { modelId: req.params.id, accuracy: model.accuracy, precision: model.accuracy - 0.013, recall: model.accuracy + 0.013, f1Score: model.accuracy, totalInferences: model.totalInferences, weeklyTrend: [0.88, 0.90, 0.91, 0.92, 0.93, model.accuracy, model.accuracy] } });
+});
+
+router.post('/admin/ai-management/models/:id/feedback', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: { message: 'Model feedback recorded (synthetic)', modelId: req.params.id } });
+});
+
+router.put('/admin/ai-management/models/:id/thresholds', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const model = SYNTHETIC_AI_MODELS.find(m => m._id === req.params.id);
+  if (!model) return res.status(404).json({ success: false, error: 'AI model not found' });
+  res.json({ success: true, data: { ...model, thresholds: req.body } });
+});
+
+router.put('/admin/ai-management/models/:id/settings', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const model = SYNTHETIC_AI_MODELS.find(m => m._id === req.params.id);
+  if (!model) return res.status(404).json({ success: false, error: 'AI model not found' });
+  res.json({ success: true, data: { ...model, settings: req.body } });
+});
+
+router.get('/admin/ai-management/models/:id/training-history', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: [
+    { version: '2.0.0', trainedAt: new Date(Date.now() - 90 * 86400000).toISOString(), accuracy: 0.901, datasetSize: 8000, notes: 'Initial production release' },
+    { version: '2.1.0', trainedAt: new Date(Date.now() - 30 * 86400000).toISOString(), accuracy: 0.934, datasetSize: 12000, notes: 'Added specialty synonym matching' },
+  ] });
+});
+
+router.get('/admin/ai-management/models/:id/feedback-history', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: [] });
+});
+
+// Thresholds, statistics, scheduled reports, aggregate
+router.get('/admin/ai-management/thresholds', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: SYNTHETIC_AI_THRESHOLDS });
+});
+
+router.put('/admin/ai-management/thresholds', protect, authorize('admin', 'superadmin'), (req, res) => {
+  Object.assign(SYNTHETIC_AI_THRESHOLDS, req.body);
+  res.json({ success: true, data: SYNTHETIC_AI_THRESHOLDS });
+});
+
+router.get('/admin/ai-management/statistics', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: { totalModels: SYNTHETIC_AI_MODELS.length, activeModels: SYNTHETIC_AI_MODELS.filter(m => m.status === 'active').length, avgAccuracy: 0.896, totalInferences: SYNTHETIC_AI_MODELS.reduce((s, m) => s + m.totalInferences, 0), totalReports: SYNTHETIC_AI_REPORTS.length } });
+});
+
+router.get('/admin/ai-management/scheduled-reports', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: [] });
 });
 
 router.get('/admin/ai-management/aggregate', protect, authorize('admin', 'superadmin'), (req, res) => {
-  res.status(200).json({ success: true, data: { totalReports: 0, publishedReports: 0, avgAccuracy: 0 } });
+  res.json({ success: true, data: { totalReports: SYNTHETIC_AI_REPORTS.length, publishedReports: SYNTHETIC_AI_REPORTS.filter(r => r.status === 'published').length, avgAccuracy: 0.900 } });
 });
 
 // ---------------------------------------------------------------------------
@@ -1283,9 +1562,73 @@ router.post('/prior-auth/:id/analyze', protect, (req, res) => {
   }).catch(err => res.status(500).json({ success: false, error: err.message }));
 });
 
+router.post('/prior-auth/:id/appeal-draft', protect, (req, res) => {
+  const pa = syntheticPAs.find(p => p._id === req.params.id);
+  if (!pa) return res.status(404).json({ success: false, error: 'Not found' });
+  const draft = `Dear Insurance Review Board,\n\nI am writing to formally appeal the denial of prior authorization for ${pa.serviceType} for patient ${pa.patientName}.\n\nClinical Justification:\n${pa.clinicalNotes}\n\nDiagnosis Codes: ${(pa.diagnosisCodes || []).map(d => d.code).join(', ')}\n\nThe requested service is medically necessary based on the patient's documented condition and clinical presentation. I respectfully request that this decision be reconsidered.\n\nSincerely,\n${pa.requestingProviderName}`;
+  res.json({ success: true, data: { appealDraft: draft } });
+});
+
+router.get('/prior-auth/:id/history', protect, (req, res) => {
+  const pa = syntheticPAs.find(p => p._id === req.params.id);
+  if (!pa) return res.status(404).json({ success: false, error: 'Not found' });
+  const history = [
+    { action: 'PA_SUBMITTED', timestamp: pa.createdAt, userEmail: pa.requestingProviderName, userRole: 'provider', resourceId: pa._id },
+    pa.aiAnalyzedAt ? { action: 'PA_AI_ANALYZED', timestamp: pa.aiAnalyzedAt, userEmail: 'AI System', userRole: 'system', resourceId: pa._id } : null,
+    pa.approvedDate ? { action: 'PA_APPROVED', timestamp: pa.approvedDate, userEmail: 'Admin User', userRole: 'admin', resourceId: pa._id } : null,
+    pa.deniedDate ? { action: 'PA_DENIED', timestamp: pa.deniedDate, userEmail: 'Admin User', userRole: 'admin', resourceId: pa._id } : null,
+    pa.appealSubmittedAt ? { action: 'PA_APPEALED', timestamp: pa.appealSubmittedAt, userEmail: pa.requestingProviderName, userRole: 'provider', resourceId: pa._id } : null,
+    pa.status === 'Expired' ? { action: 'PA_EXPIRED', timestamp: pa.expiryDate || pa.updatedAt, userEmail: 'System', userRole: 'system', resourceId: pa._id } : null,
+    pa.escalationSentAt ? { action: 'PA_ESCALATED', timestamp: pa.escalationSentAt, userEmail: 'System', userRole: 'system', resourceId: pa._id } : null,
+  ].filter(Boolean);
+  res.json({ success: true, data: history });
+});
+
+router.post('/prior-auth/:id/renew', protect, (req, res) => {
+  const uid = req.user.id || req.user._id;
+  const original = syntheticPAs.find(p => p._id === req.params.id && p.requestingProviderId === uid);
+  if (!original) return res.status(404).json({ success: false, error: 'Not found' });
+  if (original.status !== 'Expired') return res.status(400).json({ success: false, error: 'Only Expired PAs can be renewed' });
+  const { analyzePriorAuthorization } = require('../services/azureAIService');
+  const renewal = {
+    _id: 'pa-renew-' + Date.now(),
+    patientId: original.patientId, patientName: original.patientName,
+    requestingProviderId: original.requestingProviderId, requestingProviderName: original.requestingProviderName,
+    targetProviderName: original.targetProviderName,
+    serviceType: original.serviceType, serviceCode: original.serviceCode,
+    urgency: original.urgency, insurancePlan: original.insurancePlan, memberId: original.memberId,
+    diagnosisCodes: original.diagnosisCodes || [],
+    clinicalNotes: req.body.clinicalNotes || original.clinicalNotes,
+    renewedFromId: original._id,
+    status: 'Pending', aiRecommendation: null, aiConfidenceScore: null,
+    aiReasoning: '', aiAnalyzedAt: null, notes: [],
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+  };
+  syntheticPAs.push(renewal);
+  analyzePriorAuthorization(renewal).then(aiResult => {
+    renewal.aiRecommendation = aiResult.recommendation;
+    renewal.aiConfidenceScore = aiResult.confidenceScore;
+    renewal.aiReasoning = aiResult.reasoning;
+    renewal.aiAnalyzedAt = new Date().toISOString();
+    renewal.status = 'Under Review';
+    renewal.updatedAt = new Date().toISOString();
+  }).catch(() => {});
+  res.status(201).json({ success: true, data: renewal });
+});
+
+router.post('/prior-auth/:id/notes', protect, (req, res) => {
+  const pa = syntheticPAs.find(p => p._id === req.params.id);
+  if (!pa) return res.status(404).json({ success: false, error: 'Not found' });
+  if (!req.body.message?.trim()) return res.status(400).json({ success: false, error: 'Message required' });
+  if (!pa.notes) pa.notes = [];
+  pa.notes.push({ authorId: req.user.id || req.user._id, authorEmail: req.user.email, authorRole: req.user.role, message: req.body.message.trim(), createdAt: new Date().toISOString() });
+  pa.updatedAt = new Date().toISOString();
+  res.json({ success: true, data: pa.notes });
+});
+
 // Admin prior-auth routes
 router.get('/admin/prior-auth', protect, (req, res) => {
-  const { status, search = '', page = 0, limit = 20 } = req.query;
+  const { status, search = '', page = 0, limit = 100 } = req.query;
   let results = [...syntheticPAs];
   if (status && status !== 'all') results = results.filter(p => p.status === status);
   if (search) {
@@ -1297,10 +1640,101 @@ router.get('/admin/prior-auth', protect, (req, res) => {
     );
   }
   const total = results.length;
-  const paginated = results.slice(parseInt(page) * parseInt(limit), (parseInt(page) + 1) * parseInt(limit));
-  const statMap = { Pending: 0, 'Under Review': 0, Approved: 0, Denied: 0, Appealing: 0, Expired: 0 };
+  const nowMs = Date.now();
+  const scoredResults = results.map(p => {
+    let score = p.urgency === 'Emergent' ? 100 : p.urgency === 'Urgent' ? 80 : 50;
+    score += Math.min((nowMs - new Date(p.createdAt).getTime()) / 3600000 * 2, 40);
+    if (p.aiConfidenceScore != null && p.aiConfidenceScore >= 60 && p.aiConfidenceScore <= 80) score += 20;
+    return { ...p, priorityScore: Math.round(score) };
+  });
+  const ACTION_STATUSES = ['Pending', 'Under Review', 'Appealing'];
+  if (!status || status === 'all' || ACTION_STATUSES.includes(status)) {
+    scoredResults.sort((a, b) => b.priorityScore - a.priorityScore);
+  }
+  const paginated = scoredResults.slice(parseInt(page) * parseInt(limit), (parseInt(page) + 1) * parseInt(limit));
+  const statMap = { Pending: 0, 'Under Review': 0, Approved: 0, Denied: 0, Appealing: 0, Expired: 0, overdueAppeals: 0 };
   syntheticPAs.forEach(p => { if (statMap[p.status] !== undefined) statMap[p.status]++; });
-  res.json({ success: true, data: { priorAuths: paginated, total, stats: statMap } });
+  res.json({ success: true, data: { priorAuths: paginated, total, stats: statMap, prioritySorted: true } });
+});
+
+router.get('/admin/prior-auth/analytics', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now - 30 * 86400000);
+  const recent = syntheticPAs.filter(p => new Date(p.createdAt) >= thirtyDaysAgo);
+  const denied = syntheticPAs.filter(p => p.status === 'Denied');
+  const approved = syntheticPAs.filter(p => p.status === 'Approved');
+  const appealed = syntheticPAs.filter(p => p.appealSubmittedAt);
+  const appealApproved = syntheticPAs.filter(p => p.appealOutcome === 'Approved');
+
+  const tatByServiceType = Object.values(
+    approved.reduce((acc, p) => {
+      const svc = p.serviceType || 'Other';
+      if (!acc[svc]) acc[svc] = { _id: svc, avgTatHours: 0, count: 0, _total: 0 };
+      const tat = p.reviewedAt ? (new Date(p.reviewedAt) - new Date(p.createdAt)) / 3600000 : 24;
+      acc[svc]._total += tat;
+      acc[svc].count++;
+      acc[svc].avgTatHours = Math.round(acc[svc]._total / acc[svc].count * 10) / 10;
+      return acc;
+    }, {})
+  ).map(({ _total, ...rest }) => rest);
+
+  const denialRateByService = Object.values(
+    syntheticPAs.reduce((acc, p) => {
+      const svc = p.serviceType || 'Other';
+      if (!acc[svc]) acc[svc] = { _id: svc, total: 0, denied: 0 };
+      acc[svc].total++;
+      if (p.status === 'Denied') acc[svc].denied++;
+      return acc;
+    }, {})
+  ).map(r => ({ ...r, denialRate: Math.round((r.denied / r.total) * 100) }));
+
+  const totalAI = syntheticPAs.filter(p => p.aiRecommendation).length;
+  const correctAI = syntheticPAs.filter(p => p.aiRecommendation && p.status === p.aiRecommendation).length;
+  const autoApproved = syntheticPAs.filter(p => p.autoApproved).length;
+
+  const volumeTrend = Array.from({ length: 30 }, (_, i) => {
+    const d = new Date(now - (29 - i) * 86400000);
+    const dateStr = d.toISOString().slice(0, 10);
+    return { _id: dateStr, count: syntheticPAs.filter(p => p.createdAt?.slice(0, 10) === dateStr).length };
+  }).filter(d => d.count > 0);
+
+  res.json({
+    success: true,
+    data: {
+      tatByServiceType,
+      denialRateByService,
+      aiAccuracy: { total: totalAI, correct: correctAI, autoApproved, accuracyPct: totalAI > 0 ? Math.round(correctAI / totalAI * 100) : 0 },
+      appealOutcomes: { Approved: appealApproved.length, Denied: appealed.length - appealApproved.length },
+      volumeTrend,
+    },
+  });
+});
+
+router.post('/admin/prior-auth/bulk-review', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const { ids, decision, reviewerNotes, denialReasonCode, approvalDurationDays } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ success: false, error: 'ids must be a non-empty array' });
+  if (!['Approved', 'Denied'].includes(decision)) return res.status(400).json({ success: false, error: 'Decision must be Approved or Denied' });
+  const CARC_MAP = { '4': 'Not covered', '50': 'Not medically necessary', '96': 'Non-covered charge', '167': 'Diagnosis not covered', '197': 'Authorization absent', '252': 'Documentation required' };
+  const now = new Date().toISOString();
+  let processed = 0;
+  ids.forEach(id => {
+    const pa = syntheticPAs.find(p => p._id === id && ['Pending', 'Under Review'].includes(p.status));
+    if (!pa) return;
+    pa.status = decision;
+    pa.reviewerNotes = reviewerNotes || '';
+    pa.reviewedAt = now;
+    if (decision === 'Approved') {
+      pa.approvedDate = now;
+      const exp = new Date(); exp.setDate(exp.getDate() + (parseInt(approvalDurationDays) || 90));
+      pa.expiryDate = exp.toISOString();
+    } else {
+      pa.deniedDate = now;
+      if (denialReasonCode) { pa.denialReasonCode = denialReasonCode; pa.denialReasonDescription = CARC_MAP[denialReasonCode] || denialReasonCode; }
+    }
+    pa.updatedAt = now;
+    processed++;
+  });
+  res.json({ success: true, data: { processed, skipped: ids.length - processed, decision } });
 });
 
 router.get('/admin/prior-auth/:id', protect, (req, res) => {
@@ -1324,6 +1758,16 @@ router.put('/admin/prior-auth/:id/review', protect, (req, res) => {
     pa.deniedDate = new Date().toISOString();
   }
   pa.updatedAt = new Date().toISOString();
+  // Record notification log entry
+  const _reviewNow = new Date().toISOString();
+  syntheticPatientNotifications.push({
+    _id: `pn-${Date.now()}`, patientId: pa.patientId, patientName: pa.patientName,
+    title: decision === 'Approved' ? 'Prior Authorization Approved' : 'Prior Authorization Update',
+    message: `Your prior authorization for ${pa.serviceType} has been ${decision.toLowerCase()}.`,
+    type: 'prior_auth_update', priority: 'normal', channels: ['email', 'sms', 'in_app'],
+    channelStatus: { email: { sent: true, sentAt: _reviewNow }, sms: { sent: true, sentAt: _reviewNow }, in_app: { sent: true } },
+    status: 'sent', relatedId: pa._id, relatedType: 'prior_auth', sentAt: _reviewNow, createdAt: _reviewNow,
+  });
   res.json({ success: true, data: pa });
 });
 
@@ -1336,6 +1780,16 @@ router.put('/admin/prior-auth/:id/appeal-review', protect, (req, res) => {
   pa.appealReviewedAt = new Date().toISOString();
   pa.reviewerNotes = reviewerNotes || pa.reviewerNotes;
   pa.updatedAt = new Date().toISOString();
+  // Record notification log entry
+  const _appealNow = new Date().toISOString();
+  syntheticPatientNotifications.push({
+    _id: `pn-${Date.now()}`, patientId: pa.patientId, patientName: pa.patientName,
+    title: outcome === 'Approved' ? 'Appeal Approved — Prior Authorization Reinstated' : 'Appeal Denied',
+    message: `Your appeal for ${pa.serviceType} has been ${outcome.toLowerCase()}.`,
+    type: 'prior_auth_update', priority: 'normal', channels: ['email', 'sms', 'in_app'],
+    channelStatus: { email: { sent: true, sentAt: _appealNow }, sms: { sent: true, sentAt: _appealNow }, in_app: { sent: true } },
+    status: 'sent', relatedId: pa._id, relatedType: 'prior_auth', sentAt: _appealNow, createdAt: _appealNow,
+  });
   res.json({ success: true, data: pa });
 });
 
@@ -1351,6 +1805,32 @@ router.post('/admin/prior-auth/:id/analyze', protect, (req, res) => {
     pa.updatedAt = new Date().toISOString();
     res.json({ success: true, data: { ...aiResult, pa } });
   }).catch(err => res.status(500).json({ success: false, error: err.message }));
+});
+
+router.get('/admin/prior-auth/:id/history', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const pa = syntheticPAs.find(p => p._id === req.params.id);
+  if (!pa) return res.status(404).json({ success: false, error: 'Not found' });
+  const history = [
+    { action: 'PA_SUBMITTED', timestamp: pa.createdAt, userEmail: pa.requestingProviderName, userRole: 'provider', resourceId: pa._id },
+    pa.aiAnalyzedAt ? { action: 'PA_AI_ANALYZED', timestamp: pa.aiAnalyzedAt, userEmail: 'AI System', userRole: 'system', resourceId: pa._id } : null,
+    pa.approvedDate ? { action: 'PA_APPROVED', timestamp: pa.approvedDate, userEmail: 'Admin User', userRole: 'admin', resourceId: pa._id } : null,
+    pa.deniedDate ? { action: 'PA_DENIED', timestamp: pa.deniedDate, userEmail: 'Admin User', userRole: 'admin', resourceId: pa._id } : null,
+    pa.appealSubmittedAt ? { action: 'PA_APPEALED', timestamp: pa.appealSubmittedAt, userEmail: pa.requestingProviderName, userRole: 'provider', resourceId: pa._id } : null,
+    pa.appealReviewedAt ? { action: pa.appealOutcome === 'Approved' ? 'PA_APPEAL_APPROVED' : 'PA_APPEAL_DENIED', timestamp: pa.appealReviewedAt, userEmail: 'Admin User', userRole: 'admin', resourceId: pa._id } : null,
+    pa.status === 'Expired' ? { action: 'PA_EXPIRED', timestamp: pa.expiryDate || pa.updatedAt, userEmail: 'System', userRole: 'system', resourceId: pa._id } : null,
+    pa.escalationSentAt ? { action: 'PA_ESCALATED', timestamp: pa.escalationSentAt, userEmail: 'System', userRole: 'system', resourceId: pa._id } : null,
+  ].filter(Boolean);
+  res.json({ success: true, data: history });
+});
+
+router.post('/admin/prior-auth/:id/notes', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const pa = syntheticPAs.find(p => p._id === req.params.id);
+  if (!pa) return res.status(404).json({ success: false, error: 'Not found' });
+  if (!req.body.message?.trim()) return res.status(400).json({ success: false, error: 'Message required' });
+  if (!pa.notes) pa.notes = [];
+  pa.notes.push({ authorId: req.user.id || req.user._id, authorEmail: req.user.email, authorRole: req.user.role, message: req.body.message.trim(), createdAt: new Date().toISOString() });
+  pa.updatedAt = new Date().toISOString();
+  res.json({ success: true, data: pa.notes });
 });
 
 // ---------------------------------------------------------------------------
@@ -1516,15 +1996,33 @@ router.delete('/admin/patient-engagement/campaigns/:id', protect, authorize('adm
   res.json({ success: true, message: 'Campaign deleted' });
 });
 
+function syntheticBuildChannelDelivery(channels, channelStatus) {
+  return (channels || []).map(ch => {
+    const cs = (channelStatus || {})[ch] || {};
+    const isInApp = ch === 'in_app';
+    const deliveredAt = cs.deliveredAt || (isInApp && cs.sent ? cs.sentAt : null) || null;
+    return {
+      channel: ch,
+      sent: Boolean(cs.sent),
+      sentAt: cs.sentAt || null,
+      delivered: Boolean(cs.deliveredAt || (isInApp && cs.sent)),
+      deliveredAt: deliveredAt || null,
+      error: cs.error || null,
+    };
+  });
+}
+
 router.get('/admin/patient-engagement', protect, authorize('admin', 'superadmin'), (req, res) => {
-  const { status, type, patientId, search, page = 0, limit = 15 } = req.query;
+  const { status, type, patientId, relatedId, search, page = 0, limit = 15 } = req.query;
   let results = [...syntheticPatientNotifications];
   if (status && status !== 'all') results = results.filter(n => n.status === status);
   if (type && type !== 'all') results = results.filter(n => n.type === type);
   if (patientId) results = results.filter(n => n.patientId === patientId);
+  if (relatedId) results = results.filter(n => n.relatedId === relatedId);
   if (search) { const q = search.toLowerCase(); results = results.filter(n => n.patientName?.toLowerCase().includes(q) || n.title?.toLowerCase().includes(q)); }
   const total = results.length;
   results = results.slice(parseInt(page) * parseInt(limit), (parseInt(page) + 1) * parseInt(limit));
+  results = results.map(n => ({ ...n, channelDelivery: syntheticBuildChannelDelivery(n.channels, n.channelStatus) }));
   const totalSent = syntheticPatientNotifications.filter(n => ['sent','delivered','read'].includes(n.status)).length;
   const totalDelivered = syntheticPatientNotifications.filter(n => ['delivered','read'].includes(n.status)).length;
   const totalPending = syntheticPatientNotifications.filter(n => n.status === 'pending').length;
@@ -1535,7 +2033,7 @@ router.get('/admin/patient-engagement', protect, authorize('admin', 'superadmin'
 router.get('/admin/patient-engagement/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
   const n = syntheticPatientNotifications.find(x => x._id === req.params.id);
   if (!n) return res.status(404).json({ success: false, error: 'Not found' });
-  res.json({ success: true, data: n });
+  res.json({ success: true, data: { ...n, channelDelivery: syntheticBuildChannelDelivery(n.channels, n.channelStatus) } });
 });
 
 router.post('/admin/patient-engagement', protect, authorize('admin', 'superadmin'), (req, res) => {
@@ -3299,14 +3797,6 @@ router.post('/onboarding/invite', protect, (req, res) => {
   res.json({ success: true, message: `Invite sent to ${req.body.email}` });
 });
 
-// ---------------------------------------------------------------------------
-// Catch-all for any unmapped synthetic route
-// ---------------------------------------------------------------------------
-
-router.use('*', (req, res) => {
-  res.status(404).json({ success: false, error: `Synthetic route not found: ${req.method} ${req.originalUrl}` });
-});
-
 // ═══════════════════════════════════════════════════════════════════════════
 // ADMIN ANALYTICS — dashboard endpoints
 // ═══════════════════════════════════════════════════════════════════════════
@@ -3379,7 +3869,7 @@ router.get('/admin/analytics/platform-overview', protect, authorize('admin', 'su
 });
 
 router.get('/admin/analytics/provider-performance', protect, authorize('admin', 'superadmin'), (req, res) => {
-  const providers = (store.users || []).filter(u => ['doctor', 'nurse', 'provider'].includes(u.role));
+  const providers = store.users.findAll().filter(u => ['doctor', 'nurse', 'provider'].includes(u.role));
   const data = providers.map((p, i) => ({
     id: p._id,
     name: p.name,
@@ -3690,6 +4180,634 @@ router.delete('/contact/:id', (req, res) => {
   const idx = syntheticContacts.findIndex(c => c._id === req.params.id);
   if (idx !== -1) syntheticContacts.splice(idx, 1);
   res.json({ success: true, data: {} });
+});
+
+// ── Analytics job (synthetic stub) ───────────────────────────────────────────
+router.post('/admin/analytics/run-job', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({
+    success: true,
+    message: 'Analytics job completed successfully (synthetic mode)',
+    data: {
+      snapshotId: 'snap-' + Date.now(),
+      patientsUpdated: 5,
+      computedAt: new Date().toISOString(),
+      durationMs: 42,
+      metrics: {
+        riskDistribution: { low: 2, medium: 2, high: 1 },
+        patientEngagement: { score: 74 },
+        treatmentAdherence: { rate: 0.82 },
+        missedAppointments: { count: 1 },
+        referralAcceptanceRate: { rate: 0.87 },
+      },
+    },
+  });
+});
+
+router.get('/admin/analytics/run-job', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: null, message: 'No analytics job has been run yet (synthetic mode).' });
+});
+
+// ── Token staking (synthetic) ─────────────────────────────────────────────────
+
+const SYNTHETIC_STAKES = [
+  {
+    _id: 'stake-001', userId: null, amount: 100, periodDays: 30, multiplier: 1.10,
+    startDate: new Date(Date.now() - 20 * 86400000).toISOString(),
+    endDate: new Date(Date.now() + 10 * 86400000).toISOString(),
+    status: 'active', bonusAmount: 0, releaseTxId: null,
+    createdAt: new Date(Date.now() - 20 * 86400000).toISOString(),
+  },
+  {
+    _id: 'stake-002', userId: null, amount: 200, periodDays: 60, multiplier: 1.25,
+    startDate: new Date(Date.now() - 65 * 86400000).toISOString(),
+    endDate: new Date(Date.now() - 5 * 86400000).toISOString(),
+    status: 'completed', bonusAmount: 50, releaseTxId: 'tx_synthetic_stake_001',
+    completedAt: new Date(Date.now() - 5 * 86400000).toISOString(),
+    createdAt: new Date(Date.now() - 65 * 86400000).toISOString(),
+  },
+];
+
+router.post('/tokens/stake', protect, (req, res) => {
+  const { amount, periodDays } = req.body;
+  if (!amount || amount < 1) return res.status(400).json({ success: false, error: 'amount must be >= 1' });
+  const valid = [30, 60, 90];
+  if (!valid.includes(Number(periodDays))) {
+    return res.status(400).json({ success: false, error: `periodDays must be one of ${valid.join(', ')}` });
+  }
+  const mults = { 30: 1.10, 60: 1.25, 90: 1.50 };
+  const multiplier = mults[periodDays];
+  const user = store.users.findById(req.user.id);
+  if (!user || user.tokenBalance < amount) {
+    return res.status(400).json({ success: false, error: 'Insufficient token balance' });
+  }
+  user.tokenBalance -= amount;
+  const stake = {
+    _id: `stake-${Date.now()}`, userId: req.user.id, amount, periodDays, multiplier,
+    startDate: new Date().toISOString(),
+    endDate: new Date(Date.now() + periodDays * 86400000).toISOString(),
+    status: 'active', bonusAmount: 0, releaseTxId: null,
+    createdAt: new Date().toISOString(),
+  };
+  SYNTHETIC_STAKES.push(stake);
+  res.status(201).json({
+    success: true,
+    data: { stake, newBalance: user.tokenBalance, stakedBalance: amount, expectedBonus: Math.floor(amount * (multiplier - 1)), releaseAt: stake.endDate },
+  });
+});
+
+router.get('/tokens/stakes', protect, (req, res) => {
+  const userStakes = SYNTHETIC_STAKES.map(s => ({ ...s, userId: s.userId || req.user.id }))
+    .filter(s => !s.userId || s.userId === req.user.id);
+  const user = store.users.findById(req.user.id);
+  res.json({
+    success: true,
+    data: userStakes,
+    summary: {
+      activeCount: userStakes.filter(s => s.status === 'active').length,
+      totalStaked: userStakes.filter(s => s.status === 'active').reduce((s, x) => s + x.amount, 0),
+      tokenBalance: user?.tokenBalance || 0,
+    },
+  });
+});
+
+router.delete('/tokens/stakes/:id', protect, (req, res) => {
+  const idx = SYNTHETIC_STAKES.findIndex(s => s._id === req.params.id);
+  if (idx === -1) return res.status(404).json({ success: false, error: 'Stake not found' });
+  const stake = SYNTHETIC_STAKES[idx];
+  if (stake.status !== 'active') return res.status(400).json({ success: false, error: `Cannot cancel a ${stake.status} stake` });
+  SYNTHETIC_STAKES[idx].status = 'cancelled';
+  const user = store.users.findById(req.user.id);
+  if (user) user.tokenBalance += stake.amount;
+  res.json({
+    success: true,
+    data: { stakeId: stake._id, returnedAmount: stake.amount, newBalance: user?.tokenBalance || 0, note: 'Early cancellation — bonus forfeited.' },
+  });
+});
+
+// ── Premium analytics export (synthetic) ─────────────────────────────────────
+
+router.post('/analytics/:id/export', protect, (req, res) => {
+  const user = store.users.findById(req.user.id);
+  const cost = 25;
+  if (!user) return res.status(404).json({ success: false, error: 'User not found' });
+  if ((user.tokenBalance || 0) < cost) {
+    return res.status(402).json({ success: false, error: `Insufficient tokens. Requires ${cost} CLT.`, required: cost, balance: user.tokenBalance || 0 });
+  }
+  user.tokenBalance -= cost;
+  res.json({
+    success: true,
+    data: {
+      analytics: {
+        id: req.params.id,
+        name: 'Synthetic Analytics Report',
+        type: 'patient_outcomes',
+        status: 'completed',
+        results: {
+          summary: 'Synthetic export — full data available in live DB mode.',
+          data: { patientCount: 42, avgRisk: 0.31, adherenceRate: 0.84 },
+          visualizations: [],
+        },
+        blockchainReference: { transactionId: 'tx_synthetic_export', hash: 'abc123' },
+        confidenceScore: 0.92,
+        completedAt: new Date().toISOString(),
+      },
+      export: { format: 'json', tokenCost: cost, newBalance: user.tokenBalance, exportedAt: new Date().toISOString() },
+    },
+  });
+});
+
+// ── Blockchain admin (synthetic stubs) ───────────────────────────────────────
+
+// Static synthetic chain with a genesis block
+const SYNTHETIC_GENESIS_HASH = 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2';
+const syntheticChainTip = (() => {
+  const h = require('crypto').createHash('sha256').update(JSON.stringify({ type: 'genesis', previousHash: 'genesis', blockNumber: 0 })).digest('hex');
+  return h;
+})();
+
+router.get('/admin/blockchain/status', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      mode: 'ledger',
+      network: 'synthetic',
+      contractAddress: null,
+      totalTransactions: 3,
+      currentBlock: 3,
+      genesisHash: SYNTHETIC_GENESIS_HASH,
+      chainTipHash: syntheticChainTip,
+      chainTipAt: new Date(Date.now() - 60000).toISOString(),
+    },
+  });
+});
+
+router.get('/admin/blockchain/integrity', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({
+    success: true,
+    data: { audited: 3, intact: 3, broken: 0, valid: true, issues: [] },
+  });
+});
+
+const SYNTHETIC_BLOCKCHAIN_TXS = [
+  { transactionId: 'genesis_synthetic', type: 'genesis', blockNumber: 0, previousHash: 'genesis', hash: SYNTHETIC_GENESIS_HASH, timestamp: new Date(Date.now() - 86400000).toISOString(), data: { type: 'genesis', message: 'ClinicTrust AI — genesis block (synthetic)' } },
+  { transactionId: 'tx_synthetic_001', type: 'token', blockNumber: 1, previousHash: SYNTHETIC_GENESIS_HASH, hash: 'b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2', timestamp: new Date(Date.now() - 3600000).toISOString(), data: { type: 'token', fromUserId: 'system', toUserId: 'user-2', amount: 50, reason: 'KYC verified bonus' } },
+  { transactionId: 'tx_synthetic_002', type: 'analytics_anchor', blockNumber: 2, previousHash: 'b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2', hash: 'c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2', timestamp: new Date(Date.now() - 1800000).toISOString(), data: { type: 'analytics_anchor', resultsHash: 'abc123', analyticsId: 'anl-001' } },
+];
+
+router.get('/admin/blockchain/transactions', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({
+    success: true,
+    data: SYNTHETIC_BLOCKCHAIN_TXS,
+    pagination: { page: 0, limit: 20, total: 3, pages: 1 },
+  });
+});
+
+router.get('/admin/blockchain/transactions/:txId', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const tx = SYNTHETIC_BLOCKCHAIN_TXS.find(t => t.transactionId === req.params.txId);
+  if (!tx) return res.status(404).json({ success: false, error: 'Transaction not found' });
+  res.json({ success: true, data: { ...tx, verification: { verified: true, source: 'synthetic' } } });
+});
+
+router.get('/admin/blockchain/operations', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: [] });
+});
+
+router.post('/admin/blockchain/operations/:id/approve', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.status(404).json({ success: false, error: 'No pending operations in synthetic mode' });
+});
+
+router.post('/admin/blockchain/operations/:id/reject', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.status(404).json({ success: false, error: 'No pending operations in synthetic mode' });
+});
+
+// Allowance (synthetic stubs)
+router.get('/admin/blockchain/allowance/:providerId', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      provider: { id: req.params.providerId, name: 'Synthetic Provider', walletAddress: '0xSYNTHETIC' },
+      mode: 'synthetic',
+      platformWallet: '0xPLATFORM_SYNTHETIC',
+      onChainAllowance: null,
+      allowanceSufficient: null,
+      pendingBurnTotal: 0,
+      pendingBurns: 0,
+      note: 'Synthetic mode — allowance not applicable. Switch to live DB + Polygon to see real allowance data.',
+    },
+  });
+});
+
+router.post('/admin/blockchain/allowance/:providerId/approve', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.status(400).json({ success: false, error: 'Allowance approval not available in synthetic mode — requires live Polygon connection.' });
+});
+
+// ── Admin Messaging — broadcast messages (synthetic stubs) ───────────────────
+
+const SYNTHETIC_BROADCASTS = [
+  { _id: 'broadcast-1', title: 'Platform Update v2.4.0', content: 'We are pleased to announce the release of platform version 2.4.0, which includes improved referral tracking, enhanced token analytics, and blockchain audit logging.', sender: 'Platform Administrator', sentAt: new Date(Date.now() - 5 * 86400000).toISOString(), status: 'sent', priority: 'medium', category: 'general', recipientCount: 156, readCount: 98 },
+  { _id: 'broadcast-2', title: 'New Security Policy: Multi-Factor Authentication', content: 'Effective next month, all provider accounts will be required to use multi-factor authentication (MFA). Please ensure your account is set up for MFA to avoid disruption.', sender: 'Security Team', sentAt: new Date(Date.now() - 3 * 86400000).toISOString(), status: 'sent', priority: 'high', category: 'security', recipientCount: 156, readCount: 112 },
+  { _id: 'broadcast-3', title: 'Token Earning Opportunities: New Activities', content: 'Three new token-earning activities have been added: completing patient satisfaction surveys (15 CLT), adding clinical notes within 24 hours (10 CLT), and referring providers to the platform (50 CLT).', sender: 'Token Management', sentAt: new Date(Date.now() - 1 * 86400000).toISOString(), status: 'sent', priority: 'medium', category: 'token', recipientCount: 156, readCount: 142 },
+  { _id: 'broadcast-4', title: 'Upcoming Training Session: AI-Assisted Diagnosis', content: 'We will be hosting a training session on AI-Assisted Diagnosis on August 20th at 1:00 PM EST. This session will cover how to effectively use our AI tools.', sender: 'Training Coordinator', sentAt: null, status: 'draft', priority: 'medium', category: 'training', recipientCount: 0, readCount: 0 },
+];
+
+router.get('/admin/messages/broadcast', protect, authorize('admin', 'superadmin'), (req, res) => {
+  let data = [...SYNTHETIC_BROADCASTS];
+  if (req.query.status) data = data.filter(m => m.status === req.query.status);
+  if (req.query.priority) data = data.filter(m => m.priority === req.query.priority);
+  if (req.query.category) data = data.filter(m => m.category === req.query.category);
+  res.json({ success: true, data });
+});
+
+router.get('/admin/messages/broadcast/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const msg = SYNTHETIC_BROADCASTS.find(m => m._id === req.params.id);
+  if (!msg) return res.status(404).json({ success: false, error: 'Broadcast message not found' });
+  res.json({ success: true, data: msg });
+});
+
+router.post('/admin/messages/broadcast', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const msg = { _id: `broadcast-${Date.now()}`, ...req.body, sentAt: req.body.status === 'sent' ? new Date().toISOString() : null, recipientCount: req.body.status === 'sent' ? 156 : 0, readCount: 0, createdAt: new Date().toISOString() };
+  res.status(201).json({ success: true, data: msg });
+});
+
+router.put('/admin/messages/broadcast/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const msg = SYNTHETIC_BROADCASTS.find(m => m._id === req.params.id);
+  if (!msg) return res.status(404).json({ success: false, error: 'Broadcast message not found' });
+  const updated = { ...msg, ...req.body };
+  res.json({ success: true, data: updated });
+});
+
+router.delete('/admin/messages/broadcast/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: { success: true, message: 'Broadcast message deleted successfully' } });
+});
+
+router.post('/admin/messages/broadcast/:id/send', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const msg = SYNTHETIC_BROADCASTS.find(m => m._id === req.params.id);
+  if (!msg) return res.status(404).json({ success: false, error: 'Broadcast message not found' });
+  const sent = { ...msg, status: 'sent', sentAt: new Date().toISOString(), recipientCount: 156 };
+  res.json({ success: true, data: sent });
+});
+
+// ── Admin Messaging — targeted alerts (synthetic stubs) ──────────────────────
+
+const SYNTHETIC_ALERTS = [
+  { _id: 'alert-1', title: 'Referral Approved: Patient John Doe', content: 'Your referral for patient John Doe (ID: PT-12345) to Cardiology has been approved.', sender: 'Referral Management System', sentAt: new Date(Date.now() - 4 * 86400000).toISOString(), status: 'sent', priority: 'medium', category: 'referral', recipients: [{ id: 'user-1', name: 'Dr. Sarah Johnson', email: 'sarah.johnson@clinictrust.ai', readAt: new Date(Date.now() - 3.5 * 86400000).toISOString() }], relatedEntityId: 'REF-67890', relatedEntityType: 'referral' },
+  { _id: 'alert-2', title: 'Policy Update: New Referral Guidelines', content: 'The referral guidelines for Neurology have been updated. Please review before submitting new referrals.', sender: 'Policy Management', sentAt: new Date(Date.now() - 7 * 86400000).toISOString(), status: 'sent', priority: 'high', category: 'policy', recipients: [{ id: 'user-1', name: 'Dr. Sarah Johnson', email: 'sarah.johnson@clinictrust.ai', readAt: new Date(Date.now() - 6 * 86400000).toISOString() }, { id: 'user-2', name: 'Dr. Michael Chen', email: 'michael.chen@clinictrust.ai', readAt: null }], relatedEntityId: 'POL-12345', relatedEntityType: 'policy' },
+  { _id: 'alert-3', title: 'Token Reward: Quality Reporting', content: 'You have been awarded 50 tokens for your consistent high-quality reporting.', sender: 'Token Management System', sentAt: new Date(Date.now() - 5 * 86400000).toISOString(), status: 'sent', priority: 'low', category: 'token', recipients: [{ id: 'user-2', name: 'Dr. Michael Chen', email: 'michael.chen@clinictrust.ai', readAt: new Date(Date.now() - 4 * 86400000).toISOString() }], relatedEntityId: 'TRX-54321', relatedEntityType: 'transaction' },
+];
+
+router.get('/admin/messages/alerts', protect, authorize('admin', 'superadmin'), (req, res) => {
+  let data = [...SYNTHETIC_ALERTS];
+  if (req.query.status) data = data.filter(a => a.status === req.query.status);
+  if (req.query.priority) data = data.filter(a => a.priority === req.query.priority);
+  if (req.query.category) data = data.filter(a => a.category === req.query.category);
+  res.json({ success: true, data });
+});
+
+router.get('/admin/messages/alerts/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const alert = SYNTHETIC_ALERTS.find(a => a._id === req.params.id);
+  if (!alert) return res.status(404).json({ success: false, error: 'Targeted alert not found' });
+  res.json({ success: true, data: alert });
+});
+
+router.post('/admin/messages/alerts', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const alert = { _id: `alert-${Date.now()}`, ...req.body, sentAt: req.body.status === 'sent' ? new Date().toISOString() : null, createdAt: new Date().toISOString() };
+  res.status(201).json({ success: true, data: alert });
+});
+
+router.put('/admin/messages/alerts/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const alert = SYNTHETIC_ALERTS.find(a => a._id === req.params.id);
+  if (!alert) return res.status(404).json({ success: false, error: 'Targeted alert not found' });
+  const updated = { ...alert, ...req.body };
+  res.json({ success: true, data: updated });
+});
+
+router.delete('/admin/messages/alerts/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: { success: true, message: 'Targeted alert deleted successfully' } });
+});
+
+router.post('/admin/messages/alerts/:id/send', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const alert = SYNTHETIC_ALERTS.find(a => a._id === req.params.id);
+  if (!alert) return res.status(404).json({ success: false, error: 'Targeted alert not found' });
+  const sent = { ...alert, status: 'sent', sentAt: new Date().toISOString() };
+  res.json({ success: true, data: sent });
+});
+
+// ── Admin Escalation Workflows (synthetic stubs) ─────────────────────────────
+
+const SYNTHETIC_ESCALATIONS = [
+  { _id: 'escalation-1', title: 'High Readmission Risk - Patient Jane Smith', patientId: 'PT-54321', patientName: 'Jane Smith', aiRiskScore: 0.89, flaggedAt: new Date(Date.now() - 4 * 86400000).toISOString(), status: 'pending_review', priority: 'high', category: 'readmission', assignedTo: { id: 'user-1', name: 'Dr. Sarah Johnson', email: 'sarah.johnson@clinictrust.ai' }, details: { riskFactors: ['Recent hospitalization within 30 days', 'Multiple chronic conditions', 'Medication adherence issues'], aiRecommendations: ['Schedule follow-up within 7 days', 'Arrange home care services', 'Medication reconciliation'], notes: 'AI flagged high readmission probability based on recent labs.' }, timeline: [{ action: 'Flagged by AI', timestamp: new Date(Date.now() - 4 * 86400000).toISOString(), user: 'AI System' }, { action: 'Assigned to Dr. Sarah Johnson', timestamp: new Date(Date.now() - 4 * 86400000 + 300000).toISOString(), user: 'Workflow Manager' }], resolution: null },
+  { _id: 'escalation-2', title: 'Critical Lab Result - Patient Robert Brown', patientId: 'PT-67890', patientName: 'Robert Brown', aiRiskScore: 0.95, flaggedAt: new Date(Date.now() - 3 * 86400000).toISOString(), status: 'in_progress', priority: 'critical', category: 'lab_result', assignedTo: { id: 'user-2', name: 'Dr. Michael Chen', email: 'michael.chen@clinictrust.ai' }, details: { riskFactors: ['Abnormal potassium levels', 'Recent medication change', 'History of cardiac issues'], aiRecommendations: ['Immediate provider notification', 'Repeat lab test', 'Medication adjustment'], notes: 'Potassium level at 6.8 mEq/L. Requires immediate attention.' }, timeline: [{ action: 'Flagged by AI', timestamp: new Date(Date.now() - 3 * 86400000).toISOString(), user: 'AI System' }, { action: 'Assigned to Dr. Michael Chen', timestamp: new Date(Date.now() - 3 * 86400000 + 60000).toISOString(), user: 'Workflow Manager' }], resolution: null },
+  { _id: 'escalation-3', title: 'Care Gap Identified - Patient Maria Garcia', patientId: 'PT-11223', patientName: 'Maria Garcia', aiRiskScore: 0.72, flaggedAt: new Date(Date.now() - 10 * 86400000).toISOString(), status: 'resolved', priority: 'medium', category: 'care_gap', assignedTo: { id: 'user-1', name: 'Dr. Sarah Johnson', email: 'sarah.johnson@clinictrust.ai' }, details: { riskFactors: ['Overdue preventive screenings', 'Diabetes management gap'], aiRecommendations: ['Schedule HbA1c test', 'Retinal exam referral'], notes: 'Patient overdue for annual diabetic screenings.' }, timeline: [{ action: 'Flagged by AI', timestamp: new Date(Date.now() - 10 * 86400000).toISOString(), user: 'AI System' }, { action: 'Case resolved', timestamp: new Date(Date.now() - 8 * 86400000).toISOString(), user: 'Dr. Sarah Johnson' }], resolution: { action: 'Appointments scheduled', notes: 'HbA1c and retinal exam both scheduled. Patient notified.', timestamp: new Date(Date.now() - 8 * 86400000).toISOString(), resolvedBy: { id: 'user-1', name: 'Dr. Sarah Johnson', email: 'sarah.johnson@clinictrust.ai' } } },
+];
+
+router.get('/admin/escalations/statistics', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const total = SYNTHETIC_ESCALATIONS.length;
+  const pending = SYNTHETIC_ESCALATIONS.filter(w => w.status === 'pending_review').length;
+  const inProgress = SYNTHETIC_ESCALATIONS.filter(w => w.status === 'in_progress').length;
+  const resolved = SYNTHETIC_ESCALATIONS.filter(w => w.status === 'resolved').length;
+  const highPriority = SYNTHETIC_ESCALATIONS.filter(w => w.priority === 'high' || w.priority === 'critical').length;
+  const unassigned = SYNTHETIC_ESCALATIONS.filter(w => !w.assignedTo).length;
+  const cats = {};
+  SYNTHETIC_ESCALATIONS.forEach(w => { cats[w.category] = (cats[w.category] || 0) + 1; });
+
+  res.json({
+    success: true,
+    data: {
+      totalWorkflows: total,
+      statusDistribution: { pendingReview: pending, inProgress, resolved },
+      highPriority,
+      unassigned,
+      categoryDistribution: Object.entries(cats).map(([name, value]) => ({ name, value })),
+      averageResolutionTime: '1.5 days',
+    },
+  });
+});
+
+router.get('/admin/escalations', protect, authorize('admin', 'superadmin'), (req, res) => {
+  let data = [...SYNTHETIC_ESCALATIONS];
+  if (req.query.status) data = data.filter(w => w.status === req.query.status);
+  if (req.query.priority) data = data.filter(w => w.priority === req.query.priority);
+  if (req.query.category) data = data.filter(w => w.category === req.query.category);
+  res.json({ success: true, data });
+});
+
+router.get('/admin/escalations/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const workflow = SYNTHETIC_ESCALATIONS.find(w => w._id === req.params.id);
+  if (!workflow) return res.status(404).json({ success: false, error: 'Escalation workflow not found' });
+  res.json({ success: true, data: workflow });
+});
+
+router.put('/admin/escalations/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const workflow = SYNTHETIC_ESCALATIONS.find(w => w._id === req.params.id);
+  if (!workflow) return res.status(404).json({ success: false, error: 'Escalation workflow not found' });
+  const updated = { ...workflow, ...req.body };
+  res.json({ success: true, data: updated });
+});
+
+router.post('/admin/escalations/:id/assign', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const workflow = SYNTHETIC_ESCALATIONS.find(w => w._id === req.params.id);
+  if (!workflow) return res.status(404).json({ success: false, error: 'Escalation workflow not found' });
+  const updated = { ...workflow, assignedTo: req.body, status: workflow.status === 'pending_review' ? 'in_progress' : workflow.status, timeline: [...workflow.timeline, { action: `Assigned to ${req.body.name}`, timestamp: new Date().toISOString(), user: 'Admin' }] };
+  res.json({ success: true, data: updated });
+});
+
+router.post('/admin/escalations/:id/resolve', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const workflow = SYNTHETIC_ESCALATIONS.find(w => w._id === req.params.id);
+  if (!workflow) return res.status(404).json({ success: false, error: 'Escalation workflow not found' });
+  const updated = { ...workflow, status: 'resolved', resolution: { ...req.body, timestamp: new Date().toISOString() }, timeline: [...workflow.timeline, { action: 'Case resolved', timestamp: new Date().toISOString(), user: req.body.resolvedBy?.name || 'Admin' }] };
+  res.json({ success: true, data: updated });
+});
+
+// ── Admin KYC (synthetic stubs) ──────────────────────────────────────────────
+
+const SYNTHETIC_KYC_PROFILES = [
+  { _id: 'kyc-1', userId: 'user-2', kycStatus: 'under_review', npi: '1234567890', specialty: 'Cardiology', licenseNumber: 'MD-12345', licenseState: 'CA', createdAt: new Date(Date.now() - 10 * 86400000).toISOString(), user: { name: 'Dr. Michael Chen', email: 'michael.chen@clinictrust.ai', role: 'provider', organization: 'Pacific Medical Group' } },
+  { _id: 'kyc-2', userId: 'user-3', kycStatus: 'verified', npi: '9876543210', specialty: 'Neurology', licenseNumber: 'MD-67890', licenseState: 'NY', kycReviewedAt: new Date(Date.now() - 5 * 86400000).toISOString(), createdAt: new Date(Date.now() - 20 * 86400000).toISOString(), user: { name: 'Dr. Emily Rodriguez', email: 'emily.rodriguez@clinictrust.ai', role: 'provider', organization: 'NY Neuro Associates' } },
+  { _id: 'kyc-3', userId: 'user-4', kycStatus: 'doc_pending', npi: null, specialty: 'Orthopedics', licenseNumber: null, licenseState: null, createdAt: new Date(Date.now() - 2 * 86400000).toISOString(), user: { name: 'Dr. James Wilson', email: 'james.wilson@clinictrust.ai', role: 'provider', organization: 'Ortho Specialists LLC' } },
+  { _id: 'kyc-4', userId: 'user-5', kycStatus: 'rejected', npi: '5555555555', specialty: 'Dermatology', licenseNumber: 'MD-11111', licenseState: 'TX', kycRejectionReason: 'License could not be verified', kycReviewedAt: new Date(Date.now() - 3 * 86400000).toISOString(), createdAt: new Date(Date.now() - 15 * 86400000).toISOString(), user: { name: 'Dr. Anna Lee', email: 'anna.lee@clinictrust.ai', role: 'provider', organization: 'Texas Derm Center' } },
+];
+
+router.get('/admin/kyc', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const { status, page = 1, limit = 20 } = req.query;
+  let data = [...SYNTHETIC_KYC_PROFILES];
+  if (status && status !== 'all') data = data.filter(p => p.kycStatus === status);
+  const total = data.length;
+  data = data.slice((page - 1) * limit, page * limit);
+  res.json({
+    success: true,
+    data,
+    meta: {
+      total,
+      pendingDocs: SYNTHETIC_KYC_PROFILES.filter(p => ['profile_incomplete', 'doc_pending'].includes(p.kycStatus)).length,
+      underReview: SYNTHETIC_KYC_PROFILES.filter(p => p.kycStatus === 'under_review').length,
+      verified: SYNTHETIC_KYC_PROFILES.filter(p => p.kycStatus === 'verified').length,
+      rejected: SYNTHETIC_KYC_PROFILES.filter(p => p.kycStatus === 'rejected').length,
+    },
+  });
+});
+
+router.get('/admin/kyc/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const profile = SYNTHETIC_KYC_PROFILES.find(p => p._id === req.params.id);
+  if (!profile) return res.status(404).json({ success: false, error: 'Provider profile not found' });
+  res.json({ success: true, data: profile });
+});
+
+router.patch('/admin/kyc/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const profile = SYNTHETIC_KYC_PROFILES.find(p => p._id === req.params.id);
+  if (!profile) return res.status(404).json({ success: false, error: 'Provider profile not found' });
+  const updated = { ...profile, ...req.body, kycReviewedAt: new Date().toISOString() };
+  res.json({ success: true, data: updated });
+});
+
+router.patch('/admin/kyc/:id/profile', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const profile = SYNTHETIC_KYC_PROFILES.find(p => p._id === req.params.id);
+  if (!profile) return res.status(404).json({ success: false, error: 'Provider profile not found' });
+  const updated = { ...profile, ...req.body };
+  res.json({ success: true, data: updated });
+});
+
+router.get('/admin/kyc/:id/wallet', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: { walletAddress: '0xSYNTHETIC_WALLET', tokenBalance: 0, note: 'Synthetic mode — no real wallet' } });
+});
+
+router.delete('/admin/kyc/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: { message: 'Provider profile deleted (synthetic)' } });
+});
+
+router.post('/admin/kyc/:id/resend-verification', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: { message: 'Verification email resent (synthetic — no actual email sent)' } });
+});
+
+router.get('/admin/kyc/:id/document', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.status(404).json({ success: false, error: 'Document not available in synthetic mode' });
+});
+
+// ── Admin Matching Config (synthetic stubs) ───────────────────────────────────
+
+const DEFAULT_SYNONYM_GROUPS = [
+  { canonical: 'Cardiology', synonyms: ['Heart Specialist', 'Cardiac', 'Cardiologist'] },
+  { canonical: 'Neurology', synonyms: ['Brain Specialist', 'Neuro', 'Neurologist'] },
+  { canonical: 'Orthopedics', synonyms: ['Ortho', 'Bone Specialist', 'Orthopedic Surgery'] },
+  { canonical: 'Dermatology', synonyms: ['Skin Specialist', 'Derm', 'Dermatologist'] },
+  { canonical: 'Gastroenterology', synonyms: ['GI', 'GI Specialist', 'Gastroenterologist'] },
+];
+
+let syntheticMatchingConfig = {
+  _id: 'matching-config-1',
+  synonymGroups: DEFAULT_SYNONYM_GROUPS,
+  distanceWeightKm: 50,
+  specialtyWeight: 0.5,
+  distanceWeight: 0.3,
+  availabilityWeight: 0.2,
+  updatedAt: new Date(Date.now() - 7 * 86400000).toISOString(),
+};
+
+router.get('/admin/matching-config', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: syntheticMatchingConfig });
+});
+
+router.put('/admin/matching-config', protect, authorize('admin', 'superadmin'), (req, res) => {
+  syntheticMatchingConfig = { ...syntheticMatchingConfig, ...req.body, updatedAt: new Date().toISOString() };
+  res.json({ success: true, data: syntheticMatchingConfig });
+});
+
+router.post('/admin/matching-config/reset', protect, authorize('admin', 'superadmin'), (req, res) => {
+  syntheticMatchingConfig = { ...syntheticMatchingConfig, synonymGroups: DEFAULT_SYNONYM_GROUPS, updatedAt: new Date().toISOString() };
+  res.json({ success: true, data: syntheticMatchingConfig });
+});
+
+// ── Admin Patients (synthetic stubs) ─────────────────────────────────────────
+
+const SYNTHETIC_PATIENTS = [
+  { _id: 'patient-1', name: 'John Doe', dateOfBirth: '1975-04-12', gender: 'male', email: 'john.doe@example.com', phone: '555-0101', providerId: 'user-2', riskScore: 0.45, conditions: ['Hypertension', 'Type 2 Diabetes'], lastVisit: new Date(Date.now() - 14 * 86400000).toISOString(), status: 'active' },
+  { _id: 'patient-2', name: 'Jane Smith', dateOfBirth: '1962-08-23', gender: 'female', email: 'jane.smith@example.com', phone: '555-0102', providerId: 'user-2', riskScore: 0.89, conditions: ['COPD', 'Heart Failure', 'Chronic Kidney Disease'], lastVisit: new Date(Date.now() - 5 * 86400000).toISOString(), status: 'high_risk' },
+  { _id: 'patient-3', name: 'Robert Brown', dateOfBirth: '1958-11-07', gender: 'male', email: 'robert.brown@example.com', phone: '555-0103', providerId: 'user-3', riskScore: 0.95, conditions: ['Atrial Fibrillation', 'Hypertension'], lastVisit: new Date(Date.now() - 2 * 86400000).toISOString(), status: 'critical' },
+  { _id: 'patient-4', name: 'Maria Garcia', dateOfBirth: '1980-03-15', gender: 'female', email: 'maria.garcia@example.com', phone: '555-0104', providerId: 'user-2', riskScore: 0.72, conditions: ['Type 2 Diabetes', 'Obesity'], lastVisit: new Date(Date.now() - 30 * 86400000).toISOString(), status: 'active' },
+];
+
+router.get('/admin/patients', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const { status, providerId, page = 1, limit = 20 } = req.query;
+  let data = [...SYNTHETIC_PATIENTS];
+  if (status) data = data.filter(p => p.status === status);
+  if (providerId) data = data.filter(p => p.providerId === providerId);
+  const total = data.length;
+  data = data.slice((page - 1) * limit, page * limit);
+  res.json({ success: true, data, meta: { total, page: Number(page), limit: Number(limit) } });
+});
+
+router.get('/admin/patients/:id', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const patient = SYNTHETIC_PATIENTS.find(p => p._id === req.params.id);
+  if (!patient) return res.status(404).json({ success: false, error: 'Patient not found' });
+  res.json({ success: true, data: patient });
+});
+
+// ── Admin AI Config (synthetic) ───────────────────────────────────────────────
+const SYNTHETIC_AI_CONFIGS = [
+  { _id: 'cfg-1', key: 'priorAuth.autoApproveThreshold', category: 'priorAuth', value: 0.95, label: 'Auto-Approve Threshold', dataType: 'number' },
+  { _id: 'cfg-2', key: 'priorAuth.minConfidence', category: 'priorAuth', value: 0.80, label: 'Minimum Confidence', dataType: 'number' },
+  { _id: 'cfg-3', key: 'riskScore.highRiskThreshold', category: 'riskScore', value: 75, label: 'High Risk Threshold', dataType: 'number' },
+  { _id: 'cfg-4', key: 'riskScore.criticalRiskThreshold', category: 'riskScore', value: 90, label: 'Critical Risk Threshold', dataType: 'number' },
+  { _id: 'cfg-5', key: 'referralMatching.maxCandidates', category: 'referralMatching', value: 10, label: 'Max Candidates', dataType: 'number' },
+  { _id: 'cfg-6', key: 'escalation.flagThreshold', category: 'escalation', value: 0.70, label: 'Escalation Flag Threshold', dataType: 'number' },
+];
+
+router.get('/admin/ai-config', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: SYNTHETIC_AI_CONFIGS });
+});
+router.get('/admin/ai-config/category/:category', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const filtered = SYNTHETIC_AI_CONFIGS.filter(c => c.category === req.params.category);
+  res.json({ success: true, data: filtered });
+});
+router.put('/admin/ai-config/:key(*)', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const cfg = SYNTHETIC_AI_CONFIGS.find(c => c.key === req.params.key);
+  if (cfg) cfg.value = req.body.value;
+  res.json({ success: true, data: cfg || { key: req.params.key, value: req.body.value } });
+});
+router.post('/admin/ai-config/bulk', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: req.body.configs });
+});
+router.post('/admin/ai-config/reset', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: SYNTHETIC_AI_CONFIGS });
+});
+
+// ── Predictive Alerts (synthetic) ────────────────────────────────────────────
+const SYNTHETIC_PRED_ALERTS = [
+  { _id: 'pal-1', patientId: 'patient-1', patientName: 'John Doe', providerId: 'user-2', type: 'readmission_risk', severity: 'high', title: 'High Readmission Risk — John Doe', description: 'Risk score of 82/100. Patient has 3 high-risk comorbidities and no visit in 45 days. Historical readmission rate for this profile: 34%.', recommendation: 'Schedule follow-up within 7 days. Consider medication reconciliation and care coordinator assignment.', riskScore: 82, status: 'active', generatedAt: new Date(Date.now() - 2 * 86400000).toISOString() },
+  { _id: 'pal-2', patientId: 'patient-2', patientName: 'Jane Smith', providerId: 'user-2', type: 'risk_score_increase', severity: 'critical', title: 'Risk Score Spike — Jane Smith', description: 'Risk score increased from 61 to 89 (+28 pts) since last assessment. New high-risk condition detected: Heart Failure.', recommendation: 'Immediate clinical review required. Consider hospitalist consultation.', riskScore: 89, previousRiskScore: 61, deltaScore: 28, status: 'active', generatedAt: new Date(Date.now() - 86400000).toISOString() },
+  { _id: 'pal-3', patientId: 'patient-4', patientName: 'Maria Garcia', providerId: 'user-2', type: 'care_gap', severity: 'medium', title: 'Care Gap — Maria Garcia', description: 'No clinical visit recorded in 78 days. Patient has Type 2 Diabetes and Obesity. HbA1c overdue by 48 days.', recommendation: 'Reach out for annual diabetes management visit. Order HbA1c and lipid panel.', riskScore: 72, daysSinceLastVisit: 78, status: 'active', generatedAt: new Date(Date.now() - 3 * 86400000).toISOString() },
+];
+
+router.get('/predictive-alerts', protect, (req, res) => {
+  let data = [...SYNTHETIC_PRED_ALERTS];
+  if (req.query.status && req.query.status !== 'all') data = data.filter(a => a.status === req.query.status);
+  if (req.query.severity) data = data.filter(a => a.severity === req.query.severity);
+  if (req.query.type) data = data.filter(a => a.type === req.query.type);
+  res.json({ success: true, data, count: data.length });
+});
+
+router.get('/predictive-alerts/summary', protect, (req, res) => {
+  const active = SYNTHETIC_PRED_ALERTS.filter(a => a.status === 'active');
+  res.json({ success: true, data: { critical: active.filter(a => a.severity === 'critical').length, high: active.filter(a => a.severity === 'high').length, medium: active.filter(a => a.severity === 'medium').length, low: 0, total: active.length } });
+});
+
+router.patch('/predictive-alerts/:id/acknowledge', protect, (req, res) => {
+  const a = SYNTHETIC_PRED_ALERTS.find(x => x._id === req.params.id);
+  if (!a) return res.status(404).json({ success: false, error: 'Alert not found' });
+  res.json({ success: true, data: { ...a, status: 'acknowledged' } });
+});
+
+router.patch('/predictive-alerts/:id/resolve', protect, (req, res) => {
+  const a = SYNTHETIC_PRED_ALERTS.find(x => x._id === req.params.id);
+  if (!a) return res.status(404).json({ success: false, error: 'Alert not found' });
+  res.json({ success: true, data: { ...a, status: 'resolved', ...req.body } });
+});
+
+router.patch('/predictive-alerts/:id/dismiss', protect, (req, res) => {
+  const a = SYNTHETIC_PRED_ALERTS.find(x => x._id === req.params.id);
+  if (!a) return res.status(404).json({ success: false, error: 'Alert not found' });
+  res.json({ success: true, data: { ...a, status: 'dismissed' } });
+});
+
+// ── Referral Outcomes (synthetic) ─────────────────────────────────────────────
+router.post('/referral-outcomes', protect, (req, res) => {
+  const outcome = { _id: `ro-${Date.now()}`, ...req.body, outcomeScore: 70, createdAt: new Date().toISOString() };
+  res.status(201).json({ success: true, data: outcome });
+});
+router.get('/referral-outcomes/:referralId', protect, (req, res) => {
+  res.status(404).json({ success: false, error: 'No outcome recorded yet' });
+});
+router.patch('/referral-outcomes/:referralId', protect, (req, res) => {
+  res.json({ success: true, data: { referralId: req.params.referralId, ...req.body, outcomeScore: 75 } });
+});
+
+router.post('/admin/ai-management/feedback-loop', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: { alertAccuracy: { total: 0, byType: [] }, paAccuracy: { total: 0, accuracy: null }, note: 'Feedback loop ran (synthetic — no real data)' } });
+});
+
+// ── AI Clinical Assistant (synthetic stubs) ───────────────────────────────────
+
+const SYNTHETIC_AI_RESPONSES = {
+  cardiology: { answer: 'Based on the clinical presentation, referral to cardiology is appropriate. Key indicators include chest pain with exertional component, elevated BNP, and ECG changes. Recommend urgent referral given the symptom severity.', confidence: 'high', suggestedActions: ['Order 12-lead ECG if not already done', 'Check troponin and BNP levels', 'Schedule within 1-2 weeks for stable presentation'], relevantGuidelines: ['ACC/AHA Heart Failure Guidelines 2022', 'AHA Chest Pain Guidelines'] },
+  priorAuth: { answer: 'For MRI authorization, payers typically require: (1) failure of conservative treatment for 4-6 weeks, (2) specific clinical indicators such as neurological deficits, (3) documentation of symptom severity and functional limitation. Medicare LCD L35083 applies for lumbar spine MRI.', confidence: 'high', suggestedActions: ['Document conservative treatment history', 'Include functional assessment scores', 'Reference specific LCD criteria in clinical notes'], relevantGuidelines: ['Medicare LCD L35083', 'ACR Appropriateness Criteria'] },
+  default: { answer: 'Based on the available clinical information, I recommend reviewing the patient\'s full history and current medications before making a referral decision. Consider consulting with a specialist if symptoms persist or worsen.', confidence: 'medium', suggestedActions: ['Review complete medication list', 'Check for drug interactions', 'Schedule follow-up in 2-4 weeks'], relevantGuidelines: ['Clinical practice guidelines recommend individualized assessment'] },
+};
+
+router.post('/ai/clinical-insight', protect, (req, res) => {
+  const { question = '' } = req.body;
+  const lower = question.toLowerCase();
+  let response = SYNTHETIC_AI_RESPONSES.default;
+  if (lower.includes('cardio') || lower.includes('heart') || lower.includes('chest')) response = SYNTHETIC_AI_RESPONSES.cardiology;
+  else if (lower.includes('prior auth') || lower.includes('mri') || lower.includes('authorization')) response = SYNTHETIC_AI_RESPONSES.priorAuth;
+  res.json({ success: true, data: { ...response, question, generatedAt: new Date().toISOString(), mode: 'synthetic' } });
+});
+
+router.post('/ai/referral-summary', protect, (req, res) => {
+  const { patientDiagnosis, requestedSpecialty, urgency } = req.body;
+  res.json({ success: true, data: {
+    clinicalJustification: `Patient presents with ${patientDiagnosis || 'documented condition'} requiring specialist evaluation by ${requestedSpecialty || 'specialist'}. Clinical findings support referral based on symptom severity and functional impact.`,
+    urgencyRationale: urgency === 'Urgent' ? 'Urgent referral warranted based on acute symptom onset and potential for rapid deterioration.' : 'Routine referral appropriate given stable presentation and adequate response to current management.',
+    keyFindings: ['Primary diagnosis documented', 'Conservative management attempted', 'Specialist evaluation required for definitive diagnosis or treatment'],
+    mode: 'synthetic',
+  }});
+});
+
+router.post('/ai/risk-analysis', protect, (req, res) => {
+  const { riskScore = 50, conditions = [] } = req.body;
+  const level = riskScore >= 90 ? 'critical' : riskScore >= 75 ? 'high' : riskScore >= 50 ? 'moderate' : 'low';
+  res.json({ success: true, data: {
+    riskNarrative: `This patient has a ${level} risk score of ${riskScore}/100. The primary drivers are ${conditions.slice(0,2).join(' and ') || 'multiple chronic conditions'} combined with care utilization patterns.`,
+    topRiskDrivers: conditions.slice(0,3).map(c => ({ factor: c, contribution: 'significant' })),
+    interventionRecommendations: ['Schedule follow-up within 30 days', 'Review medication adherence', 'Consider care coordinator assignment'],
+    mode: 'synthetic',
+  }});
+});
+
+// ---------------------------------------------------------------------------
+// Catch-all for any unmapped synthetic route
+// ---------------------------------------------------------------------------
+
+router.use('*', (req, res) => {
+  res.status(404).json({ success: false, error: `Synthetic route not found: ${req.method} ${req.originalUrl}` });
 });
 
 module.exports = router;

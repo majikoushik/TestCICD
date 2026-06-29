@@ -35,8 +35,8 @@ import {
   FormControlLabel
 } from '@mui/material';
 import { 
-  Add as AddIcon, 
-  Delete as DeleteIcon, 
+  Add as AddIcon,
+  Delete as DeleteIcon,
   Edit as EditIcon,
   Refresh as RefreshIcon,
   LocalAtm as TokenIcon,
@@ -45,7 +45,11 @@ import {
   Settings as SettingsIcon,
   Close as CloseIcon,
   FilterList as FilterIcon,
-  Search as SearchIcon
+  Search as SearchIcon,
+  BarChart as AnalyticsIcon,
+  Tune as PolicyIcon,
+  TrendingUp as TrendingUpIcon,
+  TrendingDown as TrendingDownIcon
 } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
 import adminTokenService from '../../services/adminTokenService';
@@ -102,6 +106,12 @@ const AdminTokenManagement = () => {
   
   const [newCatalogItem, setNewCatalogItem] = useState({ name: '', description: '', tokenCost: 0, category: 'report' });
   const [newConversionRule, setNewConversionRule] = useState({ service: '', tokenAmount: 0, description: '' });
+
+  // Analytics & earn policy state
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [earnPolicy, setEarnPolicy] = useState(null);
+  const [earnPolicyDraft, setEarnPolicyDraft] = useState(null);
+  const [earnPolicySaving, setEarnPolicySaving] = useState(false);
 
     // Provider token balance columns
   // Provider token balance columns
@@ -384,9 +394,54 @@ const AdminTokenManagement = () => {
       setConversionRules([]);
     }
   };
+  // Fetch token analytics
+  const fetchTokenAnalytics = async () => {
+    try {
+      const { get } = await import('../../utils/apiUtils');
+      const response = await get('/admin/tokens/analytics');
+      if (response && response.data) setAnalyticsData(response.data);
+    } catch (err) {
+      console.error('Error fetching token analytics:', err);
+    }
+  };
+
+  // Fetch earn policy
+  const fetchEarnPolicy = async () => {
+    try {
+      const { get } = await import('../../utils/apiUtils');
+      const response = await get('/admin/tokens/earn-policy');
+      if (response && response.data) {
+        setEarnPolicy(response.data);
+        setEarnPolicyDraft(response.data);
+      }
+    } catch (err) {
+      console.error('Error fetching earn policy:', err);
+    }
+  };
+
+  // Save earn policy
+  const handleSaveEarnPolicy = async () => {
+    try {
+      setEarnPolicySaving(true);
+      const { put } = await import('../../utils/apiUtils');
+      const response = await put('/admin/tokens/earn-policy', earnPolicyDraft);
+      if (response && response.data) {
+        setEarnPolicy(response.data);
+        setEarnPolicyDraft(response.data);
+        setSnackbar({ open: true, message: 'Earn policy saved successfully', severity: 'success' });
+      }
+    } catch (err) {
+      setSnackbar({ open: true, message: 'Failed to save earn policy', severity: 'error' });
+    } finally {
+      setEarnPolicySaving(false);
+    }
+  };
+
     // Handle tab change
   const handleTabChange = (event, newValue) => {
       setTabValue(newValue);
+      if (newValue === 4 && !analyticsData) fetchTokenAnalytics();
+      if (newValue === 5 && !earnPolicy) fetchEarnPolicy();
     };
     
   // Handle viewing provider token history
@@ -663,6 +718,8 @@ const AdminTokenManagement = () => {
           <Tab icon={<BonusIcon />} label="Bonus Distribution" />
           <Tab icon={<RedeemIcon />} label="Redemption Catalog" />
           <Tab icon={<SettingsIcon />} label="Conversion Rules" />
+          <Tab icon={<AnalyticsIcon />} label="Analytics" />
+          <Tab icon={<PolicyIcon />} label="Earn Policy" />
         </Tabs>
       </Paper>
       
@@ -851,6 +908,7 @@ const AdminTokenManagement = () => {
                   </Typography>
                   <DataGrid
                     rows={tokenHistory}
+                    getRowId={(row) => row._id || row.id}
                     columns={historyColumns}
                     pageSize={5}
                     rowsPerPageOptions={[5]}
@@ -865,6 +923,7 @@ const AdminTokenManagement = () => {
               ) : (
                 <DataGrid
                   rows={filteredProviders}
+                  getRowId={(row) => row._id || row.id}
                   columns={providerColumns}
                   pageSize={10}
                   rowsPerPageOptions={[5, 10, 25]}
@@ -1166,6 +1225,153 @@ const AdminTokenManagement = () => {
           </TableContainer>
         </Paper>
       )}
+
+      {/* Analytics Tab */}
+      {tabValue === 4 && (
+        <Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="h6">Token Economy Analytics</Typography>
+            <Button variant="outlined" startIcon={<RefreshIcon />} onClick={fetchTokenAnalytics}>Refresh</Button>
+          </Box>
+          {!analyticsData ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}><ModernLoadingIndicator /></Box>
+          ) : (
+            <Grid container spacing={3}>
+              <Grid item xs={12} sm={6} md={3}>
+                <Card><CardContent>
+                  <Typography variant="subtitle2" color="text.secondary">Total Circulating</Typography>
+                  <Typography variant="h4" color="primary">{analyticsData.totalCirculating?.toLocaleString()}</Typography>
+                  <Typography variant="caption">tokens in provider wallets</Typography>
+                </CardContent></Card>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <Card><CardContent>
+                  <Typography variant="subtitle2" color="text.secondary">Earned (30d)</Typography>
+                  <Typography variant="h4" sx={{ color: 'success.main', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <TrendingUpIcon />{analyticsData.earned30Days?.toLocaleString()}
+                  </Typography>
+                </CardContent></Card>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <Card><CardContent>
+                  <Typography variant="subtitle2" color="text.secondary">Spent (30d)</Typography>
+                  <Typography variant="h4" sx={{ color: 'error.main', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <TrendingDownIcon />{analyticsData.spent30Days?.toLocaleString()}
+                  </Typography>
+                </CardContent></Card>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <Card><CardContent>
+                  <Typography variant="subtitle2" color="text.secondary">Net Velocity (30d)</Typography>
+                  <Typography variant="h4" color={analyticsData.netVelocity30Days >= 0 ? 'success.main' : 'error.main'}>
+                    {analyticsData.netVelocity30Days > 0 ? '+' : ''}{analyticsData.netVelocity30Days?.toLocaleString()}
+                  </Typography>
+                  <Typography variant="caption">earn – spend</Typography>
+                </CardContent></Card>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Paper sx={{ p: 2 }}>
+                  <Typography variant="subtitle1" gutterBottom>Top 10 Earners</Typography>
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead><TableRow>
+                        <TableCell>Provider</TableCell>
+                        <TableCell align="right">Balance</TableCell>
+                      </TableRow></TableHead>
+                      <TableBody>
+                        {(analyticsData.topEarners || []).map((e, i) => (
+                          <TableRow key={i}>
+                            <TableCell>{e.name || e.email}</TableCell>
+                            <TableCell align="right">{e.tokenBalance?.toLocaleString()}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Paper>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Paper sx={{ p: 2 }}>
+                  <Typography variant="subtitle1" gutterBottom>Most Redeemed Services</Typography>
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead><TableRow>
+                        <TableCell>Service</TableCell>
+                        <TableCell align="right">Redemptions</TableCell>
+                      </TableRow></TableHead>
+                      <TableBody>
+                        {(analyticsData.topServices || []).map((s, i) => (
+                          <TableRow key={i}>
+                            <TableCell>{s.serviceId}</TableCell>
+                            <TableCell align="right">{s.count}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                  {analyticsData.staleBalanceProviders > 0 && (
+                    <Alert severity="warning" sx={{ mt: 2 }}>
+                      {analyticsData.staleBalanceProviders} provider(s) have unused token balances (no spend in 90 days)
+                    </Alert>
+                  )}
+                </Paper>
+              </Grid>
+            </Grid>
+          )}
+        </Box>
+      )}
+
+      {/* Earn Policy Tab */}
+      {tabValue === 5 && (
+        <Paper sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+            <Box>
+              <Typography variant="h6">Token Earn Rate Policy</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Configure how many tokens providers earn for each action. Changes apply immediately to all new events.
+              </Typography>
+            </Box>
+            <Button variant="contained" onClick={handleSaveEarnPolicy} disabled={earnPolicySaving || !earnPolicyDraft}>
+              {earnPolicySaving ? 'Saving…' : 'Save Policy'}
+            </Button>
+          </Box>
+          {!earnPolicyDraft ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}><ModernLoadingIndicator /></Box>
+          ) : (
+            <Grid container spacing={2}>
+              {[
+                { key: 'referralSent',        label: 'Referral Sent (completed)',     category: 'Referrals'  },
+                { key: 'referralAccepted',     label: 'Referral Accepted',             category: 'Referrals'  },
+                { key: 'kycVerified',          label: 'KYC Verified (one-time)',       category: 'Onboarding' },
+                { key: 'profileCompleted',     label: 'Profile Completed (one-time)',  category: 'Onboarding' },
+                { key: 'inviteColleague',      label: 'Colleague Invited',             category: 'Network'    },
+                { key: 'dataContribution',     label: 'Data Contribution (monthly)',   category: 'Research'   },
+                { key: 'analyticsCompleted',   label: 'Analytics Report Completed',    category: 'Research'   },
+                { key: 'dtxCompleted',         label: 'DTx Program Completed',         category: 'Clinical'   },
+                { key: 'appointmentCompleted', label: 'Appointment Completed',         category: 'Clinical'   },
+              ].map(({ key, label, category }) => (
+                <Grid item xs={12} sm={6} md={4} key={key}>
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Typography variant="caption" color="text.secondary">{category}</Typography>
+                      <Typography variant="body2" sx={{ mb: 1 }}>{label}</Typography>
+                      <TextField
+                        type="number"
+                        size="small"
+                        fullWidth
+                        value={earnPolicyDraft[key] ?? 0}
+                        onChange={e => setEarnPolicyDraft(d => ({ ...d, [key]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                        InputProps={{ endAdornment: <Typography variant="caption" sx={{ ml: 1 }}>tokens</Typography> }}
+                      />
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          )}
+        </Paper>
+      )}
+
             {/* Mint Tokens Dialog */}
             <Dialog 
             open={mintDialogOpen} 

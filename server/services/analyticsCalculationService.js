@@ -76,17 +76,80 @@ function matchesTerm(text, terms) {
 // ── Risk Score (0–100) ────────────────────────────────────────────────────────
 //
 // Formula breakdown:
-//   Age                 0–25 pts
-//   Conditions          up to ~40 pts (high-risk +18, medium +12, other +6 each)
-//   Polypharmacy        0–20 pts (active meds × 4, capped)
-//   Severe allergies    +8 per allergy
-//   Gap in care         0–20 pts (months since last visit)
-//   Recent visit bonus  −5 if seen within 30 days
+//   Age                       0–25 pts
+//   Conditions                tiered severity: CRITICAL 24 / HIGH 18 / MEDIUM 12 / LOW 6 each
+//   Comorbidity multiplier    1.3× for 2+ HIGH/CRITICAL; 1.15× for 3+ any conditions
+//   Age-condition interaction  +5 for diabetics >65; +5 for heart disease >75
+//   Temporal factors          +10 no visit in 12+ months AND high risk; +15 recent hospitalizations
+//   Polypharmacy              5–9 meds: +12; 10+ meds: +20; anticoagulant+NSAID combo: +5
+//   Severe allergies          +8 per allergy
+//   Gap in care               0–20 pts (months since last visit)
+//   Recent visit bonus        −5 if seen within 30 days
+//   Cap                       100
 //
+// Condition severity tiers (matched via substring on lowercased condition text):
+//   CRITICAL (24 pts): metastatic, stage 4, sepsis, multi-organ failure,
+//                      end-stage kidney disease / esrd, advanced heart failure, ef < 30
+//   HIGH     (18 pts): cancer, carcinoma, lymphoma, leukemia, tumor,
+//                      heart failure / chf, copd / chronic obstructive, stroke / cerebrovascular,
+//                      cirrhosis / liver failure, dementia / alzheimer,
+//                      chronic kidney disease / ckd 3, renal failure
+//   MEDIUM   (12 pts): diabetes, hypertension, coronary artery disease / cad, atrial fibrillation,
+//                      asthma, obesity, copd mild
+//   LOW       (6 pts): hypothyroidism, hyperthyroidism, osteoporosis, gerd, anxiety, mild arthritis
+//
+const CRITICAL_RISK_TERMS = [
+  'metastatic', 'stage 4', 'stage iv',
+  'sepsis',
+  'multi-organ failure', 'multiorgan failure', 'multiple organ failure',
+  'end-stage kidney', 'end stage kidney', 'esrd',
+  'advanced heart failure', 'ef < 30', 'ef<30', 'ejection fraction < 30',
+];
+
+const TIERED_HIGH_RISK_TERMS = [
+  'cancer', 'carcinoma', 'lymphoma', 'leukemia', 'tumor',
+  'heart failure', 'congestive heart failure', 'chf',
+  'copd', 'chronic obstructive pulmonary',
+  'stroke', 'cerebrovascular',
+  'chronic kidney disease', 'ckd 3', 'ckd3', 'renal failure',
+  'cirrhosis', 'liver failure',
+  'dementia', "alzheimer's", 'alzheimers',
+];
+
+const TIERED_MEDIUM_RISK_TERMS = [
+  'diabetes', 'type 2 diabetes', 'type 1 diabetes',
+  'hypertension', 'high blood pressure',
+  'coronary artery disease', 'cad', 'angina',
+  'atrial fibrillation', 'arrhythmia',
+  'asthma',
+  'obesity',
+  'copd mild', 'mild copd',
+];
+
+const LOW_RISK_TERMS = [
+  'hypothyroidism', 'hyperthyroidism',
+  'osteoporosis',
+  'gerd', 'gastroesophageal reflux',
+  'anxiety',
+  'mild arthritis',
+];
+
+// High-risk medication keywords for combo detection
+const ANTICOAGULANT_TERMS = ['warfarin', 'heparin', 'apixaban', 'rivaroxaban', 'dabigatran', 'anticoagulant', 'blood thinner'];
+const NSAID_TERMS         = ['ibuprofen', 'naproxen', 'diclofenac', 'celecoxib', 'nsaid', 'aspirin'];
+
+function classifyCondition(conditionText) {
+  if (matchesTerm(conditionText, CRITICAL_RISK_TERMS))      return 'CRITICAL';
+  if (matchesTerm(conditionText, TIERED_HIGH_RISK_TERMS))   return 'HIGH';
+  if (matchesTerm(conditionText, TIERED_MEDIUM_RISK_TERMS)) return 'MEDIUM';
+  if (matchesTerm(conditionText, LOW_RISK_TERMS))           return 'LOW';
+  return 'LOW'; // default any unrecognised condition to LOW rather than zero
+}
+
 function calcRiskScore(patient) {
   let score = 0;
 
-  // Age factor
+  // ── Age factor ────────────────────────────────────────────────────────────
   const age = calcAge(patient.dateOfBirth);
   if      (age >= 75) score += 25;
   else if (age >= 65) score += 20;
@@ -94,41 +157,90 @@ function calcRiskScore(patient) {
   else if (age >= 45) score += 6;
   else if (age >= 35) score += 2;
 
-  // Conditions
-  for (const h of (patient.medicalHistory || [])) {
-    const cond = h.condition || '';
-    if      (matchesTerm(cond, HIGH_RISK_TERMS))   score += 18;
-    else if (matchesTerm(cond, MEDIUM_RISK_TERMS)) score += 12;
-    else                                           score +=  6;
+  // ── Tiered condition scoring ──────────────────────────────────────────────
+  const conditions     = patient.medicalHistory || [];
+  let conditionScore   = 0;
+  let highCriticalCount = 0;
+
+  for (const h of conditions) {
+    const cond  = h.condition || '';
+    const tier  = classifyCondition(cond);
+    switch (tier) {
+      case 'CRITICAL': conditionScore += 24; highCriticalCount++; break;
+      case 'HIGH':     conditionScore += 18; highCriticalCount++; break;
+      case 'MEDIUM':   conditionScore += 12; break;
+      default:         conditionScore +=  6; break; // LOW
+    }
   }
 
-  // Polypharmacy (active medications only)
-  const now = new Date();
+  // ── Comorbidity multiplier ────────────────────────────────────────────────
+  // Apply the strongest applicable multiplier (they do not stack)
+  if (highCriticalCount >= 2) {
+    conditionScore = Math.round(conditionScore * 1.3);
+  } else if (conditions.length >= 3) {
+    conditionScore = Math.round(conditionScore * 1.15);
+  }
+
+  score += conditionScore;
+
+  // ── Age-condition interaction ─────────────────────────────────────────────
+  const conditionTexts = conditions.map(h => (h.condition || '').toLowerCase()).join(' ');
+  const hasDiabetes    = conditionTexts.includes('diabetes');
+  const hasHeartDisease = conditionTexts.includes('heart failure') ||
+                          conditionTexts.includes('chf') ||
+                          conditionTexts.includes('coronary artery') ||
+                          conditionTexts.includes('heart disease');
+
+  if (hasDiabetes    && age > 65) score += 5;
+  if (hasHeartDisease && age > 75) score += 5;
+
+  // ── Polypharmacy (active medications only) ────────────────────────────────
+  const now        = new Date();
   const activeMeds = (patient.medications || []).filter(
     m => !m.endDate || new Date(m.endDate) > now
   );
-  score += Math.min(activeMeds.length * 4, 20);
+  const medCount = activeMeds.length;
+  if      (medCount >= 10) score += 20;
+  else if (medCount >=  5) score += 12;
 
-  // Severe allergies
+  // High-risk drug combination: anticoagulant + NSAID
+  const medNames = activeMeds.map(m => (m.name || m.medication || '').toLowerCase()).join(' ');
+  const hasAnticoagulant = ANTICOAGULANT_TERMS.some(t => medNames.includes(t));
+  const hasNSAID         = NSAID_TERMS.some(t => medNames.includes(t));
+  if (hasAnticoagulant && hasNSAID) score += 5;
+
+  // ── Severe allergies ──────────────────────────────────────────────────────
   for (const a of (patient.allergies || [])) {
     if ((a.severity || '').toLowerCase() === 'severe') score += 8;
   }
 
-  // Care-gap factor (uses recentVisits array)
-  const visits   = (patient.recentVisits || []).filter(v => v.date);
+  // ── Care-gap & temporal factors ───────────────────────────────────────────
+  const visits = (patient.recentVisits || []).filter(v => v.date);
+  let gapDays  = Infinity;
+
   if (visits.length === 0) {
     score += 18; // no care history = high gap risk
   } else {
     const latestVisit = visits.reduce((best, v) =>
       new Date(v.date) > new Date(best.date) ? v : best
     );
-    const gapDays = daysSince(latestVisit.date);
+    gapDays = daysSince(latestVisit.date);
 
     if      (gapDays > 365) score += 20;
     else if (gapDays > 180) score += 12;
     else if (gapDays >  90) score +=  5;
     else if (gapDays <  30) score -=  5; // very recently seen = lower risk
   }
+
+  // Temporal penalty: no visit in 12+ months AND already high-risk (score so far >= 40)
+  if (gapDays >= 365 && score >= 40) score += 10;
+
+  // Recent hospitalizations in past 6 months (keyword scan across all condition entries)
+  const hasRecentHospitalization = conditions.some(h => {
+    const text = (h.condition || h.notes || '').toLowerCase();
+    return text.includes('recent hospitalization') || text.includes('recent hospital admission');
+  });
+  if (hasRecentHospitalization) score += 15;
 
   return Math.max(0, Math.min(100, Math.round(score)));
 }

@@ -3,9 +3,20 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const { Token } = require('../models/Token');
+const ConversionRule = require('../models/ConversionRule');
 const { protect } = require('../middleware/auth');
 const { processTokenTransaction } = require('../blockchain/contracts');
 const logger = require('../utils/logger');
+
+// Default services used as fallback when DB collection is empty
+const DEFAULT_SERVICES = [
+  { serviceId: 'ai-analysis-basic',    name: 'Basic AI Analysis',              description: 'Run basic AI analysis on your patient data',                     tokenCost: 10, category: 'analytics'  },
+  { serviceId: 'ai-analysis-advanced', name: 'Advanced AI Analysis',           description: 'Run advanced AI analysis with predictive modeling',               tokenCost: 25, category: 'analytics'  },
+  { serviceId: 'priority-referral',    name: 'Priority Referral Processing',   description: 'Get priority handling for your referrals',                       tokenCost: 5,  category: 'operations' },
+  { serviceId: 'pa-fast-track',        name: 'PA Fast-Track',                  description: 'Skip the queue and get priority PA review (10 token cost)',       tokenCost: 10, category: 'priority'   },
+  { serviceId: 'extended-data-access', name: 'Extended Network Data Access',   description: 'Access anonymized data from the entire network for research',    tokenCost: 50, category: 'research'   },
+  { serviceId: 'premium-support',      name: 'Premium Support',                description: 'Get priority technical support',                                 tokenCost: 15, category: 'support'    },
+];
 
 // @route   GET api/tokens/balance
 // @desc    Get user token balance
@@ -77,80 +88,80 @@ router.post('/transfer', protect, async (req, res) => {
       });
     }
 
-    // Check if sender has enough tokens
-    const sender = await User.findById(req.user.id);
-    if (!sender) {
-      return res.status(404).json({ success: false, error: 'User not found' });
-    }
-    
-    if (sender.tokenBalance < amount) {
-      return res.status(400).json({
-        success: false,
-        error: 'Insufficient token balance'
-      });
-    }
-
-    // Check if recipient exists
-    const recipient = await User.findById(recipientId);
+    // Validate recipient exists before touching balances
+    const recipient = await User.findById(recipientId).select('name email organization tokenBalance');
     if (!recipient) {
       return res.status(404).json({ success: false, error: 'Recipient not found' });
     }
+    if (String(recipient._id) === String(req.user.id)) {
+      return res.status(400).json({ success: false, error: 'Cannot transfer tokens to yourself' });
+    }
 
-    // Process token transaction on blockchain (outside DB session — cannot roll back blockchain)
-    const blockchainTransaction = await processTokenTransaction(
-      sender._id.toString(),
-      recipient._id.toString(),
-      amount,
-      reason || 'Token transfer',
-      { transferType: 'user-to-user' }
+    // ── Atomic debit: only succeeds if sender actually has enough tokens ──────
+    // Single findOneAndUpdate prevents race-condition double-spend — no separate
+    // "check then write" window that two concurrent requests could both pass.
+    const sender = await User.findOneAndUpdate(
+      { _id: req.user.id, tokenBalance: { $gte: amount } },
+      { $inc: { tokenBalance: -amount } },
+      { new: true }
+    );
+    if (!sender) {
+      return res.status(400).json({ success: false, error: 'Insufficient token balance' });
+    }
+
+    // Credit recipient
+    const updatedRecipient = await User.findByIdAndUpdate(
+      recipientId,
+      { $inc: { tokenBalance: amount } },
+      { new: true }
     );
 
-    // Wrap all DB writes in a single transaction so a mid-flight failure cannot
-    // leave balances inconsistent (sender debited, recipient not credited).
-    const session = await mongoose.startSession();
+    // Record on ledger (blockchain + Token transaction log)
+    let blockchainTransaction = { transactionId: null };
     try {
-      await session.withTransaction(async () => {
-        sender.tokenBalance -= amount;
-        await sender.save({ session });
+      blockchainTransaction = await processTokenTransaction(
+        sender._id.toString(),
+        recipient._id.toString(),
+        amount,
+        reason || 'Token transfer',
+        { transferType: 'user-to-user' }
+      );
+    } catch (bcErr) {
+      logger.warn('Blockchain ledger write failed (balances already updated)', { error: bcErr.message });
+    }
 
-        recipient.tokenBalance += amount;
-        await recipient.save({ session });
-
-        let token = await Token.findOne().session(session);
-        if (!token) {
-          token = new Token({
-            contractAddress: `0x${require('crypto').randomBytes(20).toString('hex')}`,
-          });
+    try {
+      let token = await Token.findOne();
+      if (!token) {
+        token = new Token({ contractAddress: `0x${require('crypto').randomBytes(20).toString('hex')}` });
+      }
+      token.transactions.push(
+        {
+          user: sender._id,
+          type: 'transfer',
+          amount: -amount,
+          reason: reason || 'Token transfer',
+          relatedEntity: { entityType: 'user', entityId: recipient._id },
+          blockchainTransactionId: blockchainTransaction.transactionId,
+          status: 'completed',
+          balanceAfter: sender.tokenBalance,
+          metadata: { recipientName: recipient.name, recipientOrganization: recipient.organization },
+        },
+        {
+          user: recipient._id,
+          type: 'earn',
+          amount,
+          reason: reason || 'Token transfer',
+          relatedEntity: { entityType: 'user', entityId: sender._id },
+          blockchainTransactionId: blockchainTransaction.transactionId,
+          status: 'completed',
+          balanceAfter: updatedRecipient.tokenBalance,
+          metadata: { senderName: sender.name, senderOrganization: sender.organization },
         }
-
-        token.transactions.push(
-          {
-            user: sender._id,
-            type: 'transfer',
-            amount: -amount,
-            reason: reason || 'Token transfer',
-            relatedEntity: { entityType: 'user', entityId: recipient._id },
-            blockchainTransactionId: blockchainTransaction.transactionId,
-            status: 'completed',
-            balanceAfter: sender.tokenBalance,
-            metadata: { recipientName: recipient.name, recipientOrganization: recipient.organization },
-          },
-          {
-            user: recipient._id,
-            type: 'earn',
-            amount,
-            reason: reason || 'Token transfer',
-            relatedEntity: { entityType: 'user', entityId: sender._id },
-            blockchainTransactionId: blockchainTransaction.transactionId,
-            status: 'completed',
-            balanceAfter: recipient.tokenBalance,
-            metadata: { senderName: sender.name, senderOrganization: sender.organization },
-          }
-        );
-        await token.save({ session });
-      });
-    } finally {
-      await session.endSession();
+      );
+      await token.save();
+    } catch (logErr) {
+      logger.warn('Token log write failed (non-fatal)', { error: logErr.message });
     }
 
     res.status(200).json({
@@ -173,50 +184,21 @@ router.post('/transfer', protect, async (req, res) => {
 // @access  Private
 router.get('/services', protect, async (req, res) => {
   try {
-    // In a real system, these would be dynamic and stored in the database
-    const services = [
-      {
-        id: 'ai-analysis-basic',
-        name: 'Basic AI Analysis',
-        description: 'Run basic AI analysis on your patient data',
-        tokenCost: 10,
-        category: 'analytics'
-      },
-      {
-        id: 'ai-analysis-advanced',
-        name: 'Advanced AI Analysis',
-        description: 'Run advanced AI analysis with predictive modeling',
-        tokenCost: 25,
-        category: 'analytics'
-      },
-      {
-        id: 'priority-referral',
-        name: 'Priority Referral Processing',
-        description: 'Get priority handling for your referrals',
-        tokenCost: 5,
-        category: 'operations'
-      },
-      {
-        id: 'extended-data-access',
-        name: 'Extended Network Data Access',
-        description: 'Access anonymized data from the entire network for research',
-        tokenCost: 50,
-        category: 'research'
-      },
-      {
-        id: 'premium-support',
-        name: 'Premium Support',
-        description: 'Get priority technical support',
-        tokenCost: 15,
-        category: 'support'
+    let services;
+    try {
+      const dbRules = await ConversionRule.find({ isActive: true }).sort({ sortOrder: 1, createdAt: 1 }).lean();
+      if (dbRules.length > 0) {
+        services = dbRules.map(r => ({
+          id: r.serviceId, name: r.name, description: r.description,
+          tokenCost: r.tokenCost, category: r.category,
+        }));
       }
-    ];
+    } catch (_) {}
+    if (!services) {
+      services = DEFAULT_SERVICES.map(s => ({ id: s.serviceId, name: s.name, description: s.description, tokenCost: s.tokenCost, category: s.category }));
+    }
 
-    res.status(200).json({
-      success: true,
-      count: services.length,
-      data: services
-    });
+    res.status(200).json({ success: true, count: services.length, data: services });
   } catch (error) {
     logger.error('Get services error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
@@ -228,56 +210,21 @@ router.get('/services', protect, async (req, res) => {
 // @access  Private
 router.get('/earn-sources', protect, async (req, res) => {
   try {
+    let policy = {};
+    try {
+      const TokenEarnPolicy = require('../models/TokenEarnPolicy');
+      policy = await TokenEarnPolicy.getSingleton();
+    } catch (_) {}
+
     const earnSources = [
-      {
-        id: 'complete-referral',
-        name: 'Complete a Referral',
-        description: 'Earn tokens when a referral you sent is accepted and completed',
-        tokenReward: 10,
-        category: 'referrals',
-        frequency: 'per_action',
-      },
-      {
-        id: 'accept-referral',
-        name: 'Accept a Referral',
-        description: 'Earn tokens each time you accept an incoming referral',
-        tokenReward: 5,
-        category: 'referrals',
-        frequency: 'per_action',
-      },
-      {
-        id: 'complete-profile',
-        name: 'Complete Your Profile',
-        description: 'One-time bonus for completing all profile fields',
-        tokenReward: 25,
-        category: 'onboarding',
-        frequency: 'one_time',
-      },
-      {
-        id: 'kyc-verified',
-        name: 'KYC Verification',
-        description: 'One-time bonus when your identity is verified by our team',
-        tokenReward: 50,
-        category: 'onboarding',
-        frequency: 'one_time',
-      },
-      {
-        id: 'invite-colleague',
-        name: 'Invite a Colleague',
-        description: 'Earn tokens for each colleague who joins and completes onboarding',
-        tokenReward: 20,
-        category: 'network',
-        frequency: 'per_action',
-      },
-      {
-        id: 'data-contribution',
-        name: 'Contribute Anonymized Data',
-        description: 'Earn tokens monthly for contributing anonymized outcome data to the network',
-        tokenReward: 15,
-        category: 'research',
-        frequency: 'monthly',
-      },
-    ];
+      { id: 'complete-referral',  name: 'Complete a Referral',             description: 'Earn tokens when a referral you sent is accepted and completed',                    tokenReward: policy.referralSent       || 10, category: 'referrals',  frequency: 'per_action' },
+      { id: 'accept-referral',    name: 'Accept a Referral',               description: 'Earn tokens each time you accept an incoming referral',                              tokenReward: policy.referralAccepted   || 5,  category: 'referrals',  frequency: 'per_action' },
+      { id: 'complete-profile',   name: 'Complete Your Profile',           description: 'One-time bonus for completing all profile fields',                                   tokenReward: policy.profileCompleted   || 25, category: 'onboarding', frequency: 'one_time'   },
+      { id: 'kyc-verified',       name: 'KYC Verification',                description: 'One-time bonus when your identity is verified by our team',                          tokenReward: policy.kycVerified        || 50, category: 'onboarding', frequency: 'one_time'   },
+      { id: 'invite-colleague',   name: 'Invite a Colleague',              description: 'Earn tokens for each colleague who joins and completes onboarding',                  tokenReward: policy.inviteColleague    || 20, category: 'network',    frequency: 'per_action' },
+      { id: 'data-contribution',  name: 'Contribute Anonymized Data',      description: 'Earn tokens monthly for contributing anonymized outcome data to the network',        tokenReward: policy.dataContribution   || 15, category: 'research',   frequency: 'monthly'    },
+      { id: 'analytics-complete', name: 'Complete Analytics Report',       description: 'Earn tokens each time you complete and submit an analytics report',                  tokenReward: policy.analyticsCompleted || 15, category: 'research',   frequency: 'per_action' },
+    ].filter(s => s.tokenReward > 0);
 
     res.status(200).json({ success: true, count: earnSources.length, data: earnSources });
   } catch (error) {
@@ -300,38 +247,17 @@ router.post('/redeem', protect, async (req, res) => {
       });
     }
 
-    // In a real system, this would fetch the service from the database
-    // For now, we'll use a hardcoded list
-    const services = {
-      'ai-analysis-basic': {
-        name: 'Basic AI Analysis',
-        tokenCost: 10,
-        category: 'analytics'
-      },
-      'ai-analysis-advanced': {
-        name: 'Advanced AI Analysis',
-        tokenCost: 25,
-        category: 'analytics'
-      },
-      'priority-referral': {
-        name: 'Priority Referral Processing',
-        tokenCost: 5,
-        category: 'operations'
-      },
-      'extended-data-access': {
-        name: 'Extended Network Data Access',
-        tokenCost: 50,
-        category: 'research'
-      },
-      'premium-support': {
-        name: 'Premium Support',
-        tokenCost: 15,
-        category: 'support'
-      }
-    };
+    // Look up service in DB; fall back to defaults if not found
+    let service = null;
+    try {
+      const dbRule = await ConversionRule.findOne({ serviceId, isActive: true }).lean();
+      if (dbRule) service = { name: dbRule.name, tokenCost: dbRule.tokenCost, category: dbRule.category };
+    } catch (_) {}
+    if (!service) {
+      const fallback = DEFAULT_SERVICES.find(s => s.serviceId === serviceId);
+      if (fallback) service = { name: fallback.name, tokenCost: fallback.tokenCost, category: fallback.category };
+    }
 
-    const service = services[serviceId];
-    
     if (!service) {
       return res.status(404).json({ success: false, error: 'Service not found' });
     }
@@ -409,6 +335,140 @@ router.post('/redeem', protect, async (req, res) => {
     });
   } catch (error) {
     logger.error('Token redemption error', logger.reqCtx(req, error));
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// ── Token Staking ─────────────────────────────────────────────────────────────
+
+const TokenStake = require('../models/TokenStake');
+const STAKE_PERIODS = [30, 60, 90];
+const MULTIPLIERS = { 30: 1.10, 60: 1.25, 90: 1.50 };
+
+/**
+ * POST /api/tokens/stake
+ * Lock tokens for 30/60/90 days; earn bonus on completion.
+ */
+router.post('/stake', protect, async (req, res) => {
+  try {
+    const { amount, periodDays } = req.body;
+    if (!amount || amount < 1) return res.status(400).json({ success: false, error: 'amount must be >= 1' });
+    if (!STAKE_PERIODS.includes(Number(periodDays))) {
+      return res.status(400).json({ success: false, error: `periodDays must be one of ${STAKE_PERIODS.join(', ')}` });
+    }
+
+    const multiplier = MULTIPLIERS[periodDays];
+
+    // Atomic: debit tokenBalance, credit stakedBalance
+    const user = await User.findOneAndUpdate(
+      { _id: req.user.id, tokenBalance: { $gte: amount } },
+      {
+        $inc: { tokenBalance: -amount, stakedBalance: amount },
+        $set: { tokenLastActivity: new Date() },
+      },
+      { new: true }
+    );
+    if (!user) return res.status(400).json({ success: false, error: 'Insufficient token balance' });
+
+    const startDate = new Date();
+    const endDate = new Date(startDate.getTime() + Number(periodDays) * 24 * 60 * 60 * 1000);
+
+    const stake = await TokenStake.create({
+      userId: req.user.id,
+      amount,
+      periodDays: Number(periodDays),
+      multiplier,
+      startDate,
+      endDate,
+    });
+
+    // Ledger record
+    processTokenTransaction(req.user.id, 'stake_pool', amount, `Staked ${amount} CLT for ${periodDays} days (${multiplier}x)`, {
+      source: 'stake', stakeId: String(stake._id),
+    }).catch(() => {});
+
+    res.status(201).json({
+      success: true,
+      data: {
+        stake,
+        newBalance: user.tokenBalance,
+        stakedBalance: user.stakedBalance,
+        expectedBonus: Math.floor(amount * (multiplier - 1)),
+        releaseAt: endDate,
+      },
+    });
+  } catch (error) {
+    logger.error('Stake error', logger.reqCtx(req, error));
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+/**
+ * GET /api/tokens/stakes
+ * List the caller's staking positions.
+ */
+router.get('/stakes', protect, async (req, res) => {
+  try {
+    const status = req.query.status || null;
+    const filter = { userId: req.user.id, ...(status ? { status } : {}) };
+    const stakes = await TokenStake.find(filter).sort({ createdAt: -1 }).lean();
+
+    const user = await User.findById(req.user.id).select('tokenBalance stakedBalance').lean();
+
+    res.json({
+      success: true,
+      data: stakes,
+      summary: {
+        activeCount: stakes.filter(s => s.status === 'active').length,
+        totalStaked: user?.stakedBalance || 0,
+        tokenBalance: user?.tokenBalance || 0,
+      },
+    });
+  } catch (error) {
+    logger.error('Get stakes error', logger.reqCtx(req, error));
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+/**
+ * DELETE /api/tokens/stakes/:id
+ * Early unstake — returns principal only, no bonus.
+ */
+router.delete('/stakes/:id', protect, async (req, res) => {
+  try {
+    const stake = await TokenStake.findOne({ _id: req.params.id, userId: req.user.id });
+    if (!stake) return res.status(404).json({ success: false, error: 'Stake not found' });
+    if (stake.status !== 'active') {
+      return res.status(400).json({ success: false, error: `Cannot cancel a ${stake.status} stake` });
+    }
+
+    stake.status = 'cancelled';
+    stake.cancelledAt = new Date();
+    await stake.save();
+
+    // Return principal (no bonus)
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $inc: { tokenBalance: stake.amount, stakedBalance: -stake.amount }, $set: { tokenLastActivity: new Date() } },
+      { new: true }
+    );
+
+    processTokenTransaction('stake_pool', req.user.id, stake.amount, `Early unstake — ${stake.amount} CLT returned (no bonus)`, {
+      source: 'unstake_early', stakeId: String(stake._id),
+    }).catch(() => {});
+
+    res.json({
+      success: true,
+      data: {
+        stakeId: stake._id,
+        returnedAmount: stake.amount,
+        newBalance: user.tokenBalance,
+        stakedBalance: user.stakedBalance,
+        note: 'Early cancellation — bonus forfeited.',
+      },
+    });
+  } catch (error) {
+    logger.error('Unstake error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });

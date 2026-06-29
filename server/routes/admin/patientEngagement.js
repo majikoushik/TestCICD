@@ -6,6 +6,29 @@ const NotificationCampaign = require('../../models/NotificationCampaign');
 const Patient = require('../../models/Patient');
 const patientEngagementService = require('../../services/patientEngagementService');
 
+// Transforms Mongoose channelStatus object → channelDelivery array for the frontend
+function buildChannelDelivery(channels, channelStatus) {
+  return (channels || []).map(ch => {
+    const cs = (channelStatus || {})[ch] || {};
+    const isInApp = ch === 'in_app';
+    const deliveredAt = cs.deliveredAt || (isInApp && cs.sent ? cs.sentAt : null) || null;
+    return {
+      channel: ch,
+      sent: Boolean(cs.sent),
+      sentAt: cs.sentAt || null,
+      delivered: Boolean(cs.deliveredAt || (isInApp && cs.sent)),
+      deliveredAt: deliveredAt || null,
+      error: cs.error || null,
+    };
+  });
+}
+
+function withChannelDelivery(n) {
+  const obj = typeof n.toObject === 'function' ? n.toObject() : { ...n };
+  obj.channelDelivery = buildChannelDelivery(obj.channels, obj.channelStatus);
+  return obj;
+}
+
 // ============================================================
 // TEMPLATES (must come before /:id to avoid routing conflicts)
 // ============================================================
@@ -394,6 +417,7 @@ router.get('/', async (req, res) => {
     if (req.query.status) filter.status = req.query.status;
     if (req.query.type) filter.type = req.query.type;
     if (req.query.patientId) filter.patientId = req.query.patientId;
+    if (req.query.relatedId) filter.relatedId = req.query.relatedId;
     if (req.query.search) {
       filter.$or = [
         { title: { $regex: req.query.search, $options: 'i' } },
@@ -421,7 +445,7 @@ router.get('/', async (req, res) => {
     res.json({
       success: true,
       data: {
-        notifications,
+        notifications: notifications.map(withChannelDelivery),
         total,
         stats: statsMap,
       },
@@ -436,7 +460,7 @@ router.get('/:id', async (req, res) => {
   try {
     const notification = await PatientNotification.findById(req.params.id);
     if (!notification) return res.status(404).json({ success: false, message: 'Notification not found' });
-    res.json({ success: true, data: notification });
+    res.json({ success: true, data: withChannelDelivery(notification) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

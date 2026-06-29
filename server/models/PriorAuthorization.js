@@ -51,6 +51,10 @@ const priorAuthSchema = new mongoose.Schema({
   appealReviewedAt: { type: Date, default: null },
   appealOutcome: { type: String, enum: ['Approved', 'Denied', null], default: null },
 
+  // Fast-track (token-gated priority processing)
+  fastTrack: { type: Boolean, default: false },
+  fastTrackTokenCost: { type: Number, default: 0 },
+
   // Escalation tracking — prevents duplicate admin alerts
   escalationSentAt: { type: Date, default: null },
 

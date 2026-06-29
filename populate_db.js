@@ -55,6 +55,13 @@ await db.collection('activities').drop().catch(() => {});
 await db.collection('wallets').drop().catch(() => {});
 await db.collection('blockchainidentities').drop().catch(() => {});
 await db.collection('blockchaintransactions').drop().catch(() => {});
+await db.collection('conversionrules').drop().catch(() => {});
+await db.collection('tokenearnpolicies').drop().catch(() => {});
+await db.collection('tokenoperations').drop().catch(() => {});
+await db.collection('tokenstakes').drop().catch(() => {});
+await db.collection('aiconfigs').drop().catch(() => {});
+await db.collection('referraloutcomes').drop().catch(() => {});
+await db.collection('predictivealerts').drop().catch(() => {});
 
 // Create users collection
 // Password hash for "Demo1234!" with bcrypt cost 10
@@ -5620,6 +5627,113 @@ console.log("DTx prescriptions created: " + (await db.collection('dtxprescriptio
   console.log(`Login history seeded: ${allEntries.length} entries for ${providerUsers.length} users (last 30 days).`);
 }
 // ── END LOGIN HISTORY SEED ────────────────────────────────────────────────────
+
+// ── CONVERSION RULES (token-to-service catalog) ───────────────────────────────
+console.log('Seeding conversionrules...');
+await db.collection('conversionrules').insertMany([
+  { serviceId: 'ai-analysis-basic',    name: 'Basic AI Analysis',              description: 'Run basic AI analysis on patient data',                    category: 'analytics',  tokenCost: 10, sortOrder: 1, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+  { serviceId: 'ai-analysis-advanced', name: 'Advanced AI Analysis',           description: 'Advanced AI analysis with predictive modeling',            category: 'analytics',  tokenCost: 25, sortOrder: 2, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+  { serviceId: 'priority-referral',    name: 'Priority Referral Processing',   description: 'Get priority handling for your referrals',                 category: 'operations', tokenCost: 5,  sortOrder: 3, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+  { serviceId: 'pa-fast-track',        name: 'PA Fast-Track',                  description: 'Skip the queue and get priority PA review',                category: 'priority',   tokenCost: 10, sortOrder: 4, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+  { serviceId: 'extended-data-access', name: 'Extended Network Data Access',   description: 'Access anonymized data from the entire network for research', category: 'research', tokenCost: 50, sortOrder: 5, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+  { serviceId: 'premium-support',      name: 'Premium Support',                description: 'Get priority technical support',                           category: 'support',    tokenCost: 15, sortOrder: 6, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+  { serviceId: 'premium-export',       name: 'Premium Analytics Export',       description: 'Export full analytics results with raw data and visualizations', category: 'analytics', tokenCost: 25, sortOrder: 7, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+]);
+console.log('conversionrules seeded: 7 entries');
+
+// ── TOKEN EARN POLICY (singleton) ─────────────────────────────────────────────
+console.log('Seeding tokenearnpolicies...');
+await db.collection('tokenearnpolicies').insertOne({
+  _singleton: 'global',
+  referralSent: 10, referralAccepted: 5,
+  kycVerified: 50, profileCompleted: 25, inviteColleague: 20,
+  dataContribution: 15, analyticsCompleted: 15,
+  dtxCompleted: 0, appointmentCompleted: 15,
+  createdAt: new Date(), updatedAt: new Date(),
+});
+console.log('tokenearnpolicies seeded: 1 singleton entry');
+
+// ── TOKEN STAKES (sample positions) ──────────────────────────────────────────
+console.log('Seeding tokenstakes...');
+const stakeNow = new Date();
+const stakeDaysAgo = (d) => new Date(stakeNow.getTime() - d * 24 * 60 * 60 * 1000);
+const stakeDaysFromNow = (d) => new Date(stakeNow.getTime() + d * 24 * 60 * 60 * 1000);
+await db.collection('tokenstakes').insertMany([
+  {
+    userId: 'user-2', amount: 100, periodDays: 30, multiplier: 1.10,
+    startDate: stakeDaysAgo(20), endDate: stakeDaysFromNow(10),
+    status: 'active', bonusAmount: 0, releaseTxId: null,
+    createdAt: stakeDaysAgo(20), updatedAt: stakeDaysAgo(20),
+  },
+  {
+    userId: 'user-3', amount: 200, periodDays: 60, multiplier: 1.25,
+    startDate: stakeDaysAgo(65), endDate: stakeDaysAgo(5),
+    status: 'completed', bonusAmount: 50, releaseTxId: 'tx_synthetic_stake_001',
+    completedAt: stakeDaysAgo(5), createdAt: stakeDaysAgo(65), updatedAt: stakeDaysAgo(5),
+  },
+  {
+    userId: 'user-4', amount: 50, periodDays: 90, multiplier: 1.50,
+    startDate: stakeDaysAgo(10), endDate: stakeDaysFromNow(80),
+    status: 'active', bonusAmount: 0, releaseTxId: null,
+    createdAt: stakeDaysAgo(10), updatedAt: stakeDaysAgo(10),
+  },
+]);
+console.log('tokenstakes seeded: 3 sample positions');
+
+// ── BLOCKCHAIN GENESIS BLOCK ──────────────────────────────────────────────────
+console.log('Seeding blockchain genesis block...');
+const crypto = require('crypto');
+const genesisData = {
+  type: 'genesis',
+  message: 'ClinicTrust AI — genesis block',
+  version: '2.0',
+  network: process.env.POLYGON_NETWORK || 'ledger',
+  createdAt: new Date().toISOString(),
+};
+const genesisPreviousHash = 'genesis';
+const genesisBlockNumber  = 0;
+const genesisHashInput    = JSON.stringify({ ...genesisData, previousHash: genesisPreviousHash, blockNumber: genesisBlockNumber });
+const genesisHash         = crypto.createHash('sha256').update(genesisHashInput).digest('hex');
+const genesisTxId         = `genesis_${crypto.randomBytes(8).toString('hex')}`;
+await db.collection('blockchaintransactions').insertOne({
+  transactionId: genesisTxId,
+  type: 'genesis',
+  data: genesisData,
+  hash: genesisHash,
+  previousHash: genesisPreviousHash,
+  blockNumber: genesisBlockNumber,
+  timestamp: new Date(),
+  createdAt: new Date(),
+  updatedAt: new Date(),
+});
+console.log(`blockchain genesis block seeded: ${genesisTxId} (hash: ${genesisHash.slice(0, 16)}...)`);
+
+  // AI Config defaults
+  const aiConfigDefaults = [
+    { key: 'priorAuth.autoApproveThreshold', category: 'priorAuth', value: 0.95, label: 'Auto-Approve Threshold', dataType: 'number' },
+    { key: 'priorAuth.minConfidence', category: 'priorAuth', value: 0.80, label: 'Minimum Confidence', dataType: 'number' },
+    { key: 'priorAuth.requireReviewBelow', category: 'priorAuth', value: 0.65, label: 'Manual Review Threshold', dataType: 'number' },
+    { key: 'riskScore.highRiskThreshold', category: 'riskScore', value: 75, label: 'High Risk Threshold', dataType: 'number' },
+    { key: 'riskScore.criticalRiskThreshold', category: 'riskScore', value: 90, label: 'Critical Risk Threshold', dataType: 'number' },
+    { key: 'riskScore.alertOnIncrease', category: 'riskScore', value: 15, label: 'Alert on Score Increase', dataType: 'number' },
+    { key: 'referralMatching.minConfidence', category: 'referralMatching', value: 0.75, label: 'Min Match Confidence', dataType: 'number' },
+    { key: 'referralMatching.maxCandidates', category: 'referralMatching', value: 10, label: 'Max Candidates', dataType: 'number' },
+    { key: 'referralMatching.outcomeWeight', category: 'referralMatching', value: 0.15, label: 'Outcome Score Weight', dataType: 'number' },
+    { key: 'escalation.flagThreshold', category: 'escalation', value: 0.70, label: 'Escalation Flag Threshold', dataType: 'number' },
+    { key: 'ambient.enabled', category: 'ambient', value: true, label: 'Ambient Intelligence Enabled', dataType: 'boolean' },
+    { key: 'ambient.autoGenerateNotes', category: 'ambient', value: true, label: 'Auto-Generate Notes', dataType: 'boolean' },
+  ];
+  await db.collection('aiconfigs').insertMany(aiConfigDefaults);
+  console.log('AI config defaults seeded');
+
+  // Sample predictive alerts (linked to real provider users if they exist)
+  const predictiveAlerts = [
+    { patientName: 'John Doe', type: 'readmission_risk', severity: 'high', title: 'High Readmission Risk — John Doe', description: 'Risk score 82/100 with 3 high-risk comorbidities and no visit in 45 days.', recommendation: 'Schedule follow-up within 7 days.', riskScore: 82, status: 'active', generatedAt: new Date(Date.now() - 2 * 86400000) },
+    { patientName: 'Jane Smith', type: 'risk_score_increase', severity: 'critical', title: 'Risk Score Spike — Jane Smith', description: 'Risk score increased +28 pts (61 → 89). New condition: Heart Failure.', recommendation: 'Immediate clinical review.', riskScore: 89, previousRiskScore: 61, deltaScore: 28, status: 'active', generatedAt: new Date(Date.now() - 86400000) },
+    { patientName: 'Maria Garcia', type: 'care_gap', severity: 'medium', title: 'Care Gap — Maria Garcia', description: 'No visit in 78 days. Diabetes management gap. HbA1c overdue.', recommendation: 'Order HbA1c and schedule diabetes visit.', riskScore: 72, daysSinceLastVisit: 78, status: 'active', generatedAt: new Date(Date.now() - 3 * 86400000) },
+  ];
+  await db.collection('predictivealerts').insertMany(predictiveAlerts);
+  console.log('Predictive alerts seeded');
 
   console.log('\nDatabase population complete!');
   const collections = await db.listCollections().toArray();

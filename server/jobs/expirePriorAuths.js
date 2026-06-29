@@ -18,7 +18,8 @@
 
 const PriorAuthorization = require('../models/PriorAuthorization');
 const AuditLog = require('../models/AuditLog');
-const { sendEmail } = require('../services/patientEngagementService');
+const User = require('../models/User');
+const { sendEmail, triggerAutomaticNotification, sendPatientNotification, saveNotificationLog } = require('../services/patientEngagementService');
 const logger = require('../utils/logger');
 
 // ── Nightly expiry job ────────────────────────────────────────────────────────
@@ -58,6 +59,33 @@ async function runExpirePriorAuths() {
     }));
     await AuditLog.insertMany(auditEntries);
     logger.info('[expirePriorAuths] PAs expired', { count: expired.length });
+
+    // Notify patients + providers (fire-and-forget per PA)
+    for (const pa of expired) {
+      ;(async () => {
+        try {
+          const authNumber = String(pa._id).slice(-8).toUpperCase();
+          const rd = { serviceName: pa.serviceType, authNumber };
+          const patientUser = await User.findById(pa.patientId).select('email phone').lean().catch(() => null);
+          if (patientUser?.email || patientUser?.phone) {
+            const pt = { name: pa.patientName, email: patientUser.email || '', phone: patientUser.phone || '' };
+            const notif = await triggerAutomaticNotification('prior_auth_expired', rd, pt);
+            const result = await sendPatientNotification(notif);
+            await saveNotificationLog({ paId: pa._id, patientId: pa.patientId, patientName: pa.patientName, patientEmail: patientUser.email, patientPhone: patientUser.phone, notifObj: notif, sendResult: result });
+          }
+          // Notify provider
+          if (pa.requestingProviderId) {
+            const provUser = await User.findById(pa.requestingProviderId).select('email').lean().catch(() => null);
+            if (provUser?.email) {
+              const subject = `Prior Authorization Expired — ${pa.serviceType}`;
+              const html = `<h3>Prior Authorization Expired</h3><p>Patient: <strong>${pa.patientName}</strong></p><p>Service: <strong>${pa.serviceType}</strong> (Auth #${authNumber})</p><p>Please submit a renewal if the service is still needed.</p>`;
+              const text = `Prior authorization for ${pa.serviceType} (Auth #${authNumber}) for patient ${pa.patientName} has expired. Please submit a renewal if the service is still needed.`;
+              await sendEmail(provUser.email, subject, html, text);
+            }
+          }
+        } catch (_) {}
+      })();
+    }
 
     // Log SLA breach entries for appeals already overdue
     const overdueAppeals = await PriorAuthorization.find({

@@ -14,7 +14,10 @@
     "install-all": "npm install && cd client && npm install",
     "build": "cd client && npm run build",
     "blockchain:start": "cd blockchain && ./startFabric.sh",
-    "blockchain:stop": "cd blockchain && ./stopFabric.sh"
+    "blockchain:stop": "cd blockchain && ./stopFabric.sh",
+    "contract:compile": "npx hardhat compile",
+    "contract:deploy:amoy": "npx hardhat run contracts/scripts/deploy.js --network amoy",
+    "contract:deploy:local": "npx hardhat run contracts/scripts/deploy.js --network hardhat"
   },
   "keywords": [
     "healthcare",
@@ -31,6 +34,7 @@
     "concurrently": "^8.2.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
+    "ethers": "^6.17.0",
     "express": "^4.18.2",
     "express-graphql": "^0.12.0",
     "express-rate-limit": "^8.5.2",
@@ -48,6 +52,9 @@
   "devDependencies": {
     "concurrently": "^8.0.1",
     "eslint": "^8.57.1",
-    "nodemon": "^2.0.22"
+    "nodemon": "^2.0.22",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "^5.0.0",
+    "hardhat": "^2.22.0"
   }
 }

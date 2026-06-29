@@ -306,32 +306,41 @@ router.put('/:id/status', protect, ehiAudit('Referral', 'UPDATE'), async (req, r
       
       // Process token rewards for completed referrals
       try {
+        // Earn rates from policy (DB-configurable); fall back to hardcoded defaults
+        let referralSentReward = 5, referralAcceptedReward = 10;
+        try {
+          const TokenEarnPolicy = require('../models/TokenEarnPolicy');
+          const policy = await TokenEarnPolicy.getSingleton();
+          referralSentReward = policy.referralSent || 5;
+          referralAcceptedReward = policy.referralAccepted || 10;
+        } catch (_) {}
+
         // Reward tokens to both providers for completing the referral
         const referringTokens = await processTokenTransaction(
           'system',
           referral.referringProvider.toString(),
-          5, // Token amount
+          referralSentReward,
           'Referral completion reward',
           { referralId: referral._id.toString() }
         );
-        
+
         const receivingTokens = await processTokenTransaction(
           'system',
           referral.receivingProvider.toString(),
-          10, // Token amount
+          referralAcceptedReward,
           'Referral handling reward',
           { referralId: referral._id.toString() }
         );
-        
+
         // Update user token balances
         await User.findByIdAndUpdate(
           referral.referringProvider,
-          { $inc: { tokenBalance: 5 } }
+          { $inc: { tokenBalance: referralSentReward } }
         );
-        
+
         await User.findByIdAndUpdate(
           referral.receivingProvider,
-          { $inc: { tokenBalance: 10 } }
+          { $inc: { tokenBalance: referralAcceptedReward } }
         );
         
         // Store token transaction IDs

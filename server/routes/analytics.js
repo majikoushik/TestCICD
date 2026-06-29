@@ -487,17 +487,30 @@ async function processAnalyticsJob(analyticsId) {
     analytics.confidenceScore = Math.random() * 0.3 + 0.7; // 0.7-1.0
     analytics.modelVersion = '1.0.0';
     
-    // Add blockchain reference (in a real system, this would be a real blockchain transaction)
-    analytics.blockchainReference = {
-      transactionId: `tx_${require('crypto').randomBytes(16).toString('hex')}`,
-      timestamp: new Date(),
-      hash: require('crypto').createHash('sha256').update(JSON.stringify(results)).digest('hex')
-    };
+    // Anchor analytics results on the blockchain ledger (real record in BlockchainTransaction)
+    const crypto = require('crypto');
+    const resultsHash = crypto.createHash('sha256').update(JSON.stringify(results)).digest('hex');
+    let anchorTxId = `tx_${crypto.randomBytes(16).toString('hex')}`;
+    try {
+      const BlockchainTransaction = require('../models/BlockchainTransaction');
+      const anchorPayload = { type: 'analytics_anchor', analyticsId: String(analytics._id), analyticsType: analytics.type, resultsHash, creator: String(analytics.creator), timestamp: new Date().toISOString() };
+      const anchorHash = crypto.createHash('sha256').update(JSON.stringify(anchorPayload)).digest('hex');
+      const created = await BlockchainTransaction.create({ transactionId: anchorTxId, type: 'analytics_anchor', data: anchorPayload, hash: anchorHash, timestamp: new Date() });
+      anchorTxId = created.transactionId;
+    } catch (anchorErr) {
+      logger.warn('Analytics blockchain anchor failed (non-fatal)', { error: anchorErr.message });
+    }
+    analytics.blockchainReference = { transactionId: anchorTxId, timestamp: new Date(), hash: resultsHash };
 
     // Process token reward
     try {
-      const tokenAmount = 15; // Base reward for contributing data/analytics
-      
+      let tokenAmount = 15;
+      try {
+        const TokenEarnPolicy = require('../models/TokenEarnPolicy');
+        const policy = await TokenEarnPolicy.getSingleton();
+        tokenAmount = policy.analyticsCompleted || 15;
+      } catch (_) {}
+
       const tokenTransaction = await processTokenTransaction(
         'system',
         analytics.creator.toString(),
@@ -505,14 +518,14 @@ async function processAnalyticsJob(analyticsId) {
         'Analytics contribution reward',
         { analyticsId: analytics._id.toString(), analyticsType: analytics.type }
       );
-      
+
       // Update analytics with token reward info
       analytics.tokenReward = {
         amount: tokenAmount,
         transactionId: tokenTransaction.transactionId,
         status: 'processed'
       };
-      
+
       // Update user token balance
       await User.findByIdAndUpdate(
         analytics.creator,
@@ -816,5 +829,111 @@ function generateSimulatedResults(analytics) {
 
   return results;
 }
+
+// ── Premium Export (token-gated) ──────────────────────────────────────────────
+
+const EXPORT_TOKEN_COST = 25; // CLT to export full analytics results
+
+/**
+ * POST /api/analytics/:id/export
+ * Deducts EXPORT_TOKEN_COST tokens and returns the full analytics payload as JSON.
+ * In production this could stream a PDF/CSV; here we return structured JSON.
+ */
+router.post('/:id/export', protect, async (req, res) => {
+  try {
+    const analytics = await Analytics.findById(req.params.id).lean();
+    if (!analytics) return res.status(404).json({ success: false, error: 'Analytics job not found' });
+    if (analytics.status !== 'completed') {
+      return res.status(400).json({ success: false, error: 'Analytics job is not completed yet' });
+    }
+
+    // Check token balance
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ success: false, error: 'User not found' });
+
+    const cost = (() => {
+      try {
+        const ConversionRule = require('../models/ConversionRule');
+        // Cost is read async below; use default for sync check
+      } catch (_) {}
+      return EXPORT_TOKEN_COST;
+    })();
+
+    // Try to read cost from ConversionRule catalog
+    let tokenCost = EXPORT_TOKEN_COST;
+    try {
+      const ConversionRule = require('../models/ConversionRule');
+      const rule = await ConversionRule.findOne({ serviceId: 'premium-export', isActive: true }).lean();
+      if (rule) tokenCost = rule.tokenCost;
+    } catch (_) {}
+
+    if (user.tokenBalance < tokenCost) {
+      return res.status(402).json({
+        success: false,
+        error: `Insufficient tokens. Premium export requires ${tokenCost} CLT (you have ${user.tokenBalance}).`,
+        required: tokenCost,
+        balance: user.tokenBalance,
+      });
+    }
+
+    // Atomic debit
+    const updatedUser = await User.findOneAndUpdate(
+      { _id: req.user.id, tokenBalance: { $gte: tokenCost } },
+      { $inc: { tokenBalance: -tokenCost }, $set: { tokenLastActivity: new Date() } },
+      { new: true }
+    );
+    if (!updatedUser) {
+      return res.status(402).json({ success: false, error: 'Insufficient token balance' });
+    }
+
+    // Record spend on ledger (fire-and-forget)
+    processTokenTransaction(req.user.id, 'system', tokenCost, 'Premium analytics export', {
+      source: 'premium_export', analyticsId: req.params.id,
+    }).catch(err => logger.warn('Export token tx record failed', { error: err.message }));
+
+    // Record in Token model
+    try {
+      const { Token } = require('../models/Token');
+      await Token.findOneAndUpdate({}, {
+        $push: {
+          transactions: {
+            user: req.user.id, type: 'spend', amount: -tokenCost,
+            reason: 'Premium analytics export',
+            relatedEntity: { entityType: 'analytics', entityId: req.params.id },
+            status: 'completed', balanceAfter: updatedUser.tokenBalance,
+          },
+        },
+      });
+    } catch (_) {}
+
+    logger.info('Premium analytics export', { userId: req.user.id, analyticsId: req.params.id, tokenCost });
+
+    res.json({
+      success: true,
+      data: {
+        analytics: {
+          id: analytics._id,
+          name: analytics.name,
+          type: analytics.type,
+          status: analytics.status,
+          results: analytics.results,
+          blockchainReference: analytics.blockchainReference,
+          confidenceScore: analytics.confidenceScore,
+          modelVersion: analytics.modelVersion,
+          completedAt: analytics.updatedAt,
+        },
+        export: {
+          format: 'json',
+          tokenCost,
+          newBalance: updatedUser.tokenBalance,
+          exportedAt: new Date().toISOString(),
+        },
+      },
+    });
+  } catch (error) {
+    logger.error('Premium export error', { error: error.message });
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
 
 module.exports = router;

@@ -1,84 +1,106 @@
 /**
- * Blockchain utility functions for transaction verification
+ * Blockchain utility functions for transaction verification.
+ *
+ * Behaviour:
+ *   - When POLYGON_RPC_URL + CLINICTOKEN_ADDRESS are set in env  → queries real Polygon node
+ *   - Otherwise                                                   → queries local BlockchainTransaction collection (MongoDB ledger)
+ *
+ * This means the function is always honest — it never returns random success/failure.
  */
 
 const logger = require('./logger');
 
 /**
- * Verify a blockchain transaction by its hash
- * In a real implementation, this would connect to a blockchain node or API
- * For now, this is a mock implementation that simulates verification
- * 
- * @param {string} txHash - The transaction hash to verify
- * @returns {Promise<Object>} - Verification result
+ * Verify a blockchain transaction by its ID / hash.
+ * In live-chain mode the ID is an on-chain tx hash; in ledger mode it is the
+ * transactionId stored in BlockchainTransaction.
+ *
+ * @param {string} txHash
+ * @returns {Promise<Object>} { verified, txHash, blockNumber, timestamp, confirmations, hash, source }
  */
 const verifyBlockchainTransaction = async (txHash) => {
   try {
-    // In a real implementation, this would make an API call to a blockchain node
-    // or use a library like ethers.js or web3.js to verify the transaction
-    
-    // For demo purposes, we'll simulate a successful verification for most transactions
-    // with a small chance of failure
-    const shouldSucceed = Math.random() > 0.1;
-    
-    if (!shouldSucceed) {
-      return {
-        verified: false,
-        error: 'Transaction not found on blockchain'
-      };
+    // ── Live Polygon mode ──────────────────────────────────────────────────────
+    if (process.env.POLYGON_RPC_URL && txHash && txHash.startsWith('0x') && txHash.length === 66) {
+      const polygon = require('../blockchain/polygon');
+      const result = await polygon.verifyOnChainTx(txHash);
+      if (!result) return { verified: false, txHash, error: 'Could not reach Polygon node' };
+      return { ...result, txHash, source: 'polygon' };
     }
-    
-    // Simulate blockchain response
-    const mockBlockNumber = 14000000 + Math.floor(Math.random() * 1000000);
-    const mockTimestamp = Date.now() - Math.floor(Math.random() * 30 * 24 * 60 * 60 * 1000); // Random time in last 30 days
-    
+
+    // ── MongoDB ledger mode (default) ──────────────────────────────────────────
+    const BlockchainTransaction = require('../models/BlockchainTransaction');
+    const record = await BlockchainTransaction.findOne({ transactionId: txHash }).lean();
+    if (!record) {
+      return { verified: false, txHash, error: 'Transaction not found in ledger' };
+    }
+
+    // Re-derive hash from stored data and compare
+    const { createHash } = require('crypto');
+    const recomputed = createHash('sha256').update(JSON.stringify(record.data)).digest('hex');
+    const hashValid = recomputed === record.hash;
+
+    // Verify chain link (previousHash must match the prior record's hash)
+    let chainValid = true;
+    if (record.previousHash && record.previousHash !== 'genesis') {
+      const prev = await BlockchainTransaction.findOne({ hash: record.previousHash }).lean();
+      chainValid = Boolean(prev);
+    }
+
     return {
-      verified: true,
+      verified: hashValid && chainValid,
       txHash,
-      blockNumber: mockBlockNumber,
-      timestamp: new Date(mockTimestamp),
-      confirmations: Math.floor(Math.random() * 100) + 1,
-      gasUsed: Math.floor(Math.random() * 1000000) + 100000
+      blockNumber: record.blockNumber || null,
+      timestamp: record.timestamp,
+      confirmations: 1,       // Single-node: confirmed on write
+      hash: record.hash,
+      hashValid,
+      chainValid,
+      source: 'ledger',
     };
   } catch (error) {
-    logger.error('Blockchain verification error', { error: error.message, stack: error.stack });
-    return {
-      verified: false,
-      error: error.message || 'Failed to verify transaction'
-    };
+    logger.error('Blockchain verification error', { error: error.message });
+    return { verified: false, error: error.message || 'Failed to verify transaction' };
   }
 };
 
 /**
- * Get transaction details from blockchain
- * 
- * @param {string} txHash - The transaction hash
- * @returns {Promise<Object>} - Transaction details
+ * Get full transaction details.
+ * @param {string} txHash
+ * @returns {Promise<Object>}
  */
 const getTransactionDetails = async (txHash) => {
   try {
-    // Similar to verifyBlockchainTransaction, this is a mock implementation
-    const verificationResult = await verifyBlockchainTransaction(txHash);
-    
-    if (!verificationResult.verified) {
-      throw new Error(verificationResult.error);
+    if (process.env.POLYGON_RPC_URL && txHash && txHash.startsWith('0x') && txHash.length === 66) {
+      const { ethers } = require('ethers');
+      const provider = new ethers.JsonRpcProvider(process.env.POLYGON_RPC_URL);
+      const [tx, receipt] = await Promise.all([
+        provider.getTransaction(txHash),
+        provider.getTransactionReceipt(txHash),
+      ]);
+      if (!tx) throw new Error('Transaction not found on chain');
+      return {
+        verified: receipt ? receipt.status === 1 : false,
+        txHash,
+        blockNumber: tx.blockNumber,
+        from: tx.from,
+        to: tx.to,
+        value: ethers.formatEther(tx.value || 0n) + ' MATIC',
+        gasUsed: receipt ? Number(receipt.gasUsed) : null,
+        source: 'polygon',
+      };
     }
-    
-    // Add more mock transaction details
-    return {
-      ...verificationResult,
-      from: '0x' + Math.random().toString(16).substring(2, 42),
-      to: '0x' + Math.random().toString(16).substring(2, 42),
-      value: (Math.random() * 10).toFixed(4) + ' ETH',
-      gasPrice: (Math.random() * 100).toFixed(2) + ' Gwei'
-    };
+
+    // Ledger mode
+    const BlockchainTransaction = require('../models/BlockchainTransaction');
+    const record = await BlockchainTransaction.findOne({ transactionId: txHash }).lean();
+    if (!record) throw new Error('Transaction not found in ledger');
+    const result = await verifyBlockchainTransaction(txHash);
+    return { ...result, type: record.type, data: record.data };
   } catch (error) {
-    logger.error('Error getting transaction details', { error: error.message, stack: error.stack });
+    logger.error('Error getting transaction details', { error: error.message });
     throw error;
   }
 };
 
-module.exports = {
-  verifyBlockchainTransaction,
-  getTransactionDetails
-};
+module.exports = { verifyBlockchainTransaction, getTransactionDetails };

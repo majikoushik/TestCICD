@@ -1130,7 +1130,7 @@ export default function AdminPatientEngagement() {
                         <TableCell><strong>Channel</strong></TableCell>
                         <TableCell align="center"><strong>Sent</strong></TableCell>
                         <TableCell align="center"><strong>Delivered</strong></TableCell>
-                        <TableCell><strong>Error</strong></TableCell>
+                        <TableCell><strong>Details / Error</strong></TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -1145,22 +1145,42 @@ export default function AdminPatientEngagement() {
                         <TableRow key={cd.channel}>
                           <TableCell>{getChannelLabel(cd.channel)}</TableCell>
                           <TableCell align="center">
-                            {cd.sent
-                              ? <CheckIcon color="success" fontSize="small" />
-                              : <ErrorIcon color="error" fontSize="small" />}
+                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.25 }}>
+                              {cd.sent
+                                ? <CheckIcon color="success" fontSize="small" />
+                                : <ErrorIcon color="error" fontSize="small" />}
+                              {cd.sentAt && (
+                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', whiteSpace: 'nowrap' }}>
+                                  {formatDate(cd.sentAt)}
+                                </Typography>
+                              )}
+                            </Box>
                           </TableCell>
                           <TableCell align="center">
-                            {cd.delivered
-                              ? <CheckIcon color="success" fontSize="small" />
-                              : <ErrorIcon color="error" fontSize="small" />}
+                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.25 }}>
+                              {cd.delivered
+                                ? <CheckIcon color="success" fontSize="small" />
+                                : <ErrorIcon color="error" fontSize="small" />}
+                              {cd.deliveredAt && (
+                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', whiteSpace: 'nowrap' }}>
+                                  {formatDate(cd.deliveredAt)}
+                                </Typography>
+                              )}
+                            </Box>
                           </TableCell>
-                          <TableCell>
-                            <Typography
-                              variant="caption"
-                              color={cd.error ? 'error.main' : 'text.secondary'}
-                            >
-                              {cd.error || '—'}
-                            </Typography>
+                          <TableCell sx={{ maxWidth: 220 }}>
+                            {cd.error ? (
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+                                <Typography variant="caption" color="error.main" sx={{ fontWeight: 600 }}>
+                                  Failed
+                                </Typography>
+                                <Typography variant="caption" color="error.main" sx={{ wordBreak: 'break-word' }}>
+                                  {cd.error}
+                                </Typography>
+                              </Box>
+                            ) : (
+                              <Typography variant="caption" color="text.secondary">—</Typography>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}

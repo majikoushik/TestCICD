@@ -125,6 +125,12 @@ async function updateReferralContract(transactionId, status, updateData = {}) {
 
 /**
  * Process a token transaction (earn, spend, transfer).
+ *
+ * When Polygon is configured (POLYGON_RPC_URL + CLINICTOKEN_ADDRESS + PRIVATE_KEY)
+ * this will attempt an on-chain mint/transfer via the ClinicToken contract.
+ * The result txHash is used as the ledger transactionId so everything is
+ * traceable to the real chain.  Falls back to the MongoDB ledger when Polygon
+ * is not configured or the on-chain call fails.
  */
 async function processTokenTransaction(fromUserId, toUserId, amount, reason, metadata = {}) {
   try {
@@ -138,8 +144,26 @@ async function processTokenTransaction(fromUserId, toUserId, amount, reason, met
       timestamp: new Date().toISOString(),
     };
 
-    const transactionId = await simulateBlockchainTransaction(tokenTransaction);
-    return { transactionId, timestamp: new Date().toISOString(), status: 'completed', amount };
+    // Attempt on-chain mint when we have a recipient wallet address and Polygon is live
+    let onChainTxHash = null;
+    const polygon = require('./polygon');
+    if (polygon.isConfigured() && toUserId !== 'system' && toUserId !== fromUserId) {
+      try {
+        const User = require('../models/User');
+        const recipient = await User.findById(toUserId).select('walletAddress').lean();
+        if (recipient && recipient.walletAddress && recipient.walletAddress.startsWith('0x')) {
+          const result = await polygon.mintOnChain(recipient.walletAddress, amount, reason || 'earn');
+          onChainTxHash = result.txHash;
+        }
+      } catch (polyErr) {
+        logger.warn('On-chain mint failed — falling back to ledger', { error: polyErr.message });
+      }
+    }
+
+    // Always write to the MongoDB ledger for audit trail
+    tokenTransaction.metadata = { ...metadata, onChainTxHash };
+    const transactionId = onChainTxHash || await simulateBlockchainTransaction(tokenTransaction);
+    return { transactionId, timestamp: new Date().toISOString(), status: 'completed', amount, onChain: Boolean(onChainTxHash) };
   } catch (error) {
     logger.error('Error processing token transaction', { error: error.message, stack: error.stack });
     throw new Error(`Failed to process token transaction: ${error.message}`);
@@ -147,21 +171,36 @@ async function processTokenTransaction(fromUserId, toUserId, amount, reason, met
 }
 
 /**
- * Simulate a blockchain transaction — saves to MongoDB instead of files.
+ * Write a transaction to the chained MongoDB ledger.
+ * Each record stores the previous record's hash (previousHash) creating a
+ * tamper-evident linked chain similar to a blockchain's block linkage.
  * @param {Object} data - Transaction data
  * @returns {Promise<string>} - Transaction ID
  */
 async function simulateBlockchainTransaction(data) {
   const BlockchainTransaction = require('../models/BlockchainTransaction');
 
+  // Find the most-recent record to get the chain tip hash
+  const prev = await BlockchainTransaction.findOne().sort({ blockNumber: -1, createdAt: -1 }).lean();
+  const previousHash = prev ? prev.hash : 'genesis';
+  const blockNumber  = prev ? (prev.blockNumber || 0) + 1 : 1;
+
   const transactionId = `tx_${crypto.randomBytes(16).toString('hex')}`;
-  const hash = crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex');
+
+  // Include previousHash in the hash computation so the chain is tamper-evident
+  const hashInput = JSON.stringify({ ...data, previousHash, blockNumber });
+  const hash = crypto.createHash('sha256').update(hashInput).digest('hex');
   const timestamp = new Date();
 
-  await BlockchainTransaction.create({ transactionId, type: data.type, data, hash, timestamp });
-
-  // Simulate blockchain confirmation delay
-  await new Promise(resolve => setTimeout(resolve, 100));
+  await BlockchainTransaction.create({
+    transactionId,
+    type: data.type,
+    data,
+    hash,
+    previousHash,
+    blockNumber,
+    timestamp,
+  });
 
   return transactionId;
 }

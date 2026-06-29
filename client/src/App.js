@@ -83,6 +83,7 @@ const AdminAmbientSessions = lazy(() => import('./pages/admin/AdminAmbientSessio
 const AdminReferralMatching = lazy(() => import('./pages/admin/AdminReferralMatching'));
 const AdminMatchingConfig = lazy(() => import('./pages/admin/AdminMatchingConfig'));
 const AdminAppointments = lazy(() => import('./pages/admin/AdminAppointments'));
+const AdminBlockchain = lazy(() => import('./pages/admin/AdminBlockchain'));
 
 // Appointments
 const BookAppointment = lazy(() => import('./pages/appointments/BookAppointment'));
@@ -495,6 +496,11 @@ function App() {
         <Route path="kyc" element={
           <Suspense fallback={<PageLoadingFallback />}>
             <AdminKYC />
+          </Suspense>
+        } />
+        <Route path="blockchain" element={
+          <Suspense fallback={<PageLoadingFallback />}>
+            <AdminBlockchain />
           </Suspense>
         } />
       </Route>

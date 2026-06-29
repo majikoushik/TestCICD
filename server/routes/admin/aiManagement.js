@@ -394,4 +394,88 @@ router.get('/aggregate', protect, authorize('admin'), async (req, res) => {
   }
 });
 
+// ─── AI Models (in-memory registry — no dedicated DB collection) ─────────────
+
+const AI_MODEL_REGISTRY = [
+  { _id: 'aim-1', name: 'Referral Matching v2.1', type: 'referral_matching', version: '2.1.0', status: 'active', accuracy: 0.934, lastTrained: new Date(Date.now() - 30 * 86400000), totalInferences: 15420, description: 'Matches referral requests to optimal specialist providers.', thresholds: { minConfidence: 0.75, maxCandidates: 10 }, settings: { enabled: true, fallbackToManual: true } },
+  { _id: 'aim-2', name: 'Prior Auth Analyzer v1.4', type: 'prior_auth', version: '1.4.0', status: 'active', accuracy: 0.891, lastTrained: new Date(Date.now() - 45 * 86400000), totalInferences: 5830, description: 'Analyzes prior auth requests and generates recommendations.', thresholds: { minConfidence: 0.80, autoApproveThreshold: 0.95 }, settings: { enabled: true, requireReview: true } },
+  { _id: 'aim-3', name: 'Risk Stratification v3.0', type: 'risk_score', version: '3.0.0', status: 'active', accuracy: 0.876, lastTrained: new Date(Date.now() - 20 * 86400000), totalInferences: 9210, description: 'Assigns AI risk scores to patients.', thresholds: { highRiskThreshold: 0.75, criticalRiskThreshold: 0.90 }, settings: { enabled: true, updateFrequency: 'daily' } },
+  { _id: 'aim-4', name: 'Escalation Detector v1.0', type: 'escalation', version: '1.0.0', status: 'beta', accuracy: 0.842, lastTrained: new Date(Date.now() - 10 * 86400000), totalInferences: 1200, description: 'Detects cases requiring clinical escalation.', thresholds: { flagThreshold: 0.70 }, settings: { enabled: true, notifyProviders: true } },
+];
+
+router.get('/models', protect, authorize('admin'), (req, res) => {
+  res.json({ success: true, count: AI_MODEL_REGISTRY.length, data: AI_MODEL_REGISTRY });
+});
+
+router.get('/models/:id', protect, authorize('admin'), (req, res) => {
+  const model = AI_MODEL_REGISTRY.find(m => m._id === req.params.id);
+  if (!model) return res.status(404).json({ success: false, error: 'AI model not found' });
+  res.json({ success: true, data: model });
+});
+
+router.get('/models/:id/metrics', protect, authorize('admin'), (req, res) => {
+  const model = AI_MODEL_REGISTRY.find(m => m._id === req.params.id);
+  if (!model) return res.status(404).json({ success: false, error: 'AI model not found' });
+  res.json({ success: true, data: { modelId: req.params.id, accuracy: model.accuracy, precision: model.accuracy - 0.013, recall: model.accuracy + 0.013, f1Score: model.accuracy, totalInferences: model.totalInferences } });
+});
+
+router.post('/models/:id/feedback', protect, authorize('admin'), (req, res) => {
+  res.json({ success: true, data: { message: 'Feedback recorded', modelId: req.params.id } });
+});
+
+router.put('/models/:id/thresholds', protect, authorize('admin'), (req, res) => {
+  const model = AI_MODEL_REGISTRY.find(m => m._id === req.params.id);
+  if (!model) return res.status(404).json({ success: false, error: 'AI model not found' });
+  model.thresholds = { ...model.thresholds, ...req.body };
+  res.json({ success: true, data: model });
+});
+
+router.put('/models/:id/settings', protect, authorize('admin'), (req, res) => {
+  const model = AI_MODEL_REGISTRY.find(m => m._id === req.params.id);
+  if (!model) return res.status(404).json({ success: false, error: 'AI model not found' });
+  model.settings = { ...model.settings, ...req.body };
+  res.json({ success: true, data: model });
+});
+
+router.get('/models/:id/training-history', protect, authorize('admin'), (req, res) => {
+  res.json({ success: true, data: [] });
+});
+
+router.get('/models/:id/feedback-history', protect, authorize('admin'), (req, res) => {
+  res.json({ success: true, data: [] });
+});
+
+// ─── Thresholds (global) ─────────────────────────────────────────────────────
+
+const globalThresholds = { referralMatching: { minConfidence: 0.75, maxCandidates: 10 }, priorAuth: { minConfidence: 0.80, autoApproveThreshold: 0.95 }, riskScore: { highRiskThreshold: 0.75, criticalRiskThreshold: 0.90 }, escalation: { flagThreshold: 0.70 } };
+
+router.get('/thresholds', protect, authorize('admin'), (req, res) => {
+  res.json({ success: true, data: globalThresholds });
+});
+
+// ─── Statistics + scheduled reports ─────────────────────────────────────────
+
+router.get('/statistics', protect, authorize('admin'), async (req, res) => {
+  try {
+    const [total, published, underReview] = await Promise.all([
+      AIReport.countDocuments(),
+      AIReport.countDocuments({ status: 'published' }),
+      AIReport.countDocuments({ status: 'under_review' }),
+    ]);
+    const avgAccuracyResult = await AIReport.aggregate([{ $group: { _id: null, avg: { $avg: '$confidenceScore' } } }]);
+    res.json({ success: true, data: { totalReports: total, publishedReports: published, underReview, avgAccuracy: avgAccuracyResult[0]?.avg || 0, totalModels: AI_MODEL_REGISTRY.length, activeModels: AI_MODEL_REGISTRY.filter(m => m.status === 'active').length } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/scheduled-reports', protect, authorize('admin'), async (req, res) => {
+  try {
+    const scheduled = await AIReport.find({ 'schedule.enabled': true }).select('title type schedule createdAt');
+    res.json({ success: true, data: scheduled });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

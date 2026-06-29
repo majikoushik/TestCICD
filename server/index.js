@@ -11,6 +11,7 @@ dotenv.config();
 
 const logger = require('./utils/logger');
 const { runExpirePriorAuths, runUrgencyEscalation } = require('./jobs/expirePriorAuths');
+const { runTokenMaintenance } = require('./jobs/tokenMaintenance');
 
 // Fail fast if required secrets are missing
 const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET', 'JWT_REFRESH_SECRET', 'JWT_RESET_SECRET'];
@@ -57,9 +58,17 @@ const contactRoutes = require('./routes/contact');
 const npiRoutes = require('./routes/npi');
 const onboardingRoutes = require('./routes/onboarding');
 const adminKycRoutes = require('./routes/admin/kyc');
+const adminTokenMgmtRoutes = require('./routes/admin/tokens');
+const adminBlockchainRoutes = require('./routes/admin/blockchain');
 const adminMatchingConfigRoutes = require('./routes/admin/matchingConfig');
 const adminPatientsRoutes = require('./routes/admin/patients');
 const adminAnalyticsJobRoutes = require('./routes/admin/analyticsJob');
+const adminAIConfigRoutes = require('./routes/admin/aiConfig');
+const predictiveAlertRoutes = require('./routes/predictiveAlerts');
+const referralOutcomeRoutes = require('./routes/referralOutcomes');
+const adminMessagingRoutes = require('./routes/admin/messaging');
+const adminEscalationsRoutes = require('./routes/admin/escalations');
+const aiRoutes = require('./routes/ai');
 const providerRoutes = require('./routes/providers');
 
 const app = express();
@@ -176,11 +185,35 @@ function mountLiveRoutes() {
   // Provider onboarding
   app.use('/api/onboarding', protect, onboardingRoutes);
 
+  // Admin token management (must be before generic /api/admin catch-all)
+  app.use('/api/admin/tokens', [protect, authorize('admin', 'superadmin')], adminTokenMgmtRoutes);
+
+  // Admin blockchain ledger + multi-sig operations
+  app.use('/api/admin/blockchain', [protect, authorize('admin', 'superadmin')], adminBlockchainRoutes);
+
   // Admin KYC management
   app.use('/api/admin/kyc', [protect, authorize('admin', 'superadmin')], adminKycRoutes);
   app.use('/api/admin/matching-config', [protect, authorize('admin', 'superadmin')], adminMatchingConfigRoutes);
   app.use('/api/admin/patients', [protect, authorize('admin', 'superadmin')], adminPatientsRoutes);
   app.use('/api/admin/analytics', [protect, authorize('admin', 'superadmin')], adminAnalyticsJobRoutes);
+
+  // Admin messaging — broadcast messages + targeted alerts
+  app.use('/api/admin/messages', [protect, authorize('admin', 'superadmin')], adminMessagingRoutes);
+
+  // Admin escalation workflows
+  app.use('/api/admin/escalations', [protect, authorize('admin', 'superadmin')], adminEscalationsRoutes);
+
+  // AI Configuration (persisted thresholds)
+  app.use('/api/admin/ai-config', [protect, authorize('admin', 'superadmin')], adminAIConfigRoutes);
+
+  // Provider-facing predictive alerts
+  app.use('/api/predictive-alerts', predictiveAlertRoutes);
+
+  // Referral outcome tracking
+  app.use('/api/referral-outcomes', protect, referralOutcomeRoutes);
+
+  // AI assistant (clinical insight, referral summary, risk analysis)
+  app.use('/api/ai', aiRoutes);
 
   // Contact form — POST is public, GET is admin-only
   app.use('/api/contact', contactRoutes);
@@ -234,10 +267,30 @@ async function startServer() {
   if (dbConnected) {
     mountLiveRoutes();
 
+    // Seed genesis block if the chain is empty
+    ensureGenesisBlock().catch(err => logger.warn('Genesis block seed failed (non-fatal)', { error: err.message }));
+
+    // Start on-chain Transfer event listener (no-op when Polygon not configured)
+    const { startEventListener } = require('./blockchain/events');
+    startEventListener().catch(err => logger.warn('Blockchain event listener failed to start (non-fatal)', { error: err.message }));
+
+    // Token maintenance: stake release + expiry (every 6 hours)
+    scheduleTokenMaintenance();
+
     // Schedule nightly PA expiry job at 00:05 server time
     scheduleNightlyJob();
     // Schedule 30-minute urgency escalation check
     scheduleEscalationCheck();
+
+    // Predictive alert generation — run 1 minute after boot, then every 4 hours
+    const { generateAlertsForAllProviders } = require('./services/predictiveAlertService');
+    setTimeout(() => generateAlertsForAllProviders().catch(e => logger.warn('Alert gen failed', {e: e.message})), 60000);
+    setInterval(() => generateAlertsForAllProviders().catch(e => logger.warn('Alert gen failed', {e: e.message})), 4 * 3600000);
+
+    // Feedback loop — run daily at startup + every 24h
+    const { runFeedbackLoop } = require('./services/feedbackLoopService');
+    setTimeout(() => runFeedbackLoop().catch(() => {}), 120000);
+    setInterval(() => runFeedbackLoop().catch(() => {}), 24 * 3600000);
   } else {
     mountSyntheticRoutes();
   }
@@ -287,6 +340,52 @@ function scheduleEscalationCheck() {
     const result = await runUrgencyEscalation();
     logger.info('[escalation] Interval check complete', result);
   }, INTERVAL_MS);
+}
+
+// ── Token maintenance scheduler (stake release + expiry, every 6 h) ──────────
+function scheduleTokenMaintenance() {
+  const INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
+  logger.info('[tokenMaintenance] Scheduled every 6 hours');
+  // Run once 30 s after boot to catch anything that matured while server was down
+  setTimeout(async () => {
+    const result = await runTokenMaintenance();
+    logger.info('[tokenMaintenance] Startup run complete', result);
+  }, 30_000);
+  setInterval(async () => {
+    const result = await runTokenMaintenance();
+    logger.info('[tokenMaintenance] Interval run complete', result);
+  }, INTERVAL_MS);
+}
+
+// ── Genesis block (seeds the chain if it has never been written) ──────────────
+async function ensureGenesisBlock() {
+  const BlockchainTransaction = require('./models/BlockchainTransaction');
+  const existing = await BlockchainTransaction.countDocuments();
+  if (existing > 0) return; // chain already has records
+
+  const crypto = require('crypto');
+  const genesisData = {
+    type: 'genesis',
+    message: 'ClinicTrust AI — genesis block',
+    version: '2.0',
+    network: process.env.POLYGON_NETWORK || 'ledger',
+    createdAt: new Date().toISOString(),
+  };
+  const previousHash = 'genesis';
+  const blockNumber  = 0;
+  const hashInput    = JSON.stringify({ ...genesisData, previousHash, blockNumber });
+  const hash         = crypto.createHash('sha256').update(hashInput).digest('hex');
+  const transactionId = `genesis_${crypto.randomBytes(8).toString('hex')}`;
+  await BlockchainTransaction.create({
+    transactionId,
+    type: 'genesis',
+    data: genesisData,
+    hash,
+    previousHash,
+    blockNumber,
+    timestamp: new Date(),
+  });
+  logger.info('Blockchain genesis block created', { transactionId, hash });
 }
 
 startServer();

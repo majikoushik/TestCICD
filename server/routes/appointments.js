@@ -452,18 +452,24 @@ router.put('/:id/status', async (req, res) => {
       // Award provider tokens if not already done
       if (!appointment.tokenRewardIssued) {
         try {
+          let reward = PROVIDER_TOKEN_REWARD;
+          try {
+            const TokenEarnPolicy = require('../models/TokenEarnPolicy');
+            const policy = await TokenEarnPolicy.getSingleton();
+            reward = policy.appointmentCompleted || PROVIDER_TOKEN_REWARD;
+          } catch (_) {}
           await processTokenTransaction(
             'system',
             appointment.providerId.toString(),
-            PROVIDER_TOKEN_REWARD,
+            reward,
             'Appointment completion reward',
             { appointmentId: appointment._id.toString() }
           );
           await User.findByIdAndUpdate(appointment.providerId, {
-            $inc: { tokenBalance: PROVIDER_TOKEN_REWARD }
+            $inc: { tokenBalance: reward }
           });
           appointment.tokenRewardIssued = true;
-          appointment.tokenRewardAmount = PROVIDER_TOKEN_REWARD;
+          appointment.tokenRewardAmount = reward;
         } catch (tokenErr) {
           logger.error('Token reward error', logger.reqCtx(req, tokenErr));
         }

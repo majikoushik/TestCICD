@@ -3,7 +3,8 @@ const router = express.Router();
 const PriorAuthorization = require('../models/PriorAuthorization');
 const AuditLog = require('../models/AuditLog');
 const { analyzePriorAuthorization } = require('../services/azureAIService');
-const { triggerAutomaticNotification, sendPatientNotification } = require('../services/patientEngagementService');
+const { triggerAutomaticNotification, sendPatientNotification, sendEmail, saveNotificationLog } = require('../services/patientEngagementService');
+const User = require('../models/User');
 const logger = require('../utils/logger');
 
 // All routes in this file are already guarded by protect + authorize('admin','superadmin')
@@ -31,21 +32,22 @@ async function auditPA(action, pa, req) {
   }
 }
 
-// ── Notification helper ───────────────────────────────────────────────────────
+// ── Notification helpers ──────────────────────────────────────────────────────
 async function notifyPatient(type, pa) {
   try {
-    // In production these come from the patient record; use PA data as fallback
-    const patient = {
-      name: pa.patientName,
-      email: pa.patientEmail || '',
-      phone: pa.patientPhone || '',
-    };
+    let patientEmail = pa.patientEmail || '';
+    let patientPhone = pa.patientPhone || '';
+    if ((!patientEmail && !patientPhone) && pa.patientId) {
+      const user = await User.findById(pa.patientId).select('email phone').lean().catch(() => null);
+      if (user) { patientEmail = user.email || ''; patientPhone = user.phone || ''; }
+    }
 
-    if (!patient.email && !patient.phone) {
+    if (!patientEmail && !patientPhone) {
       logger.info('PA notification skipped — no patient contact info', { paId: pa._id, type });
       return;
     }
 
+    const patient = { name: pa.patientName, email: patientEmail, phone: patientPhone };
     const relatedData = {
       serviceName: pa.serviceType,
       authNumber: String(pa._id).slice(-8).toUpperCase(),
@@ -55,8 +57,47 @@ async function notifyPatient(type, pa) {
     const notification = await triggerAutomaticNotification(type, relatedData, patient);
     const result = await sendPatientNotification(notification);
     logger.info('PA patient notification sent', { type, paId: pa._id, overall: result.overall });
+
+    // Persist to notification history (fire-and-forget)
+    saveNotificationLog({ paId: pa._id, patientId: pa.patientId, patientName: pa.patientName, patientEmail, patientPhone, notifObj: notification, sendResult: result }).catch(() => {});
   } catch (err) {
     logger.warn('PA patient notification failed (non-fatal)', { error: err.message, paId: pa._id });
+  }
+}
+
+async function notifyProvider(type, pa) {
+  try {
+    if (!pa.requestingProviderId) return;
+    const user = await User.findById(pa.requestingProviderId).select('email name').lean().catch(() => null);
+    const providerEmail = user?.email || '';
+    if (!providerEmail) { logger.info('PA provider notification skipped — no provider email', { paId: pa._id }); return; }
+
+    const authNumber = String(pa._id).slice(-8).toUpperCase();
+    const serviceType = pa.serviceType;
+    const patientName = pa.patientName;
+    let subject, html, text;
+
+    if (type === 'prior_auth_approved') {
+      subject = `Prior Authorization Approved — ${serviceType}`;
+      text = `Your prior authorization request for ${serviceType} (Auth #${authNumber}) for patient ${patientName} has been approved. Please contact the patient to schedule the service.`;
+      html = `<h3>Prior Authorization Approved</h3><p>Patient: <strong>${patientName}</strong></p><p>Service: <strong>${serviceType}</strong> (Auth #${authNumber})</p><p>Status: <strong style="color:green">Approved</strong></p><p>Please contact the patient to schedule the service.</p>`;
+    } else if (type === 'prior_auth_denied') {
+      const reason = pa.reviewerNotes || pa.denialReasonDescription || 'Not specified';
+      subject = `Prior Authorization Denied — ${serviceType}`;
+      text = `Your prior authorization request for ${serviceType} (Auth #${authNumber}) for patient ${patientName} has been denied. Reason: ${reason}. You may submit an appeal on the patient's behalf.`;
+      html = `<h3>Prior Authorization Denied</h3><p>Patient: <strong>${patientName}</strong></p><p>Service: <strong>${serviceType}</strong> (Auth #${authNumber})</p><p>Status: <strong style="color:red">Denied</strong></p><p>Reason: ${reason}</p><p>You may submit an appeal on the patient's behalf.</p>`;
+    } else if (type === 'prior_auth_expired') {
+      subject = `Prior Authorization Expired — ${serviceType}`;
+      text = `Prior authorization for ${serviceType} (Auth #${authNumber}) for patient ${patientName} has expired. Please submit a renewal if the service is still needed.`;
+      html = `<h3>Prior Authorization Expired</h3><p>Patient: <strong>${patientName}</strong></p><p>Service: <strong>${serviceType}</strong> (Auth #${authNumber})</p><p>Status: <strong>Expired</strong></p><p>Please submit a renewal if the service is still needed.</p>`;
+    } else {
+      return;
+    }
+
+    await sendEmail(providerEmail, subject, html, text);
+    logger.info('PA provider notification sent', { type, paId: pa._id, providerEmail });
+  } catch (err) {
+    logger.warn('PA provider notification failed (non-fatal)', { error: err.message, paId: pa._id });
   }
 }
 
@@ -99,10 +140,10 @@ router.get('/', async (req, res) => {
       .limit(parseInt(limit));
 
     // Attach priority score to each PA
-    const now = Date.now();
+    const nowMs = Date.now();
     const pas = rawPas.map(pa => {
       const obj = pa.toObject();
-      obj.priorityScore = computePriorityScore(obj, now);
+      obj.priorityScore = computePriorityScore(obj, nowMs);
       return obj;
     });
 
@@ -329,7 +370,7 @@ router.post('/bulk-review', async (req, res) => {
     })));
 
     const notifType = decision === 'Approved' ? 'prior_auth_approved' : 'prior_auth_denied';
-    pas.forEach(pa => notifyPatient(notifType, pa));
+    pas.forEach(pa => { notifyPatient(notifType, pa); notifyProvider(notifType, pa); });
 
     logger.info('PA bulk review complete', { count: pas.length, decision, adminId: req.user.id });
     res.json({ success: true, data: { processed: pas.length, skipped: ids.length - pas.length, decision } });
@@ -416,11 +457,10 @@ router.put('/:id/review', async (req, res) => {
     // Audit log
     await auditPA(decision === 'Approved' ? 'PA_APPROVED' : 'PA_DENIED', pa, req);
 
-    // Notify patient (fire-and-forget)
-    notifyPatient(
-      decision === 'Approved' ? 'prior_auth_approved' : 'prior_auth_denied',
-      pa
-    );
+    // Notify patient + provider (fire-and-forget)
+    const reviewNotifType = decision === 'Approved' ? 'prior_auth_approved' : 'prior_auth_denied';
+    notifyPatient(reviewNotifType, pa);
+    notifyProvider(reviewNotifType, pa);
 
     res.json({ success: true, data: pa });
   } catch (err) {
@@ -464,11 +504,10 @@ router.put('/:id/appeal-review', async (req, res) => {
     // Audit log
     await auditPA(outcome === 'Approved' ? 'PA_APPEAL_APPROVED' : 'PA_APPEAL_DENIED', pa, req);
 
-    // Notify patient (fire-and-forget)
-    notifyPatient(
-      outcome === 'Approved' ? 'prior_auth_approved' : 'prior_auth_denied',
-      pa
-    );
+    // Notify patient + provider (fire-and-forget)
+    const appealNotifType = outcome === 'Approved' ? 'prior_auth_approved' : 'prior_auth_denied';
+    notifyPatient(appealNotifType, pa);
+    notifyProvider(appealNotifType, pa);
 
     res.json({ success: true, data: pa });
   } catch (err) {

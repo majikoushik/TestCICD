@@ -3,6 +3,7 @@
 const ProviderMatchProfile = require('../models/ProviderMatchProfile');
 const MatchSession = require('../models/MatchSession');
 const MatchingConfig = require('../models/MatchingConfig');
+const ReferralOutcome = require('../models/ReferralOutcome');
 
 // ── Config cache (1-minute TTL) ───────────────────────────────────────────────
 let _configCache = null;
@@ -171,7 +172,7 @@ function calcBypassTextBonus(profile, searchTerm) {
   return 0;
 }
 
-function scoreProvider(profile, criteria, config) {
+async function scoreProvider(profile, criteria, config) {
   const { specialty, patientInsurance, urgency } = criteria || {};
 
   const specialtyResult   = calcSpecialtyScore(profile, specialty, config);
@@ -181,7 +182,17 @@ function scoreProvider(profile, criteria, config) {
   const tokenScore        = calcTokenStandingScore(profile, config);
   const bonuses           = calcBonuses(profile, urgency);
 
-  const raw = specialtyResult.score + insuranceScore + acceptanceScore + availabilityScore + tokenScore + bonuses;
+  // Outcome score component (0-15 pts)
+  let outcomeScore = 0;
+  const avgOutcome = await ReferralOutcome.getProviderOutcomeScore(profile._id || profile.id);
+  if (avgOutcome !== null) {
+    if (avgOutcome >= 80) outcomeScore = 15;
+    else if (avgOutcome >= 65) outcomeScore = 10;
+    else if (avgOutcome >= 50) outcomeScore = 5;
+    else outcomeScore = 0;
+  }
+
+  const raw = specialtyResult.score + insuranceScore + acceptanceScore + availabilityScore + tokenScore + bonuses + outcomeScore;
 
   return {
     ...profile,
@@ -194,6 +205,7 @@ function scoreProvider(profile, criteria, config) {
       availability:   availabilityScore,
       tokenStanding:  tokenScore,
       bonuses,
+      outcome:        outcomeScore,
     },
   };
 }
@@ -224,9 +236,11 @@ async function findMatches(criteria, options = {}) {
     // $ne:false includes documents where the field is missing (insertMany bypass).
     const profiles = await ProviderMatchProfile.find({ isAcceptingReferrals: { $ne: false } }).lean();
 
-    let scored = profiles
-      .filter(p => !excludeProviderIds.includes(String(p._id)))
-      .map(p => scoreProvider(p, criteria, config));
+    let scored = await Promise.all(
+      profiles
+        .filter(p => !excludeProviderIds.includes(String(p._id)))
+        .map(p => scoreProvider(p, criteria, config))
+    );
 
     if (config.bypassSpecialtyFilter) {
       // Bypass: return all providers; text-match bonus lifts relevant ones higher.

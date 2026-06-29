@@ -4,6 +4,8 @@ const PriorAuthorization = require('../models/PriorAuthorization');
 const AuditLog = require('../models/AuditLog');
 const { protect } = require('../middleware/auth');
 const { analyzePriorAuthorization, isEligibleForAutoApproval } = require('../services/azureAIService');
+const { triggerAutomaticNotification, sendPatientNotification, saveNotificationLog } = require('../services/patientEngagementService');
+const User = require('../models/User');
 const logger = require('../utils/logger');
 
 const APPEAL_REVIEW_SLA_DAYS = 15;
@@ -98,6 +100,34 @@ router.post('/', protect, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing required fields: patientId, patientName, serviceType, clinicalNotes' });
     }
 
+    // Fast-track: optional token-gated priority processing (–10 tokens, skips queue)
+    const requestFastTrack = req.body.fastTrack === true || req.body.fastTrack === 'true';
+    let fastTrackCost = 0;
+    if (requestFastTrack) {
+      const ConversionRule = require('../models/ConversionRule');
+      const ftRule = await ConversionRule.findOne({ serviceId: 'pa-fast-track', isActive: true }).lean().catch(() => null);
+      fastTrackCost = ftRule ? ftRule.tokenCost : 10;
+      const provider = await User.findById(req.user.id).select('tokenBalance').lean();
+      if (!provider || provider.tokenBalance < fastTrackCost) {
+        return res.status(400).json({ success: false, error: `Insufficient tokens for PA fast-track. Required: ${fastTrackCost}` });
+      }
+      // Deduct tokens immediately (before save so we don't leak on error)
+      await User.findByIdAndUpdate(req.user.id, { $inc: { tokenBalance: -fastTrackCost } });
+      // Record spend transaction (fire-and-forget)
+      ;(async () => {
+        try {
+          const { Token } = require('../models/Token');
+          const { processTokenTransaction } = require('../blockchain/contracts');
+          const blockchainTx = await processTokenTransaction(String(req.user.id), 'system', fastTrackCost, 'PA fast-track', { serviceId: 'pa-fast-track' }).catch(() => ({ transactionId: null }));
+          const updatedUser = await User.findById(req.user.id).select('tokenBalance').lean();
+          let token = await Token.findOne();
+          if (!token) token = new Token({ contractAddress: `0x${require('crypto').randomBytes(20).toString('hex')}` });
+          token.transactions.push({ user: req.user.id, type: 'spend', amount: -fastTrackCost, reason: 'PA fast-track priority processing', relatedEntity: { entityType: 'service', entityId: null }, blockchainTransactionId: blockchainTx.transactionId, status: 'completed', balanceAfter: (updatedUser || {}).tokenBalance || 0, metadata: { serviceId: 'pa-fast-track' } });
+          await token.save();
+        } catch (_) {}
+      })();
+    }
+
     const pa = new PriorAuthorization({
       referralId: referralId || null,
       patientId,
@@ -113,10 +143,26 @@ router.post('/', protect, async (req, res) => {
       insurancePlan: insurancePlan || '',
       memberId: memberId || '',
       status: 'Pending',
+      fastTrack: requestFastTrack,
+      fastTrackTokenCost: fastTrackCost,
     });
 
     await pa.save();
     await auditPA('PA_SUBMITTED', pa, req);
+
+    // Notify patient that PA is under review (fire-and-forget)
+    ;(async () => {
+      try {
+        const patientUser = await User.findById(patientId).select('email phone').lean();
+        if (patientUser?.email || patientUser?.phone) {
+          const patient = { name: patientName, email: patientUser.email || '', phone: patientUser.phone || '' };
+          const relatedData = { serviceName: serviceType, authNumber: String(pa._id).slice(-8).toUpperCase() };
+          const notif = await triggerAutomaticNotification('prior_auth_under_review', relatedData, patient);
+          const result = await sendPatientNotification(notif);
+          await saveNotificationLog({ paId: pa._id, patientId, patientName, patientEmail: patientUser.email, patientPhone: patientUser.phone, notifObj: notif, sendResult: result });
+        }
+      } catch (_) {}
+    })();
 
     // Run AI analysis async — triggers auto-approval if criteria met
     const savedPaId = pa._id;
@@ -153,6 +199,19 @@ router.post('/', protect, async (req, res) => {
             method: 'POST',
           });
           logger.info('PA auto-approved', { paId: doc._id, confidence: aiResult.confidenceScore, serviceType: doc.serviceType });
+          // Notify patient of auto-approval (fire-and-forget)
+          ;(async () => {
+            try {
+              const pu = await User.findById(doc.patientId).select('email phone').lean();
+              if (pu?.email || pu?.phone) {
+                const pt = { name: doc.patientName, email: pu.email || '', phone: pu.phone || '' };
+                const rd = { serviceName: doc.serviceType, authNumber: String(doc._id).slice(-8).toUpperCase() };
+                const notif = await triggerAutomaticNotification('prior_auth_approved', rd, pt);
+                const result = await sendPatientNotification(notif);
+                await saveNotificationLog({ paId: doc._id, patientId: doc.patientId, patientName: doc.patientName, patientEmail: pu.email, patientPhone: pu.phone, notifObj: notif, sendResult: result });
+              }
+            } catch (_) {}
+          })();
         } else {
           doc.status = 'Under Review';
           if (aiResult.denialReasonCode) {

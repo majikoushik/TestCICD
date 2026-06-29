@@ -41,6 +41,7 @@ import AIReportScheduler from '../../components/admin/AIReportScheduler';
 
 // Services
 import aiManagementService from '../../services/aiManagementService';
+import { get, put, post } from '../../utils/apiUtils';
 
 // Common components
 import { ModernLoadingIndicator } from '../../components/common';
@@ -72,6 +73,10 @@ const AdminAIManagement = () => {
   
   // AI Statistics state
   const [aiStatistics, setAiStatistics] = useState(null);
+
+  // AI Config state (persisted in MongoDB)
+  const [aiConfigs, setAiConfigs] = useState([]);
+  const [aiConfigEditValues, setAiConfigEditValues] = useState({});
   
   // Define columns for data grid
   const columns = [
@@ -107,6 +112,17 @@ const AdminAIManagement = () => {
     fetchAIModels();
   }, []);
 
+  // Load AI configs from MongoDB on mount
+  useEffect(() => {
+    const loadAiConfigs = async () => {
+      try {
+        const resp = await get('/admin/ai-config');
+        if (resp?.data) setAiConfigs(resp.data);
+      } catch (e) { console.error('Failed to load AI configs', e); }
+    };
+    loadAiConfigs();
+  }, []);
+
   // Fetch reports from API
   const fetchReports = async () => {
     setLoading(true);
@@ -121,7 +137,7 @@ const AdminAIManagement = () => {
       } else {
         // Using real API
         const data = await aiManagementService.getReports();
-        setReports(data || []);
+        setReports(data?.data || data || []);
         setLoading(false);
       }
     } catch (err) {
@@ -355,16 +371,27 @@ const AdminAIManagement = () => {
         // Simulate API delay with mock data
         await new Promise(resolve => setTimeout(resolve, 800));
       }
-      
+
+      // Persist thresholds to MongoDB via ai-config endpoint
+      const prefix = selectedModel ? `model.${selectedModel.id}` : 'priorAuth';
+      const configUpdates = Object.entries(thresholds).map(([key, value]) => ({
+        key: `${prefix}.${key}`, value
+      }));
+      await post('/admin/ai-config/bulk', { configs: configUpdates });
+
+      // Refresh ai-config state
+      const resp = await get('/admin/ai-config');
+      if (resp?.data) setAiConfigs(resp.data);
+
       setOpenThresholdDialog(false);
-      
+
       // Refresh models to get updated thresholds
       fetchAIModels(modelFilters);
-      
+
       setSnackbar({
         open: true,
-        message: selectedModel 
-          ? `Thresholds for ${selectedModel.name} updated successfully` 
+        message: selectedModel
+          ? `Thresholds for ${selectedModel.name} updated successfully`
           : 'Global AI thresholds updated successfully',
         severity: 'success'
       });
@@ -375,6 +402,21 @@ const AdminAIManagement = () => {
         message: `Failed to update thresholds: ${err.message || 'Please try again.'}`,
         severity: 'error'
       });
+    }
+  };
+
+  // Handle saving a single AI config row inline
+  const handleSaveAiConfigRow = async (configKey) => {
+    try {
+      const value = aiConfigEditValues[configKey];
+      await put(`/admin/ai-config/${encodeURIComponent(configKey)}`, { value });
+      const resp = await get('/admin/ai-config');
+      if (resp?.data) setAiConfigs(resp.data);
+      setAiConfigEditValues(prev => { const next = { ...prev }; delete next[configKey]; return next; });
+      setSnackbar({ open: true, message: `Config "${configKey}" saved`, severity: 'success' });
+    } catch (err) {
+      console.error('Error saving AI config', err);
+      setSnackbar({ open: true, message: `Failed to save config: ${err.message || 'Please try again.'}`, severity: 'error' });
     }
   };
   
@@ -549,8 +591,9 @@ const AdminAIManagement = () => {
       } else {
         // Using real API with filters
         const data = await aiManagementService.getAIModels(filters);
-        if (Array.isArray(data)) {
-          setAiModels(data);
+        const modelsArray = data?.data || data;
+        if (Array.isArray(modelsArray)) {
+          setAiModels(modelsArray);
         } else {
           console.error('Invalid AI models data format:', data);
           setAiModels([]);
@@ -586,7 +629,7 @@ const AdminAIManagement = () => {
       } else {
         // Using real API
         const data = await aiManagementService.getAIStatistics();
-        setAiStatistics(data || {});
+        setAiStatistics(data?.data || data || {});
       }
     } catch (err) {
       console.error('Error fetching AI statistics:', err);
@@ -679,6 +722,7 @@ const AdminAIManagement = () => {
               if (tabValue === 3) return report.status === 'rejected';
               return true;
             })}
+            getRowId={(row) => row._id || row.id}
             columns={columns}
             pageSize={10}
             rowsPerPageOptions={[10]}
@@ -1535,6 +1579,86 @@ const AdminAIManagement = () => {
         )}
       </Paper>
       
+      {/* AI Configuration Section */}
+      <Paper sx={{ mt: 4, p: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6">AI Configuration</Typography>
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={async () => {
+              try {
+                const resp = await get('/admin/ai-config');
+                if (resp?.data) setAiConfigs(resp.data);
+              } catch (e) { console.error('Failed to refresh AI configs', e); }
+            }}
+          >
+            Refresh
+          </Button>
+        </Box>
+        <Divider sx={{ mb: 2 }} />
+        {aiConfigs.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>
+            No AI configuration entries found.
+          </Typography>
+        ) : (
+          <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse' }}>
+            <Box component="thead">
+              <Box component="tr" sx={{ borderBottom: '2px solid', borderColor: 'divider' }}>
+                {['Key', 'Value', 'Description', 'Actions'].map(col => (
+                  <Box component="th" key={col} sx={{ p: 1.5, textAlign: 'left' }}>
+                    <Typography variant="subtitle2">{col}</Typography>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+            <Box component="tbody">
+              {aiConfigs.map((cfg) => {
+                const isEditing = aiConfigEditValues.hasOwnProperty(cfg.key);
+                return (
+                  <Box component="tr" key={cfg.key} sx={{ borderBottom: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}>
+                    <Box component="td" sx={{ p: 1.5 }}>
+                      <Typography variant="body2" fontFamily="monospace">{cfg.key}</Typography>
+                    </Box>
+                    <Box component="td" sx={{ p: 1.5, minWidth: 160 }}>
+                      {isEditing ? (
+                        <TextField
+                          size="small"
+                          value={aiConfigEditValues[cfg.key]}
+                          onChange={(e) => setAiConfigEditValues(prev => ({ ...prev, [cfg.key]: e.target.value }))}
+                          sx={{ width: '100%' }}
+                        />
+                      ) : (
+                        <Typography variant="body2">{String(cfg.value)}</Typography>
+                      )}
+                    </Box>
+                    <Box component="td" sx={{ p: 1.5 }}>
+                      <Typography variant="body2" color="text.secondary">{cfg.description || '—'}</Typography>
+                    </Box>
+                    <Box component="td" sx={{ p: 1.5 }}>
+                      {isEditing ? (
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <Button size="small" variant="contained" startIcon={<SaveIcon />} onClick={() => handleSaveAiConfigRow(cfg.key)}>
+                            Save
+                          </Button>
+                          <Button size="small" startIcon={<CancelIcon />} onClick={() => setAiConfigEditValues(prev => { const next = { ...prev }; delete next[cfg.key]; return next; })}>
+                            Cancel
+                          </Button>
+                        </Box>
+                      ) : (
+                        <Button size="small" variant="outlined" startIcon={<SettingsIcon />} onClick={() => setAiConfigEditValues(prev => ({ ...prev, [cfg.key]: cfg.value }))}>
+                          Edit
+                        </Button>
+                      )}
+                    </Box>
+                  </Box>
+                );
+              })}
+            </Box>
+          </Box>
+        )}
+      </Paper>
+
       {/* Snackbar for notifications */}
       <Snackbar
         open={snackbar.open}
