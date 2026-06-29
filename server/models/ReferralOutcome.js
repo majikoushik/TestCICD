@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 
 const referralOutcomeSchema = new mongoose.Schema({
-  referralId: { type: mongoose.Schema.Types.ObjectId, ref: 'Referral', required: true, unique: true },
-  providerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  patientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient' },
+  referralId: { type: String, ref: 'Referral', required: true, unique: true },
+  providerId: { type: String, ref: 'User', required: true },
+  patientId: { type: String, ref: 'Patient' },
   specialty: { type: String },
   // Acceptance
   accepted: { type: Boolean, default: null },

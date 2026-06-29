@@ -53,8 +53,7 @@ export function AuthProvider({ children }) {
       authStorage.set('token', response.token);
       setToken(response.token);
       setCurrentUser(response.user);
-      // Store user for onboarding status checks
-      localStorage.setItem('user', JSON.stringify(response.user));
+      authStorage.set('user', response.user);
       setError('');
 
       return response;
@@ -75,7 +74,7 @@ export function AuthProvider({ children }) {
       authStorage.set('token', response.token);
       setToken(response.token);
       setCurrentUser(response.user);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      authStorage.set('user', response.user);
       setError('');
 
       return response;
@@ -92,7 +91,6 @@ export function AuthProvider({ children }) {
     try {
       await authService.logout();
       authStorage.clear();
-      localStorage.removeItem('user');
       setToken(null);
       setCurrentUser(null);
     } catch (err) {
@@ -161,7 +159,7 @@ export function AuthProvider({ children }) {
     try {
       const user = await authService.getCurrentUser();
       setCurrentUser(user);
-      localStorage.setItem('user', JSON.stringify(user));
+      authStorage.set('user', user);
       return user;
     } catch (e) {
       console.error('Failed to refresh user:', e);

@@ -11,7 +11,7 @@ const logger = require('../utils/logger');
 // ordered by most-recent activity.
 router.get('/threads', protect, async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user._id.toString();
 
     // All messages where this user is sender or receiver
     const threads = await Message.aggregate([
@@ -61,11 +61,11 @@ router.get('/threads', protect, async (req, res) => {
 router.get('/threads/:referralId', protect, async (req, res) => {
   try {
     const { referralId } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(referralId)) {
+    if (!referralId) {
       return res.status(400).json({ success: false, error: 'Invalid referral ID' });
     }
 
-    const userId = req.user._id;
+    const userId = req.user._id.toString();
 
     // Verify the requesting user is a participant
     const referral = await Referral.findById(referralId).select(
@@ -112,11 +112,8 @@ router.post('/threads/:referralId', protect, async (req, res) => {
     if (content.trim().length > 2000) {
       return res.status(400).json({ success: false, error: 'Message exceeds 2000 character limit' });
     }
-    if (!mongoose.Types.ObjectId.isValid(referralId)) {
-      return res.status(400).json({ success: false, error: 'Invalid referral ID' });
-    }
 
-    const senderId = req.user._id;
+    const senderId = req.user._id.toString();
 
     const referral = await Referral.findById(referralId)
       .populate('referringProvider', 'name firstName lastName role')
@@ -158,7 +155,7 @@ router.patch('/read/:referralId', protect, async (req, res) => {
   try {
     const { referralId } = req.params;
     await Message.updateMany(
-      { referralId, receiverId: req.user._id, readAt: null },
+      { referralId, receiverId: req.user._id.toString(), readAt: null },
       { $set: { readAt: new Date() } }
     );
     res.json({ success: true });

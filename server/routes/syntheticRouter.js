@@ -4803,6 +4803,92 @@ router.post('/ai/risk-analysis', protect, (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// ── User Profile & Settings (synthetic stubs) ─────────────────────────────────
+// In-memory stores keyed by userId — persist within a server session
+const syntheticUserSettings = {};
+const syntheticUserProfiles = {};
+
+router.get('/users/profile', protect, (req, res) => {
+  const u = req.user;
+  const saved = syntheticUserProfiles[u._id] || {};
+  res.json({ success: true, data: {
+    _id: u._id, firstName: u.firstName, lastName: u.lastName, name: u.name,
+    email: u.email, role: u.role,
+    specialty: saved.specialty || u.specialty || 'Internal Medicine',
+    credential: saved.credential || u.credential || 'MD',
+    organization: u.organization,
+    phone: saved.phone || u.phone || '', fax: saved.fax || u.fax || '',
+    bio: saved.bio || u.bio || '',
+    npi: u.npi || u.kycDocuments?.licenseNumber || '',
+    kycVerified: u.kycVerified || false,
+    profileImage: saved.profileImage || u.profileImage || null,
+    accountStatus: u.accountStatus, onboardingStatus: u.onboardingStatus,
+    tokenBalance: u.tokenBalance || 0, walletAddress: u.walletAddress || null,
+    settings: syntheticUserSettings[u._id] || {},
+  }});
+});
+
+router.put('/users/profile', protect, (req, res) => {
+  const u = req.user;
+  syntheticUserProfiles[u._id] = { ...(syntheticUserProfiles[u._id] || {}), ...req.body };
+  res.json({ success: true, data: { ...u, ...req.body } });
+});
+
+router.post('/users/profile/image', protect, (req, res) => {
+  const { imageData } = req.body;
+  if (!imageData) return res.status(400).json({ success: false, error: 'imageData required' });
+  syntheticUserProfiles[req.user._id] = { ...(syntheticUserProfiles[req.user._id] || {}), profileImage: imageData };
+  res.json({ success: true, data: { profileImage: imageData } });
+});
+
+router.get('/users/settings', protect, (req, res) => {
+  res.json({ success: true, data: syntheticUserSettings[req.user._id] || {} });
+});
+
+router.put('/users/settings', protect, (req, res) => {
+  syntheticUserSettings[req.user._id] = req.body;
+  res.json({ success: true, data: req.body });
+});
+
+router.post('/users/blockchain/verify', protect, (req, res) => {
+  const u = req.user;
+  if (u.blockchainId) {
+    return res.json({ success: true, data: { alreadyVerified: true, blockchainId: u.blockchainId, walletAddress: u.walletAddress } });
+  }
+  const blockchainId = '0xSYNTHETIC' + u._id.replace(/-/g, '').padEnd(30, '0').slice(0, 30);
+  const walletAddress = '0xWALLET' + u._id.replace(/-/g, '').padEnd(33, '0').slice(0, 33);
+  res.json({ success: true, data: { alreadyVerified: false, blockchainId, walletAddress } });
+});
+
+// Admin: list + get users
+router.get('/users', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: [], total: 0, page: 1, pages: 0 });
+});
+
+router.get('/users/:userId', protect, authorize('admin', 'superadmin'), (req, res) => {
+  res.json({ success: true, data: null });
+});
+
+// ── Provider Profile (synthetic stubs) ───────────────────────────────────────
+// Keyed by userId — stores each provider's own editable practice profile
+const syntheticMyProviderProfile = {};
+
+router.get('/providers/profile', protect, (req, res) => {
+  const saved = syntheticMyProviderProfile[req.user._id] || {
+    userId: req.user._id, npi: '', specialty: req.user.specialty || '',
+    acceptingNewPatients: true, telehealthAvailable: false,
+    languagesSpoken: ['English'], insuranceAccepted: [],
+    boardCertifications: [], hospitalAffiliations: [], conditionsTreated: [],
+    ageGroupsTreated: ['Adult (18-64)'],
+  };
+  res.json({ success: true, data: saved });
+});
+
+router.put('/providers/profile', protect, (req, res) => {
+  syntheticMyProviderProfile[req.user._id] = { ...(syntheticMyProviderProfile[req.user._id] || {}), ...req.body };
+  res.json({ success: true, data: syntheticMyProviderProfile[req.user._id] });
+});
+
 // Catch-all for any unmapped synthetic route
 // ---------------------------------------------------------------------------
 

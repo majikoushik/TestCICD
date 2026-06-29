@@ -62,6 +62,7 @@ await db.collection('tokenstakes').drop().catch(() => {});
 await db.collection('aiconfigs').drop().catch(() => {});
 await db.collection('referraloutcomes').drop().catch(() => {});
 await db.collection('predictivealerts').drop().catch(() => {});
+await db.collection('messages').drop().catch(() => {});
 
 // Create users collection
 // Password hash for "Demo1234!" with bcrypt cost 10
@@ -5734,6 +5735,488 @@ console.log(`blockchain genesis block seeded: ${genesisTxId} (hash: ${genesisHas
   ];
   await db.collection('predictivealerts').insertMany(predictiveAlerts);
   console.log('Predictive alerts seeded');
+
+  // ── ANALYTICS SNAPSHOTS ───────────────────────────────────────────────────────
+  console.log('Seeding analytics snapshots...');
+  const snapNow  = new Date();
+  const snapD    = (days) => new Date(Date.now() - days * 86400000);
+  const metric   = (value, trend, unit = 'count', label = '') => ({ value, trend, unit, label });
+
+  const analyticsSnapshots = [
+    // ── Global — current month ────────────────────────────────────────────────
+    {
+      snapshotId: 'snap-global-current',
+      scope: 'global', scopeId: null,
+      period: { from: snapD(30), to: snapNow },
+      computedAt: snapD(1), computedBy: 'job', durationMs: 420,
+      metrics: {
+        patientEngagement:    metric(72, 3.1, 'percent', 'Patient Engagement'),
+        treatmentAdherence:   metric(68, 1.4, 'percent', 'Treatment Adherence'),
+        missedAppointments:   metric(8.5, -2.0, 'percent', 'Missed Appointments'),
+        riskDistribution:     { high: 12, medium: 34, low: 54, total: 100 },
+        referralVolume:       metric(31, 5, 'count', 'Referrals Sent'),
+        referralAcceptanceRate: metric(77, 4.2, 'percent', 'Acceptance Rate'),
+        activeProviders:      metric(5, 0, 'count', 'Active Providers'),
+        totalPatients:        metric(10, 2, 'count', 'Total Patients'),
+        pendingReferrals:     metric(6, -1, 'count', 'Pending Referrals'),
+        patientDemographics: [
+          { ageGroup: '18-34', count: 1, percentage: 10 },
+          { ageGroup: '35-49', count: 3, percentage: 30 },
+          { ageGroup: '50-64', count: 4, percentage: 40 },
+          { ageGroup: '65+',   count: 2, percentage: 20 },
+        ],
+        topConditions: [
+          { name: 'Hypertension', count: 6 }, { name: 'Diabetes Type 2', count: 5 },
+          { name: 'Atrial Fibrillation', count: 4 }, { name: 'COPD', count: 3 },
+          { name: 'Heart Failure', count: 3 },
+        ],
+        patientMonthlyTrends: [
+          { month: 'Jan', newPatients: 1 }, { month: 'Feb', newPatients: 2 },
+          { month: 'Mar', newPatients: 1 }, { month: 'Apr', newPatients: 3 },
+          { month: 'May', newPatients: 2 }, { month: 'Jun', newPatients: 1 },
+        ],
+        referralsBySpecialty: [
+          { specialty: 'Cardiology',   count: 8,  percentage: 26 },
+          { specialty: 'Neurology',    count: 7,  percentage: 23 },
+          { specialty: 'Pulmonology',  count: 6,  percentage: 19 },
+          { specialty: 'Orthopedics',  count: 5,  percentage: 16 },
+          { specialty: 'Oncology',     count: 5,  percentage: 16 },
+        ],
+        referralStatusDistribution: [
+          { status: 'completed', count: 18 }, { status: 'accepted', count: 7 },
+          { status: 'pending',   count: 4 },  { status: 'declined', count: 2 },
+        ],
+        referralMonthlyTrends: [
+          { month: 'Jan', sent: 4, accepted: 3, completed: 3 },
+          { month: 'Feb', sent: 5, accepted: 4, completed: 4 },
+          { month: 'Mar', sent: 4, accepted: 3, completed: 3 },
+          { month: 'Apr', sent: 6, accepted: 5, completed: 4 },
+          { month: 'May', sent: 7, accepted: 6, completed: 4 },
+          { month: 'Jun', sent: 5, accepted: 4, completed: 0 },
+        ],
+        referralProviderConversion: [
+          { provider: 'Dr. Michael Chen',    specialty: 'Neurology',   sent: 12, accepted: 10, completed: 9, rate: 83 },
+          { provider: 'Dr. Sarah Williams',  specialty: 'Pulmonology', sent: 10, accepted: 8,  completed: 7, rate: 80 },
+          { provider: 'Dr. Emily Rodriguez', specialty: 'Cardiology',  sent: 9,  accepted: 7,  completed: 6, rate: 78 },
+        ],
+      },
+      errors: [],
+    },
+    // ── Global — previous month ───────────────────────────────────────────────
+    {
+      snapshotId: 'snap-global-prev',
+      scope: 'global', scopeId: null,
+      period: { from: snapD(60), to: snapD(30) },
+      computedAt: snapD(31), computedBy: 'job', durationMs: 388,
+      metrics: {
+        patientEngagement:    metric(69, 1.5, 'percent', 'Patient Engagement'),
+        treatmentAdherence:   metric(67, 0.8, 'percent', 'Treatment Adherence'),
+        missedAppointments:   metric(10.5, 0.5, 'percent', 'Missed Appointments'),
+        riskDistribution:     { high: 14, medium: 32, low: 54, total: 100 },
+        referralVolume:       metric(26, 2, 'count', 'Referrals Sent'),
+        referralAcceptanceRate: metric(73, 1.0, 'percent', 'Acceptance Rate'),
+        activeProviders:      metric(5, 0, 'count', 'Active Providers'),
+        totalPatients:        metric(8, 1, 'count', 'Total Patients'),
+        pendingReferrals:     metric(7, 0, 'count', 'Pending Referrals'),
+        patientDemographics: [
+          { ageGroup: '18-34', count: 1, percentage: 12 },
+          { ageGroup: '35-49', count: 2, percentage: 25 },
+          { ageGroup: '50-64', count: 3, percentage: 38 },
+          { ageGroup: '65+',   count: 2, percentage: 25 },
+        ],
+        topConditions: [
+          { name: 'Hypertension', count: 5 }, { name: 'Diabetes Type 2', count: 4 },
+          { name: 'Atrial Fibrillation', count: 3 }, { name: 'COPD', count: 3 },
+          { name: 'Heart Failure', count: 2 },
+        ],
+        patientMonthlyTrends: [],
+        referralsBySpecialty: [
+          { specialty: 'Cardiology',  count: 7,  percentage: 27 },
+          { specialty: 'Neurology',   count: 6,  percentage: 23 },
+          { specialty: 'Pulmonology', count: 5,  percentage: 19 },
+          { specialty: 'Orthopedics', count: 4,  percentage: 15 },
+          { specialty: 'Oncology',    count: 4,  percentage: 15 },
+        ],
+        referralStatusDistribution: [
+          { status: 'completed', count: 15 }, { status: 'accepted', count: 5 },
+          { status: 'pending',   count: 5 },  { status: 'declined', count: 1 },
+        ],
+        referralMonthlyTrends: [],
+        referralProviderConversion: [],
+      },
+      errors: [],
+    },
+    // ── Provider — Dr. John Smith (user-2) current month ────────────────────
+    {
+      snapshotId: 'snap-provider-user2-current',
+      scope: 'provider', scopeId: 'user-2',
+      period: { from: snapD(30), to: snapNow },
+      computedAt: snapD(1), computedBy: 'job', durationMs: 180,
+      metrics: {
+        patientEngagement:    metric(75, 4.0, 'percent', 'Patient Engagement'),
+        treatmentAdherence:   metric(71, 2.1, 'percent', 'Treatment Adherence'),
+        missedAppointments:   metric(7.0, -3.0, 'percent', 'Missed Appointments'),
+        riskDistribution:     { high: 3, medium: 5, low: 2, total: 10 },
+        referralVolume:       metric(18, 3, 'count', 'Referrals Sent'),
+        referralAcceptanceRate: metric(83, 5.0, 'percent', 'Acceptance Rate'),
+        activeProviders:      metric(0, 0, 'count', 'N/A'),
+        totalPatients:        metric(10, 1, 'count', 'My Patients'),
+        pendingReferrals:     metric(3, -1, 'count', 'Pending'),
+        patientDemographics: [
+          { ageGroup: '35-49', count: 3, percentage: 30 },
+          { ageGroup: '50-64', count: 4, percentage: 40 },
+          { ageGroup: '65+',   count: 3, percentage: 30 },
+        ],
+        topConditions: [
+          { name: 'Hypertension', count: 6 }, { name: 'Atrial Fibrillation', count: 4 },
+          { name: 'Diabetes Type 2', count: 3 }, { name: 'COPD', count: 2 },
+          { name: 'Heart Failure', count: 2 },
+        ],
+        patientMonthlyTrends: [
+          { month: 'Jan', newPatients: 1 }, { month: 'Feb', newPatients: 1 },
+          { month: 'Mar', newPatients: 1 }, { month: 'Apr', newPatients: 2 },
+          { month: 'May', newPatients: 2 }, { month: 'Jun', newPatients: 1 },
+        ],
+        referralsBySpecialty: [
+          { specialty: 'Neurology',   count: 7, percentage: 39 },
+          { specialty: 'Pulmonology', count: 6, percentage: 33 },
+          { specialty: 'Cardiology',  count: 5, percentage: 28 },
+        ],
+        referralStatusDistribution: [
+          { status: 'completed', count: 11 }, { status: 'accepted', count: 4 },
+          { status: 'pending',   count: 3 },
+        ],
+        referralMonthlyTrends: [
+          { month: 'Jan', sent: 2, accepted: 2, completed: 2 },
+          { month: 'Feb', sent: 3, accepted: 2, completed: 2 },
+          { month: 'Mar', sent: 3, accepted: 3, completed: 2 },
+          { month: 'Apr', sent: 4, accepted: 3, completed: 3 },
+          { month: 'May', sent: 4, accepted: 3, completed: 2 },
+          { month: 'Jun', sent: 2, accepted: 2, completed: 0 },
+        ],
+        referralProviderConversion: [
+          { provider: 'Dr. Michael Chen',   specialty: 'Neurology',   sent: 10, accepted: 9, completed: 8, rate: 90 },
+          { provider: 'Dr. Sarah Williams', specialty: 'Pulmonology', sent: 8,  accepted: 7, completed: 6, rate: 88 },
+        ],
+      },
+      errors: [],
+    },
+    // ── Provider — Dr. Michael Chen (user-4) current month ──────────────────
+    {
+      snapshotId: 'snap-provider-user4-current',
+      scope: 'provider', scopeId: 'user-4',
+      period: { from: snapD(30), to: snapNow },
+      computedAt: snapD(1), computedBy: 'job', durationMs: 165,
+      metrics: {
+        patientEngagement:    metric(70, 2.5, 'percent', 'Patient Engagement'),
+        treatmentAdherence:   metric(65, 0.5, 'percent', 'Treatment Adherence'),
+        missedAppointments:   metric(9.0, -1.0, 'percent', 'Missed Appointments'),
+        riskDistribution:     { high: 4, medium: 6, low: 2, total: 12 },
+        referralVolume:       metric(10, 2, 'count', 'Referrals Received'),
+        referralAcceptanceRate: metric(90, 2.0, 'percent', 'Acceptance Rate'),
+        activeProviders:      metric(0, 0, 'count', 'N/A'),
+        totalPatients:        metric(12, 1, 'count', 'My Patients'),
+        pendingReferrals:     metric(2, 0, 'count', 'Pending'),
+        patientDemographics: [
+          { ageGroup: '50-64', count: 6, percentage: 50 },
+          { ageGroup: '65+',   count: 6, percentage: 50 },
+        ],
+        topConditions: [
+          { name: 'Stroke Risk',      count: 5 }, { name: 'Cognitive Decline', count: 4 },
+          { name: 'Epilepsy',         count: 3 }, { name: 'Migraine',          count: 2 },
+        ],
+        patientMonthlyTrends: [],
+        referralsBySpecialty: [
+          { specialty: 'Internal Medicine', count: 7, percentage: 70 },
+          { specialty: 'Cardiology',        count: 3, percentage: 30 },
+        ],
+        referralStatusDistribution: [
+          { status: 'completed', count: 7 }, { status: 'accepted', count: 2 },
+          { status: 'pending',   count: 1 },
+        ],
+        referralMonthlyTrends: [],
+        referralProviderConversion: [],
+      },
+      errors: [],
+    },
+    // ── Provider — Dr. Sarah Williams (user-5) current month ────────────────
+    {
+      snapshotId: 'snap-provider-user5-current',
+      scope: 'provider', scopeId: 'user-5',
+      period: { from: snapD(30), to: snapNow },
+      computedAt: snapD(1), computedBy: 'job', durationMs: 158,
+      metrics: {
+        patientEngagement:    metric(68, 1.0, 'percent', 'Patient Engagement'),
+        treatmentAdherence:   metric(66, 0.8, 'percent', 'Treatment Adherence'),
+        missedAppointments:   metric(10.0, -0.5, 'percent', 'Missed Appointments'),
+        riskDistribution:     { high: 3, medium: 4, low: 2, total: 9 },
+        referralVolume:       metric(8, 1, 'count', 'Referrals Received'),
+        referralAcceptanceRate: metric(88, 1.5, 'percent', 'Acceptance Rate'),
+        activeProviders:      metric(0, 0, 'count', 'N/A'),
+        totalPatients:        metric(9, 0, 'count', 'My Patients'),
+        pendingReferrals:     metric(1, 0, 'count', 'Pending'),
+        patientDemographics: [
+          { ageGroup: '35-49', count: 2, percentage: 22 },
+          { ageGroup: '50-64', count: 5, percentage: 56 },
+          { ageGroup: '65+',   count: 2, percentage: 22 },
+        ],
+        topConditions: [
+          { name: 'COPD',               count: 5 }, { name: 'Pulmonary Fibrosis', count: 3 },
+          { name: 'Sleep Apnea',        count: 2 }, { name: 'Asthma',             count: 2 },
+        ],
+        patientMonthlyTrends: [],
+        referralsBySpecialty: [
+          { specialty: 'Internal Medicine', count: 5, percentage: 62 },
+          { specialty: 'Cardiology',        count: 3, percentage: 38 },
+        ],
+        referralStatusDistribution: [
+          { status: 'completed', count: 6 }, { status: 'accepted', count: 2 },
+        ],
+        referralMonthlyTrends: [],
+        referralProviderConversion: [],
+      },
+      errors: [],
+    },
+  ];
+  await db.collection('analyticssnapshots').drop().catch(() => {});
+  await db.collection('analyticssnapshots').insertMany(analyticsSnapshots);
+  console.log(`Analytics snapshots seeded: ${analyticsSnapshots.length} snapshots`);
+
+  // ── REFERRAL OUTCOMES ─────────────────────────────────────────────────────────
+  console.log('Seeding referral outcomes...');
+  const daysAgoDate = (d) => new Date(Date.now() - d * 86400000);
+
+  // Outcomes for completed/accepted referrals — receivingProvider is the providerId
+  const referralOutcomes = [
+    // referral-1: Dr. Smith → Dr. Chen (completed, excellent outcome)
+    {
+      referralId: 'referral-1', providerId: 'user-4', patientId: 'patient-1',
+      specialty: 'Neurology',
+      accepted: true, acceptedAt: daysAgoDate(42),
+      appointmentScheduled: true, appointmentDate: daysAgoDate(35),
+      appointmentAttended: true, timeToAppointmentDays: 7,
+      outcomeRating: 5, patientSatisfaction: 5,
+      readmissionWithin30Days: false,
+      referringProviderFeedback: 'Excellent consultation. Dr. Chen provided a thorough neurological assessment and clear anticoagulation recommendation.',
+      outcomeScore: 100, outcomeComputedAt: daysAgoDate(35),
+    },
+    // referral-2: Dr. Smith → Dr. Williams (completed, good outcome)
+    {
+      referralId: 'referral-2', providerId: 'user-5', patientId: 'patient-2',
+      specialty: 'Pulmonology',
+      accepted: true, acceptedAt: daysAgoDate(55),
+      appointmentScheduled: true, appointmentDate: daysAgoDate(48),
+      appointmentAttended: true, timeToAppointmentDays: 7,
+      outcomeRating: 4, patientSatisfaction: 4,
+      readmissionWithin30Days: false,
+      referringProviderFeedback: 'Good COPD management plan provided. Pulmonary rehab referral added.',
+      outcomeScore: 90, outcomeComputedAt: daysAgoDate(48),
+    },
+    // referral-3: Dr. Smith → Dr. Chen (completed, good outcome)
+    {
+      referralId: 'referral-3', providerId: 'user-4', patientId: 'patient-3',
+      specialty: 'Neurology',
+      accepted: true, acceptedAt: daysAgoDate(30),
+      appointmentScheduled: true, appointmentDate: daysAgoDate(23),
+      appointmentAttended: true, timeToAppointmentDays: 7,
+      outcomeRating: 4, patientSatisfaction: 5,
+      readmissionWithin30Days: false,
+      referringProviderFeedback: 'Comprehensive cognitive assessment completed. MCI confirmed, management plan in place.',
+      outcomeScore: 90, outcomeComputedAt: daysAgoDate(23),
+    },
+    // referral-4: Dr. Smith → Dr. Williams (completed, average outcome)
+    {
+      referralId: 'referral-4', providerId: 'user-5', patientId: 'patient-4',
+      specialty: 'Pulmonology',
+      accepted: true, acceptedAt: daysAgoDate(65),
+      appointmentScheduled: true, appointmentDate: daysAgoDate(55),
+      appointmentAttended: true, timeToAppointmentDays: 10,
+      outcomeRating: 3, patientSatisfaction: 3,
+      readmissionWithin30Days: false,
+      referringProviderFeedback: 'Follow-up completed. Spirometry results reviewed.',
+      outcomeScore: 75, outcomeComputedAt: daysAgoDate(55),
+    },
+    // referral-5: Dr. Smith → Dr. Chen (accepted, in progress)
+    {
+      referralId: 'referral-5', providerId: 'user-4', patientId: 'patient-5',
+      specialty: 'Neurology',
+      accepted: true, acceptedAt: daysAgoDate(10),
+      appointmentScheduled: true, appointmentDate: daysAgoDate(3),
+      appointmentAttended: true, timeToAppointmentDays: 7,
+      outcomeRating: 4, patientSatisfaction: 4,
+      readmissionWithin30Days: false,
+      outcomeScore: 85, outcomeComputedAt: daysAgoDate(3),
+    },
+    // referral-6: Dr. Smith → Dr. Williams (completed, readmission occurred)
+    {
+      referralId: 'referral-6', providerId: 'user-5', patientId: 'patient-6',
+      specialty: 'Pulmonology',
+      accepted: true, acceptedAt: daysAgoDate(80),
+      appointmentScheduled: true, appointmentDate: daysAgoDate(72),
+      appointmentAttended: true, timeToAppointmentDays: 8,
+      outcomeRating: 3, patientSatisfaction: 2,
+      readmissionWithin30Days: true,
+      referringProviderFeedback: 'Patient readmitted 18 days post-appointment with CHF exacerbation. Plan was appropriate but patient non-compliant with fluid restriction.',
+      outcomeScore: 50, outcomeComputedAt: daysAgoDate(72),
+    },
+    // referral-7: Dr. Smith → Dr. Chen (accepted)
+    {
+      referralId: 'referral-7', providerId: 'user-4', patientId: 'patient-7',
+      specialty: 'Neurology',
+      accepted: true, acceptedAt: daysAgoDate(15),
+      appointmentScheduled: true, appointmentDate: daysAgoDate(8),
+      appointmentAttended: false, noShowReason: 'Patient transportation issue — rescheduled',
+      timeToAppointmentDays: 7, outcomeRating: null, patientSatisfaction: null,
+      readmissionWithin30Days: false,
+      outcomeScore: 65, outcomeComputedAt: daysAgoDate(8),
+    },
+    // referral-8: Dr. Smith → Dr. Williams (completed, excellent)
+    {
+      referralId: 'referral-8', providerId: 'user-5', patientId: 'patient-8',
+      specialty: 'Pulmonology',
+      accepted: true, acceptedAt: daysAgoDate(90),
+      appointmentScheduled: true, appointmentDate: daysAgoDate(83),
+      appointmentAttended: true, timeToAppointmentDays: 7,
+      outcomeRating: 5, patientSatisfaction: 5,
+      readmissionWithin30Days: false,
+      referringProviderFeedback: 'Exceptional management. Pulmonary hypertension workup was thorough.',
+      outcomeScore: 100, outcomeComputedAt: daysAgoDate(83),
+    },
+  ];
+  await db.collection('referraloutcomes').drop().catch(() => {});
+  await db.collection('referraloutcomes').insertMany(referralOutcomes);
+  console.log(`Referral outcomes seeded: ${referralOutcomes.length} outcomes`);
+
+  // ── SECURE MESSAGES ──────────────────────────────────────────────────────────
+  console.log('Seeding messages...');
+
+  // Helper: offset minutes from now
+  const minsAgo = (m) => new Date(Date.now() - m * 60 * 1000);
+
+  const messages = [
+    // ── Thread 1: referral-1 — Dr. John Smith (user-2) ↔ Dr. Michael Chen (user-4)
+    // Cardiac arrhythmia patient referred to neurology
+    {
+      referralId: 'referral-1',
+      senderId: 'user-2', senderName: 'Dr. John Smith', senderRole: 'doctor',
+      receiverId: 'user-4', receiverName: 'Dr. Michael Chen',
+      content: 'Hi Dr. Chen, I am sending over Mrs. Patricia Moore (DOB 1951-03-14) for neurological risk evaluation. She has a history of paroxysmal atrial fibrillation and we are concerned about stroke risk prior to escalating anticoagulation therapy. Please review the attached ECG and Holter results.',
+      readAt: minsAgo(2820), createdAt: minsAgo(2880),
+    },
+    {
+      referralId: 'referral-1',
+      senderId: 'user-4', senderName: 'Dr. Michael Chen', senderRole: 'doctor',
+      receiverId: 'user-2', receiverName: 'Dr. John Smith',
+      content: 'Thank you Dr. Smith. I have reviewed the ECG and Holter results. The paroxysmal AF pattern is consistent with what you described. I would like to order an MRI brain with DWI sequences and a carotid Doppler before we proceed. Can you confirm the patient has no contraindications to MRI?',
+      readAt: minsAgo(2700), createdAt: minsAgo(2760),
+    },
+    {
+      referralId: 'referral-1',
+      senderId: 'user-2', senderName: 'Dr. John Smith', senderRole: 'doctor',
+      receiverId: 'user-4', receiverName: 'Dr. Michael Chen',
+      content: 'No MRI contraindications — no metallic implants, no pacemaker. She had a knee replacement in 2019 but the implant is MRI-compatible (confirmed with ortho). Go ahead and order the imaging. I will hold on the anticoagulation escalation until I hear back from you.',
+      readAt: minsAgo(2640), createdAt: minsAgo(2640),
+    },
+    {
+      referralId: 'referral-1',
+      senderId: 'user-4', senderName: 'Dr. Michael Chen', senderRole: 'doctor',
+      receiverId: 'user-2', receiverName: 'Dr. John Smith',
+      content: 'MRI brain completed. No acute infarcts or lacunar lesions. Small vessel disease is mild for her age. Carotid Doppler shows <40% stenosis bilaterally — not haemodynamically significant. From a neurological standpoint, I am comfortable proceeding with anticoagulation. I recommend starting apixaban 5mg BD given her renal function and age. Let me know if you need a full consultation note for the chart.',
+      readAt: minsAgo(2400), createdAt: minsAgo(2520),
+    },
+    {
+      referralId: 'referral-1',
+      senderId: 'user-2', senderName: 'Dr. John Smith', senderRole: 'doctor',
+      receiverId: 'user-4', receiverName: 'Dr. Michael Chen',
+      content: 'Excellent — thank you for the thorough workup. Apixaban 5mg BD is exactly what I was considering. I will initiate today and schedule a 4-week follow-up. A full consultation note would be very helpful for the chart. I will mark this referral complete.',
+      readAt: minsAgo(2340), createdAt: minsAgo(2340),
+    },
+
+    // ── Thread 2: referral-3 — Dr. John Smith (user-2) ↔ Dr. Michael Chen (user-4)
+    // AFib patient, stroke prevention protocol
+    {
+      referralId: 'referral-3',
+      senderId: 'user-2', senderName: 'Dr. John Smith', senderRole: 'doctor',
+      receiverId: 'user-4', receiverName: 'Dr. Michael Chen',
+      content: 'Dr. Chen — referring David Lee (DOB 1956-09-22) for neuro clearance. He has been having symptomatic paroxysmal AFib episodes, last one 3 days ago lasting ~6 hours. CHA₂DS₂-VASc score is 3. Planning to start anticoagulation but want your input given his mild cognitive impairment diagnosis last year.',
+      readAt: minsAgo(1440), createdAt: minsAgo(1500),
+    },
+    {
+      referralId: 'referral-3',
+      senderId: 'user-4', senderName: 'Dr. Michael Chen', senderRole: 'doctor',
+      receiverId: 'user-2', receiverName: 'Dr. John Smith',
+      content: 'Reviewed his neuro history. The mild cognitive impairment was diagnosed in 2023 — Montreal Cognitive Assessment score was 24/30 at that time. Given the CHA₂DS₂-VASc score of 3 and symptomatic AF, the benefit of anticoagulation clearly outweighs the risk. I would recommend rivaroxaban over warfarin due to simpler dosing — better adherence with MCI patients. Please ensure a family member or caregiver is involved in medication management.',
+      readAt: minsAgo(1320), createdAt: minsAgo(1380),
+    },
+    {
+      referralId: 'referral-3',
+      senderId: 'user-2', senderName: 'Dr. John Smith', senderRole: 'doctor',
+      receiverId: 'user-4', receiverName: 'Dr. Michael Chen',
+      content: 'Very helpful — his daughter is his primary caregiver and very engaged. I will involve her in the medication education. Starting rivaroxaban 20mg OD with evening meal. Scheduling repeat MoCA at 6 months. Thank you.',
+      readAt: null, createdAt: minsAgo(1260),
+    },
+
+    // ── Thread 3: referral-5 — Dr. John Smith (user-2) ↔ Dr. Robert Williams (user-5)
+    // COPD patient co-management
+    {
+      referralId: 'referral-5',
+      senderId: 'user-2', senderName: 'Dr. John Smith', senderRole: 'doctor',
+      receiverId: 'user-5', receiverName: 'Dr. Robert Williams',
+      content: 'Hi Dr. Williams, co-managing James Chen (DOB 1958-11-30) for his COPD and heart failure. Recent FEV1/FVC ratio is 0.58, down from 0.63 six months ago. He is on tiotropium and salmeterol but still having 2-3 exacerbations per year. Can you review his current inhaler technique and assess whether he is a candidate for triple therapy (ICS/LABA/LAMA)?',
+      readAt: minsAgo(720), createdAt: minsAgo(780),
+    },
+    {
+      referralId: 'referral-5',
+      senderId: 'user-5', senderName: 'Dr. Robert Williams', senderRole: 'doctor',
+      receiverId: 'user-2', receiverName: 'Dr. John Smith',
+      content: 'Saw him this morning. Inhaler technique was indeed suboptimal — he is not coordinating the breath with the actuation properly. I have done a full inhaler education session with the practice nurse and switched him to a Respimat device which should be easier. Regarding triple therapy: given 2+ exacerbations per year and blood eosinophil count of 320 cells/µL, I agree he meets criteria. I have added fluticasone furoate. Please watch his cardiac status as ICS can occasionally worsen fluid retention.',
+      readAt: minsAgo(600), createdAt: minsAgo(660),
+    },
+    {
+      referralId: 'referral-5',
+      senderId: 'user-2', senderName: 'Dr. John Smith', senderRole: 'doctor',
+      receiverId: 'user-5', receiverName: 'Dr. Robert Williams',
+      content: 'Good catch on the eosinophil count — I will keep an eye on his BNP and weight. I have also referred him to pulmonary rehab starting next month. Can you flag me if he presents to your clinic before our shared review in 6 weeks?',
+      readAt: null, createdAt: minsAgo(540),
+    },
+
+    // ── Thread 4: referral-6 — Dr. John Smith (user-2) ↔ Dr. Robert Williams (user-5)
+    // New unread thread — active today
+    {
+      referralId: 'referral-6',
+      senderId: 'user-5', senderName: 'Dr. Robert Williams', senderRole: 'doctor',
+      receiverId: 'user-2', receiverName: 'Dr. John Smith',
+      content: 'Dr. Smith — quick note on Maria Rodriguez (DOB 1965-07-08) whom you referred for CHF co-management. She came in this afternoon with 3kg weight gain over 5 days and worsening ankle oedema. I have doubled her furosemide to 80mg OD and asked her to weigh daily. BNP came back at 890 pg/mL. Worth a cardiology review this week?',
+      readAt: null, createdAt: minsAgo(90),
+    },
+
+    // ── Thread 5: referral-8 — Dr. John Smith (user-2) ↔ Nurse Sarah Johnson (user-3)
+    // Pediatric patient coordination
+    {
+      referralId: 'referral-8',
+      senderId: 'user-3', senderName: 'Nurse Sarah Johnson', senderRole: 'provider',
+      receiverId: 'user-2', receiverName: 'Dr. John Smith',
+      content: 'Dr. Smith, following up on the paediatric patient Emily Clark (DOB 2015-04-12) you referred for cardiac murmur assessment. I have completed the initial nursing assessment. Auscultation reveals a grade 2/6 systolic murmur at the left sternal border. No cyanosis, no respiratory distress, normal saturations. She is asymptomatic and growing normally. Do you want to proceed with an echocardiogram or observe?',
+      readAt: minsAgo(360), createdAt: minsAgo(400),
+    },
+    {
+      referralId: 'referral-8',
+      senderId: 'user-2', senderName: 'Dr. John Smith', senderRole: 'doctor',
+      receiverId: 'user-3', receiverName: 'Nurse Sarah Johnson',
+      content: 'Thanks Sarah. A grade 2/6 innocent murmur in an asymptomatic, well-growing child is most likely benign — could be a Still murmur or pulmonary flow murmur. Given normal sats and no red flags, I am comfortable with watchful waiting. Please schedule a 3-month review. If the murmur increases in intensity, becomes holosystolic, or she develops any symptoms, order an echo and get me involved sooner.',
+      readAt: minsAgo(300), createdAt: minsAgo(300),
+    },
+    {
+      referralId: 'referral-8',
+      senderId: 'user-3', senderName: 'Nurse Sarah Johnson', senderRole: 'provider',
+      receiverId: 'user-2', receiverName: 'Dr. John Smith',
+      content: 'Understood. 3-month review booked for September 28th. I have documented the criteria for escalation in her notes. The parents have been counselled and are reassured — they were understandably anxious. I will send you a brief update after the September review.',
+      readAt: null, createdAt: minsAgo(240),
+    },
+  ];
+
+  await db.collection('messages').insertMany(messages);
+  console.log(`messages seeded: ${messages.length} messages across 5 referral threads`);
 
   console.log('\nDatabase population complete!');
   const collections = await db.listCollections().toArray();

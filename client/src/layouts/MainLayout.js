@@ -261,7 +261,10 @@ export default function MainLayout() {
             onClick={handleProfileMenuOpen}
           >
             {currentUser && currentUser.firstName ? (
-              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
+              <Avatar
+                sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}
+                src={currentUser.profileImage || undefined}
+              >
                 {currentUser.firstName.charAt(0).toUpperCase()}
               </Avatar>
             ) : (

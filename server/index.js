@@ -70,6 +70,7 @@ const adminMessagingRoutes = require('./routes/admin/messaging');
 const adminEscalationsRoutes = require('./routes/admin/escalations');
 const aiRoutes = require('./routes/ai');
 const providerRoutes = require('./routes/providers');
+const userRoutes = require('./routes/users');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -131,8 +132,11 @@ const errorHandler = (err, req, res, next) => {
   });
 };
 
-// ── Static files (production only) ──────────────────────────────────────────
+// ── Static files ─────────────────────────────────────────────────────────────
 function mountStaticFiles() {
+  // Serve uploaded files (avatars, KYC docs) in all environments
+  app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
   if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.join(__dirname, '../client/build')));
     app.get('*', (req, res) => {
@@ -183,6 +187,7 @@ function mountLiveRoutes() {
   app.use('/api/npi', npiRoutes);
 
   // Provider onboarding
+  app.use('/api/users', protect, userRoutes);
   app.use('/api/onboarding', protect, onboardingRoutes);
 
   // Admin token management (must be before generic /api/admin catch-all)

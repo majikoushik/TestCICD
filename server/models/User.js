@@ -113,6 +113,13 @@ const UserSchema = new mongoose.Schema({
   // One-time token bonus flags — prevent double-awarding
   kycTokenBonusPaid: { type: Boolean, default: false },
   profileTokenBonusPaid: { type: Boolean, default: false },
+  // Provider-configurable settings persisted to DB
+  settings: { type: mongoose.Schema.Types.Mixed, default: {} },
+  // Extended profile fields editable in Settings
+  credential: { type: String, default: '' },
+  phone: { type: String, default: '' },
+  fax: { type: String, default: '' },
+  bio: { type: String, default: '' },
 });
 
 // Encrypt password using bcrypt

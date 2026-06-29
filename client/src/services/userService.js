@@ -146,16 +146,16 @@ export const updateProfileImage = async (imageFile) => {
       }
     });
     
+    // Extract the image URL from the response envelope { success, data: { profileImage } }
+    const profileImage = response?.data?.profileImage || response?.profileImage;
+
     // Update user in storage
     const storedUser = authStorage.get('user');
     if (storedUser) {
-      authStorage.set('user', {
-        ...storedUser,
-        profileImage: response.profileImage
-      });
+      authStorage.set('user', { ...storedUser, profileImage });
     }
-    
-    return response;
+
+    return { profileImage };
   } catch (error) {
     console.error('Update profile image error:', error);
     throw error;
