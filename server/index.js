@@ -132,6 +132,43 @@ const errorHandler = (err, req, res, next) => {
   });
 };
 
+// ── Maintenance-mode middleware ───────────────────────────────────────────────
+// Caches the setting for 60 s so it doesn't hit Mongo on every request.
+let _maintenanceCache = { mode: false, message: '', ts: 0 };
+
+async function loadMaintenanceSetting() {
+  if (Date.now() - _maintenanceCache.ts < 60000) return _maintenanceCache;
+  try {
+    const AdminSetting = require('./models/Admin');
+    const s = await AdminSetting.findOne({ key: 'maintenance' }).lean();
+    if (s && s.value) {
+      _maintenanceCache = { mode: !!s.value.maintenanceMode, message: s.value.maintenanceMessage || '', ts: Date.now() };
+    } else {
+      _maintenanceCache.ts = Date.now();
+    }
+  } catch { _maintenanceCache.ts = Date.now(); }
+  return _maintenanceCache;
+}
+
+// Export so admin settings save can bust the cache
+function bustMaintenanceCache() { _maintenanceCache.ts = 0; }
+
+const maintenanceMiddleware = async (req, res, next) => {
+  // Always allow admin paths and public auth
+  if (req.path.startsWith('/api/admin') || req.path.startsWith('/api/auth')) return next();
+  try {
+    const { mode, message } = await loadMaintenanceSetting();
+    if (mode) {
+      return res.status(503).json({
+        success: false,
+        maintenance: true,
+        error: message || 'The platform is under scheduled maintenance. Please try again later.',
+      });
+    }
+  } catch { /* fail open */ }
+  next();
+};
+
 // ── Static files ─────────────────────────────────────────────────────────────
 function mountStaticFiles() {
   // Serve uploaded files (avatars, KYC docs) in all environments
@@ -147,6 +184,8 @@ function mountStaticFiles() {
 
 // ── Mount real (live DB) routes ──────────────────────────────────────────────
 function mountLiveRoutes() {
+  app.use(maintenanceMiddleware);
+
   // Public auth endpoints — rate-limited
   app.use('/api/auth', authLimiter, authRoutes);
 

@@ -43,6 +43,7 @@ import {
 } from '@mui/icons-material';
 import InputAdornment from '@mui/material/InputAdornment';
 import adminUserService from '../../services/adminUserService';
+import { formatDate } from '../../utils/dateFormatter';
 
 const AdminUsers = () => {
   const [users, setUsers] = useState([]);
@@ -497,7 +498,7 @@ const AdminUsers = () => {
                           />
                         </TableCell>
                         <TableCell sx={{ py: 1.5 }}>
-                          {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
+                          {user.createdAt ? formatDate(user.createdAt) : 'N/A'}
                         </TableCell>
                         <TableCell align="right" sx={{ py: 1.5 }}>
                           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>

@@ -14,11 +14,11 @@ const AdminSettingSchema = new mongoose.Schema({
   category: {
     type: String,
     required: true,
-    enum: ['security', 'ai', 'blockchain', 'notifications', 'general', 'billing']
+    enum: ['security', 'ai', 'blockchain', 'notifications', 'general', 'billing', 'organization', 'integrations', 'maintenance']
   },
   description: {
     type: String,
-    required: true
+    default: '',
   },
   isActive: {
     type: Boolean,

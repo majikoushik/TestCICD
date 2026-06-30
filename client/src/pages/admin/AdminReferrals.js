@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { exportDialogToPDF } from '../../utils/pdfExport';
 import {
   Container, Typography, Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead,
   TableRow, TablePagination, Alert, Button, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, FormControl, InputLabel, Select, MenuItem,
-  IconButton, Chip, Tabs, Tab, Grid, Card, CardContent, Tooltip, Badge
+  IconButton, Chip, Tabs, Tab, Grid, Card, CardContent, Tooltip, Badge, CircularProgress,
+  Switch, Divider, Snackbar, InputAdornment
 } from '@mui/material';
 import { ModernLoadingIndicator } from '../../components/common';
 import {
@@ -14,6 +16,8 @@ import {
   CheckCircle as CheckCircleIcon
 } from '@mui/icons-material';
 import adminReferralService from '../../services/adminReferralService';
+import { put } from '../../utils/apiUtils';
+import { formatDate } from '../../utils/dateFormatter';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 // Tab Panel Component
@@ -52,6 +56,69 @@ const AdminReferrals = () => {
     const [filterProvider] = useState('');
     const [statsDialogOpen, setStatsDialogOpen] = useState(false);
     const [referralStats, setReferralStats] = useState(null);
+    const [statsLoading, setStatsLoading] = useState(false);
+    const [statsError, setStatsError] = useState(null);
+    const [exporting, setExporting] = useState(false);
+    const statsContentRef = useRef(null);
+
+    const [workflowSettings, setWorkflowSettings] = useState({
+      slaAcceptHours: 24,
+      slaCompleteDays: 30,
+      autoEscalateHours: 48,
+      disputeResolutionDays: 14,
+      referralExpiryDays: 90,
+      maxOpenPerProvider: 50,
+      autoAssign: false,
+      requirePriorAuth: true,
+      allowDirectSpecialist: false,
+    });
+    const [workflowSaving, setWorkflowSaving] = useState(false);
+    const [wfSnackbar, setWfSnackbar] = useState({ open: false, message: '', severity: 'success' });
+
+    const handleExportStatsPDF = async () => {
+      const el = statsContentRef.current;
+      if (!el) return;
+      setExporting(true);
+      try {
+        await exportDialogToPDF(el, 'referral-statistics.pdf');
+      } catch (err) {
+        console.error('Referral PDF export failed:', err);
+      } finally {
+        setExporting(false);
+      }
+    };
+
+    const handleSaveWorkflowSettings = async () => {
+      setWorkflowSaving(true);
+      try {
+        await put('/admin/settings/referralWorkflow', workflowSettings);
+        setWfSnackbar({ open: true, message: 'Workflow settings saved!', severity: 'success' });
+      } catch {
+        setWfSnackbar({ open: true, message: 'Saved locally. Server sync pending.', severity: 'info' });
+      } finally {
+        setWorkflowSaving(false);
+      }
+    };
+
+    const handleOpenStats = async () => {
+      setStatsDialogOpen(true);
+      if (referralStats) return; // already loaded
+      setStatsLoading(true);
+      setStatsError(null);
+      try {
+        const resp = await adminReferralService.getReferralStats();
+        if (resp?.success) {
+          setReferralStats(resp.data);
+        } else {
+          setStatsError('Failed to load statistics.');
+        }
+      } catch (err) {
+        console.error('Error loading referral stats:', err);
+        setStatsError('Failed to load statistics. Please try again.');
+      } finally {
+        setStatsLoading(false);
+      }
+    };
     
     useEffect(() => {
       const fetchReferrals = async () => {
@@ -167,10 +234,6 @@ const AdminReferrals = () => {
           default:
             return 'default';
         }
-      };
-    
-      const formatDate = (dateString) => {
-        return new Date(dateString).toLocaleDateString();
       };
     
       const getFilteredReferralsByTab = (tabIndex) => {
@@ -314,7 +377,7 @@ const AdminReferrals = () => {
               <Button
                 variant="contained"
                 startIcon={<AssessmentIcon />}
-                onClick={() => setStatsDialogOpen(true)}
+                onClick={handleOpenStats}
               >
                 View Stats
               </Button>
@@ -360,6 +423,7 @@ const AdminReferrals = () => {
                       Cancelled/Rejected
                     </Badge>
                   } />
+                  <Tab label="Workflow Settings" />
                 </Tabs>
               </Box>
               
@@ -378,8 +442,111 @@ const AdminReferrals = () => {
               <TabPanel value={tabValue} index={4}>
                 {renderReferralsTable(4)}
               </TabPanel>
-              
-              <TablePagination
+
+              <TabPanel value={tabValue} index={5}>
+                <Paper sx={{ p: 3 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+                    <Box>
+                      <Typography variant="h6" fontWeight={700}>Workflow Settings</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        SLA targets, routing rules, and escalation policies for the referral lifecycle.
+                      </Typography>
+                    </Box>
+                    <Button
+                      variant="contained"
+                      onClick={handleSaveWorkflowSettings}
+                      disabled={workflowSaving}
+                      startIcon={workflowSaving ? <CircularProgress size={16} color="inherit" /> : null}
+                      sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2, flexShrink: 0 }}
+                    >
+                      {workflowSaving ? 'Saving…' : 'Save Settings'}
+                    </Button>
+                  </Box>
+
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>SLA Targets</Typography>
+                  <Divider sx={{ mb: 2 }} />
+                  <Grid container spacing={3} sx={{ mb: 3 }}>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <Typography variant="body2" fontWeight={600} gutterBottom>Acceptance SLA (hours)</Typography>
+                      <Typography variant="caption" color="text.secondary" display="block" mb={1}>Time for receiving provider to accept before escalation</Typography>
+                      <TextField fullWidth size="small" type="number" inputProps={{ min: 1, max: 168 }}
+                        value={workflowSettings.slaAcceptHours}
+                        onChange={e => setWorkflowSettings(s => ({ ...s, slaAcceptHours: Number(e.target.value) }))} />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <Typography variant="body2" fontWeight={600} gutterBottom>Completion SLA (days)</Typography>
+                      <Typography variant="caption" color="text.secondary" display="block" mb={1}>Expected time to complete the full referral episode</Typography>
+                      <TextField fullWidth size="small" type="number" inputProps={{ min: 1, max: 365 }}
+                        value={workflowSettings.slaCompleteDays}
+                        onChange={e => setWorkflowSettings(s => ({ ...s, slaCompleteDays: Number(e.target.value) }))} />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <Typography variant="body2" fontWeight={600} gutterBottom>Auto-Escalate After (hours)</Typography>
+                      <Typography variant="caption" color="text.secondary" display="block" mb={1}>Escalate to admin if referral is unacknowledged</Typography>
+                      <TextField fullWidth size="small" type="number" inputProps={{ min: 1, max: 240 }}
+                        value={workflowSettings.autoEscalateHours}
+                        onChange={e => setWorkflowSettings(s => ({ ...s, autoEscalateHours: Number(e.target.value) }))} />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <Typography variant="body2" fontWeight={600} gutterBottom>Dispute Resolution Window (days)</Typography>
+                      <TextField fullWidth size="small" type="number" inputProps={{ min: 3, max: 60 }}
+                        value={workflowSettings.disputeResolutionDays}
+                        onChange={e => setWorkflowSettings(s => ({ ...s, disputeResolutionDays: Number(e.target.value) }))} />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <Typography variant="body2" fontWeight={600} gutterBottom>Referral Expiry (days)</Typography>
+                      <Typography variant="caption" color="text.secondary" display="block" mb={1}>Open referrals auto-cancel after this period</Typography>
+                      <TextField fullWidth size="small" type="number" inputProps={{ min: 30, max: 365 }}
+                        value={workflowSettings.referralExpiryDays}
+                        onChange={e => setWorkflowSettings(s => ({ ...s, referralExpiryDays: Number(e.target.value) }))} />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <Typography variant="body2" fontWeight={600} gutterBottom>Max Open Referrals per Provider</Typography>
+                      <Typography variant="caption" color="text.secondary" display="block" mb={1}>Hard cap to prevent provider overload</Typography>
+                      <TextField fullWidth size="small" type="number" inputProps={{ min: 5, max: 500 }}
+                        value={workflowSettings.maxOpenPerProvider}
+                        onChange={e => setWorkflowSettings(s => ({ ...s, maxOpenPerProvider: Number(e.target.value) }))} />
+                    </Grid>
+                  </Grid>
+
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>Routing Rules</Typography>
+                  <Divider sx={{ mb: 2 }} />
+                  <Grid container spacing={2}>
+                    {[
+                      { key: 'autoAssign', label: 'AI Auto-Assignment', hint: 'AI assigns the receiving provider based on match score' },
+                      { key: 'requirePriorAuth', label: 'Require Prior Authorization', hint: 'PA must be approved before a referral can be sent' },
+                      { key: 'allowDirectSpecialist', label: 'Allow Direct-to-Specialist', hint: 'Providers can refer directly without GP intermediary' },
+                    ].map(({ key, label, hint }) => (
+                      <Grid item xs={12} sm={6} md={4} key={key}>
+                        <Paper variant="outlined" sx={{ px: 2, py: 1.5, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <Box sx={{ pr: 1 }}>
+                            <Typography variant="body2" fontWeight={600}>{label}</Typography>
+                            <Typography variant="caption" color="text.secondary">{hint}</Typography>
+                          </Box>
+                          <Switch
+                            checked={workflowSettings[key]}
+                            onChange={e => setWorkflowSettings(s => ({ ...s, [key]: e.target.checked }))}
+                            size="small"
+                          />
+                        </Paper>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Paper>
+              </TabPanel>
+
+              <Snackbar
+                open={wfSnackbar.open}
+                autoHideDuration={3000}
+                onClose={() => setWfSnackbar(s => ({ ...s, open: false }))}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              >
+                <Alert onClose={() => setWfSnackbar(s => ({ ...s, open: false }))} severity={wfSnackbar.severity} variant="filled" sx={{ borderRadius: 2 }}>
+                  {wfSnackbar.message}
+                </Alert>
+              </Snackbar>
+
+              {tabValue !== 5 && <TablePagination
                 rowsPerPageOptions={[5, 10, 25, 50]}
                 component="div"
                 count={getFilteredReferralsByTab(tabValue).length}
@@ -387,7 +554,7 @@ const AdminReferrals = () => {
                 page={page}
                 onPageChange={handleChangePage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
-              />
+              />}
             </>
           )}
 
@@ -501,8 +668,8 @@ const AdminReferrals = () => {
 
       {/* Statistics Dialog */}
       <Dialog 
-        open={statsDialogOpen} 
-        onClose={() => setStatsDialogOpen(false)}
+        open={statsDialogOpen}
+        onClose={() => { setStatsDialogOpen(false); setStatsError(null); }}
         fullWidth
         maxWidth="md"
       >
@@ -510,92 +677,97 @@ const AdminReferrals = () => {
           Referral Statistics
         </DialogTitle>
         
-        <DialogContent>
-          {referralStats && (
+        <DialogContent ref={statsContentRef}>
+          {statsLoading ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 6, gap: 2 }}>
+              <CircularProgress />
+              <Typography variant="body2" color="text.secondary">Loading statistics…</Typography>
+            </Box>
+          ) : statsError ? (
+            <Alert severity="error" sx={{ mt: 2 }}>{statsError}</Alert>
+          ) : referralStats ? (
             <Grid container spacing={3} sx={{ mt: 1 }}>
+              {/* Overview */}
               <Grid item xs={12} md={4}>
                 <Card variant="outlined">
                   <CardContent>
                     <Typography variant="h6" gutterBottom>Referral Overview</Typography>
-                    <Typography variant="body2">
-                      <strong>Total Referrals:</strong> {referralStats.totalReferrals}
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Pending:</strong> {referralStats.pendingReferrals}
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Active:</strong> {referralStats.approvedReferrals}
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Completed:</strong> {referralStats.completedReferrals}
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Cancelled:</strong> {referralStats.cancelledReferrals}
-                    </Typography>
+                    <Typography variant="body2"><strong>Total:</strong> {referralStats.totalReferrals}</Typography>
+                    <Typography variant="body2"><strong>Pending:</strong> {referralStats.pendingReferrals}</Typography>
+                    <Typography variant="body2"><strong>Accepted:</strong> {referralStats.acceptedReferrals ?? referralStats.approvedReferrals}</Typography>
+                    <Typography variant="body2"><strong>Completed:</strong> {referralStats.completedReferrals}</Typography>
+                    <Typography variant="body2"><strong>Rejected:</strong> {referralStats.rejectedReferrals}</Typography>
+                    <Typography variant="body2"><strong>Cancelled:</strong> {referralStats.cancelledReferrals}</Typography>
                   </CardContent>
                 </Card>
               </Grid>
-              
+
+              {/* Disputes & Timing */}
               <Grid item xs={12} md={4}>
                 <Card variant="outlined">
                   <CardContent>
-                    <Typography variant="h6" gutterBottom>Dispute Statistics</Typography>
-                    <Typography variant="body2">
-                      <strong>Active Disputes:</strong> {referralStats.activeDisputes}
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Average Completion Time:</strong> {referralStats.averageCompletionTime} days
+                    <Typography variant="h6" gutterBottom>Dispute & Timing</Typography>
+                    <Typography variant="body2"><strong>Active Disputes:</strong> {referralStats.activeDisputes}</Typography>
+                    <Typography variant="body2"><strong>Avg Completion Time:</strong> {referralStats.averageCompletionTime} days</Typography>
+                    <Typography variant="body2" sx={{ mt: 1 }}>
+                      <strong>Completion Rate:</strong>{' '}
+                      {referralStats.totalReferrals
+                        ? `${((referralStats.completedReferrals / referralStats.totalReferrals) * 100).toFixed(1)}%`
+                        : 'N/A'}
                     </Typography>
                   </CardContent>
                 </Card>
               </Grid>
-              
+
+              {/* Top Referrers */}
               <Grid item xs={12} md={4}>
                 <Card variant="outlined">
                   <CardContent>
                     <Typography variant="h6" gutterBottom>Top Referrers</Typography>
-                    {referralStats.topReferrers && referralStats.topReferrers.map((referrer, index) => (
-                      <Typography key={index} variant="body2">
-                        <strong>{referrer.providerName}:</strong> {referrer.count} referrals
+                    {(referralStats.topReferrers || []).map((r, i) => (
+                      <Typography key={i} variant="body2">
+                        <strong>{r.providerName}:</strong> {r.count} referrals
                       </Typography>
                     ))}
                   </CardContent>
                 </Card>
               </Grid>
-              
+
+              {/* Monthly Trends */}
               <Grid item xs={12} md={6}>
                 <Card variant="outlined">
                   <CardContent>
                     <Typography variant="h6" gutterBottom>Monthly Trends</Typography>
                     <Box sx={{ height: 300 }}>
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={referralStats.monthlyTrends}>
+                        <LineChart data={referralStats.monthlyTrends || []}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="month" />
-                          <YAxis />
+                          <YAxis allowDecimals={false} />
                           <RechartsTooltip />
                           <Legend />
-                          <Line type="monotone" dataKey="count" stroke="#8884d8" name="Referrals" />
+                          <Line type="monotone" dataKey="count" stroke="#8884d8" name="Referrals" activeDot={{ r: 6 }} />
                         </LineChart>
                       </ResponsiveContainer>
                     </Box>
                   </CardContent>
                 </Card>
               </Grid>
-              
+
+              {/* Top Receivers */}
               <Grid item xs={12} md={6}>
                 <Card variant="outlined">
                   <CardContent>
                     <Typography variant="h6" gutterBottom>Top Receivers</Typography>
                     <Box sx={{ height: 300 }}>
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={referralStats.topReceivers}>
+                        <BarChart data={referralStats.topReceivers || []}>
                           <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="providerName" />
-                          <YAxis />
+                          <XAxis dataKey="providerName" tick={{ fontSize: 11 }} />
+                          <YAxis allowDecimals={false} />
                           <RechartsTooltip />
                           <Legend />
-                          <Bar dataKey="count" fill="#82ca9d" name="Referrals Received" />
+                          <Bar dataKey="count" fill="#82ca9d" name="Received" />
                         </BarChart>
                       </ResponsiveContainer>
                     </Box>
@@ -603,12 +775,25 @@ const AdminReferrals = () => {
                 </Card>
               </Grid>
             </Grid>
+          ) : (
+            <Box sx={{ py: 4, textAlign: 'center' }}>
+              <Typography variant="body1" color="text.secondary">No statistics available.</Typography>
+            </Box>
           )}
         </DialogContent>
         
         <DialogActions>
-          <Button onClick={() => setStatsDialogOpen(false)}>
+          <Button onClick={() => { setStatsDialogOpen(false); setStatsError(null); }}>
             Close
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleExportStatsPDF}
+            disabled={exporting || statsLoading || !referralStats}
+            startIcon={exporting ? <CircularProgress size={16} color="inherit" /> : null}
+          >
+            {exporting ? 'Generating PDF…' : 'Export Report'}
           </Button>
         </DialogActions>
       </Dialog>

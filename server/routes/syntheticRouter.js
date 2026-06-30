@@ -1017,6 +1017,13 @@ router.put('/admin/providers/:id/suspend', protect, authorize('admin', 'superadm
   res.status(200).json({ success: true, data: safeUser });
 });
 
+router.get('/admin/settings-map', protect, authorize('admin', 'superadmin'), (req, res) => {
+  const allSettings = store.adminSettings.findAll();
+  const map = {};
+  allSettings.forEach(s => { map[s.key || s.category] = s.value || s.settings || {}; });
+  res.status(200).json({ success: true, data: map });
+});
+
 router.get('/admin/settings', protect, authorize('admin', 'superadmin'), (req, res) => {
   res.status(200).json({ success: true, count: store.adminSettings.findAll().length, data: store.adminSettings.findAll() });
 });
@@ -1028,13 +1035,17 @@ router.get('/admin/settings/:category', protect, authorize('admin', 'superadmin'
 });
 
 router.put('/admin/settings/:category', protect, authorize('admin', 'superadmin'), (req, res) => {
-  const existing = store.adminSettings.findOne({ category: req.params.category });
+  const { value, description, category: bodyCat, ...rest } = req.body;
+  const settingsValue = value !== undefined ? value : rest;
+  const key = req.params.category;
+  const existing = store.adminSettings.findOne({ key }) || store.adminSettings.findOne({ category: key });
   if (existing) {
-    existing.settings = { ...existing.settings, ...req.body };
+    existing.value = settingsValue;
+    existing.settings = settingsValue;
     store.adminSettings.save(existing);
     return res.status(200).json({ success: true, data: existing });
   }
-  const newSetting = { _id: `setting-${req.params.category}`, category: req.params.category, settings: req.body };
+  const newSetting = { _id: `settings-${key}`, key, category: key, value: settingsValue, settings: settingsValue };
   store.adminSettings.save(newSetting);
   res.status(201).json({ success: true, data: newSetting });
 });
@@ -1098,13 +1109,73 @@ router.get('/admin/referrals', protect, authorize('admin', 'superadmin'), (req, 
 
 router.get('/admin/referrals/stats/overview', protect, authorize('admin', 'superadmin'), (req, res) => {
   const referrals = store.referrals.findAll();
+  const total     = referrals.length;
+  const pending   = referrals.filter(r => r.status === 'pending').length;
+  const accepted  = referrals.filter(r => r.status === 'accepted').length;
+  const completed = referrals.filter(r => r.status === 'completed').length;
+  const cancelled = referrals.filter(r => r.status === 'cancelled').length;
+  const rejected  = referrals.filter(r => r.status === 'rejected').length;
+
+  const PROVIDER_NAMES = {
+    'user-2': 'Dr. John Smith',
+    'user-3': 'Nurse Sarah Johnson',
+    'user-4': 'Dr. Michael Chen',
+    'user-5': 'Dr. Robert Williams',
+  };
+
+  // Tally referrers and receivers
+  const referrerCounts = {};
+  const receiverCounts = {};
+  referrals.forEach(r => {
+    if (r.referringProvider) referrerCounts[r.referringProvider] = (referrerCounts[r.referringProvider] || 0) + 1;
+    if (r.receivingProvider) receiverCounts[r.receivingProvider] = (receiverCounts[r.receivingProvider] || 0) + 1;
+  });
+  const toRanked = (countsMap) =>
+    Object.entries(countsMap).sort((a, b) => b[1] - a[1]).slice(0, 5)
+      .map(([id, count]) => ({ providerId: id, providerName: PROVIDER_NAMES[id] || id, count }));
+
+  // Monthly trends from createdAt dates
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const monthCounts = {};
+  referrals.forEach(r => {
+    const d = r.createdAt ? new Date(r.createdAt) : null;
+    if (d && !isNaN(d)) { const m = MONTHS[d.getMonth()]; monthCounts[m] = (monthCounts[m] || 0) + 1; }
+  });
+  const monthlyTrends = Object.keys(monthCounts).length > 0
+    ? Object.entries(monthCounts).map(([month, count]) => ({ month, count }))
+    : [
+        { month: 'Jan', count: 8 }, { month: 'Feb', count: 11 }, { month: 'Mar', count: 9 },
+        { month: 'Apr', count: 14 }, { month: 'May', count: 12 }, { month: 'Jun', count: 17 },
+      ];
+
+  const topReferrers = toRanked(referrerCounts).length > 0 ? toRanked(referrerCounts) : [
+    { providerId: 'user-2', providerName: 'Dr. John Smith',      count: 25 },
+    { providerId: 'user-5', providerName: 'Dr. Robert Williams', count: 12 },
+    { providerId: 'user-4', providerName: 'Dr. Michael Chen',    count: 9  },
+    { providerId: 'user-3', providerName: 'Nurse Sarah Johnson', count: 7  },
+  ];
+  const topReceivers = toRanked(receiverCounts).length > 0 ? toRanked(receiverCounts) : [
+    { providerId: 'user-4', providerName: 'Dr. Michael Chen',    count: 22 },
+    { providerId: 'user-2', providerName: 'Dr. John Smith',      count: 18 },
+    { providerId: 'user-5', providerName: 'Dr. Robert Williams', count: 16 },
+    { providerId: 'user-3', providerName: 'Nurse Sarah Johnson', count: 15 },
+  ];
+
   res.status(200).json({
     success: true,
     data: {
-      total: referrals.length,
-      pending: referrals.filter((r) => r.status === 'pending').length,
-      completed: referrals.filter((r) => r.status === 'completed').length,
-      rejected: referrals.filter((r) => r.status === 'rejected').length,
+      totalReferrals:     total    || 71,
+      pendingReferrals:   pending  || 12,
+      acceptedReferrals:  accepted || 18,
+      approvedReferrals:  accepted || 18,
+      completedReferrals: completed || 34,
+      cancelledReferrals: cancelled || 4,
+      rejectedReferrals:  rejected  || 3,
+      activeDisputes: 2,
+      averageCompletionTime: 9.4,
+      topReferrers,
+      topReceivers,
+      monthlyTrends,
     },
   });
 });
@@ -1232,7 +1303,49 @@ router.put('/admin/ai-management/thresholds', protect, authorize('admin', 'super
 });
 
 router.get('/admin/ai-management/statistics', protect, authorize('admin', 'superadmin'), (req, res) => {
-  res.json({ success: true, data: { totalModels: SYNTHETIC_AI_MODELS.length, activeModels: SYNTHETIC_AI_MODELS.filter(m => m.status === 'active').length, avgAccuracy: 0.896, totalInferences: SYNTHETIC_AI_MODELS.reduce((s, m) => s + m.totalInferences, 0), totalReports: SYNTHETIC_AI_REPORTS.length } });
+  res.json({
+    success: true,
+    data: {
+      totalReports: 1245,
+      averageConfidence: 0.887,
+      approvalRate: 0.92,
+      totalFeedback: 328,
+      reportTypeDistribution: [
+        { name: 'Readmission', value: 423 },
+        { name: 'Diagnosis', value: 356 },
+        { name: 'Treatment', value: 287 },
+        { name: 'Summary', value: 124 },
+        { name: 'Custom', value: 55 },
+      ],
+      statusDistribution: [
+        { name: 'Approved', value: 876 },
+        { name: 'Pending Review', value: 214 },
+        { name: 'Rejected', value: 98 },
+        { name: 'Draft', value: 57 },
+      ],
+      confidenceTrends: [
+        { month: 'Jan', readmission: 0.82, diagnosis: 0.88, treatment: 0.79 },
+        { month: 'Feb', readmission: 0.84, diagnosis: 0.87, treatment: 0.81 },
+        { month: 'Mar', readmission: 0.85, diagnosis: 0.89, treatment: 0.83 },
+        { month: 'Apr', readmission: 0.87, diagnosis: 0.91, treatment: 0.85 },
+        { month: 'May', readmission: 0.89, diagnosis: 0.92, treatment: 0.86 },
+        { month: 'Jun', readmission: 0.91, diagnosis: 0.93, treatment: 0.88 },
+      ],
+      feedbackDistribution: [
+        { name: 'Accurate', value: 187 },
+        { name: 'False Positive', value: 76 },
+        { name: 'False Negative', value: 42 },
+        { name: 'Other', value: 23 },
+      ],
+      topInsights: [
+        { title: 'Medication Adherence Impact', description: 'Patients with medication adherence issues show 3.2x higher readmission rates within 30 days.', confidence: 0.94, impact: 'High' },
+        { title: 'Early Intervention Effectiveness', description: 'Early follow-up within 72 hours reduces readmission risk by 42% for high-risk cardiac patients.', confidence: 0.91, impact: 'High' },
+        { title: 'Diagnostic Pattern Recognition', description: 'AI model identifies subtle patterns in lab results that predict sepsis onset 6 hours earlier than traditional methods.', confidence: 0.87, impact: 'Critical' },
+        { title: 'Treatment Protocol Optimization', description: 'Modified antibiotic protocol based on AI recommendations reduced average treatment time by 1.8 days.', confidence: 0.89, impact: 'Medium' },
+        { title: 'Social Determinants Correlation', description: 'Transportation barriers strongly correlate with missed appointments and poorer outcomes for chronic disease patients.', confidence: 0.85, impact: 'Medium' },
+      ],
+    },
+  });
 });
 
 router.get('/admin/ai-management/scheduled-reports', protect, authorize('admin', 'superadmin'), (req, res) => {

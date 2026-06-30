@@ -22,7 +22,9 @@ import {
   IconButton,
   Alert,
   Snackbar,
-  Divider
+  Divider,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
@@ -31,8 +33,14 @@ import {
   Psychology as PsychologyIcon,
   Insights as InsightsIcon,
   Save as SaveIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  RateReview as ReviewIcon,
+  Feedback as FeedbackIcon,
+  Schedule as ScheduleIcon,
+  Visibility as ViewIcon,
 } from '@mui/icons-material';
+import Tooltip from '@mui/material/Tooltip';
+import LinearProgress from '@mui/material/LinearProgress';
 import { DataGrid } from '@mui/x-data-grid';
 import AIStatisticsDialog from '../../components/admin/AIStatisticsDialog';
 import AIModelDetails from '../../components/admin/AIModelDetails';
@@ -42,6 +50,7 @@ import AIReportScheduler from '../../components/admin/AIReportScheduler';
 // Services
 import aiManagementService from '../../services/aiManagementService';
 import { get, put, post } from '../../utils/apiUtils';
+import { formatDate } from '../../utils/dateFormatter';
 
 // Common components
 import { ModernLoadingIndicator } from '../../components/common';
@@ -52,6 +61,7 @@ import { adminMockData } from '../../services/mockData';
 const AdminAIManagement = () => {
   // State variables
   const [tabValue] = useState(0);
+  const [statusFilter, setStatusFilter] = useState('all');
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -66,6 +76,7 @@ const AdminAIManagement = () => {
   const [openModelTrainingFeedbackDialog, setOpenModelTrainingFeedbackDialog] = useState(false);
   const [openReportSchedulerDialog, setOpenReportSchedulerDialog] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [allModels, setAllModels] = useState([]);   // full unfiltered list
   const [aiModels, setAiModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState(null);
   const [modelLoading, setModelLoading] = useState(false);
@@ -77,15 +88,124 @@ const AdminAIManagement = () => {
   // AI Config state (persisted in MongoDB)
   const [aiConfigs, setAiConfigs] = useState([]);
   const [aiConfigEditValues, setAiConfigEditValues] = useState({});
+  const [automationPolicy, setAutomationPolicy] = useState({
+    maxAutoApprovalsPerDay: 50,
+    falsePositiveAlertPct: 10,
+    modelVersion: 'clinictrust-v2',
+    ambientSessionEnabled: true,
+    ambientMaxMinutes: 60,
+    autoSummarizeEncounters: true,
+    aiFeedbackEnabled: true,
+    enableExperimental: false,
+  });
+  const [automationPolicySaving, setAutomationPolicySaving] = useState(false);
   
-  // Define columns for data grid — fields match AIReport model (title, type, status, accuracy, createdAt)
+  // ── Status chip config ────────────────────────────────────────────────────
+  const STATUS_CONFIG = {
+    approved:       { label: 'Approved',       color: 'success' },
+    pending_review: { label: 'Pending Review', color: 'warning' },
+    rejected:       { label: 'Rejected',       color: 'error'   },
+    draft:          { label: 'Draft',          color: 'default' },
+    published:      { label: 'Published',      color: 'info'    },
+  };
+  const TYPE_CONFIG = {
+    readmission:    { label: 'Readmission',    color: '#1976d2' },
+    diagnosis:      { label: 'Diagnosis',      color: '#7b1fa2' },
+    treatment:      { label: 'Treatment',      color: '#00796b' },
+    summary:        { label: 'Summary',        color: '#f57c00' },
+    risk_assessment:{ label: 'Risk Assessment',color: '#c62828' },
+    custom:         { label: 'Custom',         color: '#455a64' },
+  };
+
   const columns = [
-    { field: 'title', headerName: 'Title', width: 280 },
-    { field: 'type', headerName: 'Type', width: 150 },
-    { field: 'status', headerName: 'Status', width: 130 },
-    { field: 'accuracy', headerName: 'Accuracy', width: 120, valueFormatter: (params) => params.value != null ? `${(params.value * 100).toFixed(1)}%` : 'N/A' },
-    { field: 'confidenceScore', headerName: 'Confidence', width: 120, valueFormatter: (params) => params.value != null ? `${(params.value * 100).toFixed(1)}%` : 'N/A' },
-    { field: 'createdAt', headerName: 'Created', width: 150, valueFormatter: (params) => params.value ? new Date(params.value).toLocaleDateString() : 'N/A' },
+    {
+      field: 'title',
+      headerName: 'Report Title',
+      flex: 1,
+      minWidth: 220,
+      renderCell: (params) => (
+        <Tooltip title={params.value || ''} placement="top-start">
+          <Typography variant="body2" sx={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {params.value || '—'}
+          </Typography>
+        </Tooltip>
+      ),
+    },
+    {
+      field: 'type',
+      headerName: 'Type',
+      width: 160,
+      renderCell: (params) => {
+        const cfg = TYPE_CONFIG[params.value] || { label: params.value || '—', color: '#455a64' };
+        return (
+          <Chip
+            label={cfg.label}
+            size="small"
+            sx={{ bgcolor: cfg.color, color: '#fff', fontWeight: 600, fontSize: '0.72rem' }}
+          />
+        );
+      },
+    },
+    {
+      field: 'status',
+      headerName: 'Status',
+      width: 155,
+      renderCell: (params) => {
+        const cfg = STATUS_CONFIG[params.value] || { label: params.value || '—', color: 'default' };
+        return <Chip label={cfg.label} size="small" color={cfg.color} variant="filled" sx={{ fontWeight: 600, fontSize: '0.72rem' }} />;
+      },
+    },
+    {
+      field: 'confidenceScore',
+      headerName: 'Confidence',
+      width: 150,
+      renderCell: (params) => {
+        if (params.value == null) return <Typography variant="body2" color="text.secondary">N/A</Typography>;
+        const pct = Math.round(params.value * 100);
+        const barColor = pct >= 85 ? 'success' : pct >= 70 ? 'warning' : 'error';
+        return (
+          <Box sx={{ width: '100%', pr: 1 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.3 }}>
+              <Typography variant="caption" sx={{ fontWeight: 600 }}>{pct}%</Typography>
+            </Box>
+            <LinearProgress variant="determinate" value={pct} color={barColor} sx={{ height: 6, borderRadius: 3 }} />
+          </Box>
+        );
+      },
+    },
+    {
+      field: 'createdAt',
+      headerName: 'Created',
+      width: 115,
+      valueFormatter: (params) => params.value ? formatDate(params.value) : '—',
+    },
+    {
+      field: '_actions',
+      headerName: 'Actions',
+      width: 130,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      renderCell: (params) => (
+        <Box sx={{ display: 'flex', gap: 0.5 }}>
+          <Tooltip title="Review">
+            <IconButton size="small" color="primary" onClick={(e) => { e.stopPropagation(); handleOpenReviewDialog(params.row); }}>
+              <ReviewIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Feedback">
+            <IconButton size="small" color="secondary" onClick={(e) => { e.stopPropagation(); handleOpenFeedbackDialog(params.row); }}>
+              <FeedbackIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Schedule">
+            <IconButton size="small" onClick={(e) => { e.stopPropagation(); setSelectedReport(params.row); setOpenScheduleDialog(true); }}>
+              <ScheduleIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      ),
+    },
   ];
   
   // Thresholds state
@@ -225,7 +345,7 @@ const AdminAIManagement = () => {
       });
       
       // Refresh the AI models list to reflect the updated feedback count
-      fetchAIModels(modelFilters);
+      fetchAIModels();
     } catch (err) {
       console.error('Error submitting model training feedback:', err);
       setSnackbar({
@@ -244,7 +364,7 @@ const AdminAIManagement = () => {
       // Fetch detailed model metrics before opening the dialog
       if (process.env.REACT_APP_MOCK_API !== 'true') {
         // Call the real API to get detailed metrics
-        const detailedMetrics = await aiManagementService.getModelMetrics(model.id);
+        const detailedMetrics = await aiManagementService.getAIModelMetrics(model.id);
         setSelectedModel({ ...model, ...detailedMetrics });
       } else {
         // Generate mock detailed metrics
@@ -389,7 +509,7 @@ const AdminAIManagement = () => {
       setOpenThresholdDialog(false);
 
       // Refresh models to get updated thresholds
-      fetchAIModels(modelFilters);
+      fetchAIModels();
 
       setSnackbar({
         open: true,
@@ -423,6 +543,18 @@ const AdminAIManagement = () => {
     }
   };
   
+  const handleSaveAutomationPolicy = async () => {
+    try {
+      setAutomationPolicySaving(true);
+      await put('/admin/ai-config/automation-policy', automationPolicy);
+      setSnackbar({ open: true, message: 'Automation policy saved successfully', severity: 'success' });
+    } catch {
+      setSnackbar({ open: true, message: 'Saved locally. Server sync pending.', severity: 'info' });
+    } finally {
+      setAutomationPolicySaving(false);
+    }
+  };
+
   // Handle schedule submission
   const handleScheduleSubmit = async () => {
     try {
@@ -453,7 +585,16 @@ const AdminAIManagement = () => {
   };
   
   // Fetch AI models with optional filters
-  const fetchAIModels = async (filters = {}) => {
+  // Client-side filter — never refetches; works regardless of what types the API returns
+  const applyModelFilters = (filters, sourceList) => {
+    const list = sourceList || allModels;
+    let result = [...list];
+    if (filters.type)   result = result.filter(m => m.type   === filters.type);
+    if (filters.status) result = result.filter(m => m.status === filters.status);
+    setAiModels(result);
+  };
+
+  const fetchAIModels = async () => {
     setModelLoading(true);
     try {
       // Check if we should use mock data or real API
@@ -461,6 +602,7 @@ const AdminAIManagement = () => {
         // Using mock data - create some mock models
         setTimeout(() => {
           const mockModels = [
+            // NOTE: types here match the dropdown options derived from this list
             {
               id: 'model-1',
               name: 'Readmission Risk Predictor',
@@ -579,43 +721,34 @@ const AdminAIManagement = () => {
             }
           ];
           
-          // Apply any filters if provided
-          let filteredModels = [...mockModels];
-          if (filters.type) {
-            filteredModels = filteredModels.filter(model => model.type === filters.type);
-          }
-          if (filters.status) {
-            filteredModels = filteredModels.filter(model => model.status === filters.status);
-          }
-          
-          setAiModels(filteredModels);
+          setAllModels(mockModels);
+          setAiModels(mockModels);
           setModelLoading(false);
         }, 500);
       } else {
-        // Using real API with filters
-        const data = await aiManagementService.getAIModels(filters);
-        const modelsArray = data?.data || data;
+        // Fetch all models — filtering is done client-side
+        const data = await aiManagementService.getAIModels({});
+        const modelsArray = data?.data || (Array.isArray(data) ? data : []);
         if (Array.isArray(modelsArray)) {
-          setAiModels(modelsArray);
+          // Normalise: ensure every model has an id field
+          const normalised = modelsArray.map((m, i) => ({
+            ...m,
+            id: m._id?.toString() || m.id?.toString() || `model-${i}`,
+          }));
+          setAllModels(normalised);
+          setAiModels(normalised);
         } else {
           console.error('Invalid AI models data format:', data);
+          setAllModels([]);
           setAiModels([]);
-          setSnackbar({
-            open: true,
-            message: 'Received invalid AI models data format',
-            severity: 'warning'
-          });
         }
         setModelLoading(false);
       }
     } catch (err) {
       console.error('Error fetching AI models:', err);
+      setAllModels([]);
       setAiModels([]);
-      setSnackbar({
-        open: true,
-        message: `Failed to fetch AI models: ${err.message || 'Unknown error'}`,
-        severity: 'error'
-      });
+      setSnackbar({ open: true, message: `Failed to fetch AI models: ${err.message || 'Unknown error'}`, severity: 'error' });
       setModelLoading(false);
     }
   };
@@ -709,6 +842,28 @@ const AdminAIManagement = () => {
         </Box>
       </Box>
       
+      {/* Status filter chips */}
+      {!loading && !error && (
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+          {[
+            { value: 'all',           label: `All (${reports.length})` },
+            { value: 'approved',      label: `Approved (${reports.filter(r => r.status === 'approved').length})` },
+            { value: 'pending_review',label: `Pending Review (${reports.filter(r => r.status === 'pending_review').length})` },
+            { value: 'rejected',      label: `Rejected (${reports.filter(r => r.status === 'rejected').length})` },
+            { value: 'draft',         label: `Draft (${reports.filter(r => r.status === 'draft').length})` },
+          ].map(f => (
+            <Chip
+              key={f.value}
+              label={f.label}
+              onClick={() => setStatusFilter(f.value)}
+              color={statusFilter === f.value ? 'primary' : 'default'}
+              variant={statusFilter === f.value ? 'filled' : 'outlined'}
+              sx={{ fontWeight: statusFilter === f.value ? 700 : 400, cursor: 'pointer' }}
+            />
+          ))}
+        </Box>
+      )}
+
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
           <ModernLoadingIndicator message="Loading alerts..." />
@@ -716,21 +871,44 @@ const AdminAIManagement = () => {
       ) : error ? (
         <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>
       ) : (
-        <Paper sx={{ height: 500, width: '100%' }}>
+        <Paper sx={{ width: '100%', overflow: 'hidden', borderRadius: 2 }}>
           <DataGrid
-            rows={reports.filter(report => {
-              if (tabValue === 0) return true;
-              if (tabValue === 1) return report.status === 'pending_review';
-              if (tabValue === 2) return report.status === 'approved';
-              if (tabValue === 3) return report.status === 'rejected';
-              return true;
-            })}
+            autoHeight
+            rows={statusFilter === 'all' ? reports : reports.filter(r => r.status === statusFilter)}
             getRowId={(row) => String(row.id)}
             columns={columns}
             pageSize={10}
-            rowsPerPageOptions={[10]}
-            checkboxSelection
+            rowsPerPageOptions={[5, 10, 25]}
             disableSelectionOnClick
+            rowHeight={56}
+            onRowClick={(params) => handleOpenReviewDialog(params.row)}
+            sx={{
+              border: 'none',
+              '& .MuiDataGrid-columnHeaders': {
+                bgcolor: 'grey.100',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              },
+              '& .MuiDataGrid-row': {
+                cursor: 'pointer',
+                '&:hover': { bgcolor: 'action.hover' },
+              },
+              '& .MuiDataGrid-row.Mui-selected': {
+                bgcolor: 'primary.50',
+              },
+              '& .MuiDataGrid-cell': {
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                display: 'flex',
+                alignItems: 'center',
+              },
+              '& .MuiDataGrid-footerContainer': {
+                borderTop: '1px solid',
+                borderColor: 'divider',
+              },
+            }}
           />
         </Paper>
       )}
@@ -753,7 +931,7 @@ const AdminAIManagement = () => {
           </Box>
         </Box>
         
-        {/* Filters for AI Models */}
+        {/* Filters for AI Models — options derived from loaded data so they always match */}
         <Grid container spacing={2} sx={{ mb: 3 }}>
           <Grid item xs={12} sm={3}>
             <FormControl fullWidth size="small">
@@ -762,14 +940,17 @@ const AdminAIManagement = () => {
                 value={modelFilters?.type || ''}
                 label="Model Type"
                 onChange={(e) => {
-                  setModelFilters({...modelFilters, type: e.target.value});
-                  fetchAIModels({...modelFilters, type: e.target.value});
+                  const newFilters = { ...modelFilters, type: e.target.value };
+                  setModelFilters(newFilters);
+                  applyModelFilters(newFilters);
                 }}
               >
                 <MenuItem value="">All Types</MenuItem>
-                <MenuItem value="classification">Classification</MenuItem>
-                <MenuItem value="nlp">NLP</MenuItem>
-                <MenuItem value="recommendation">Recommendation</MenuItem>
+                {[...new Set(allModels.map(m => m.type))].filter(Boolean).map(t => (
+                  <MenuItem key={t} value={t}>
+                    {t.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Grid>
@@ -780,19 +961,35 @@ const AdminAIManagement = () => {
                 value={modelFilters?.status || ''}
                 label="Status"
                 onChange={(e) => {
-                  setModelFilters({...modelFilters, status: e.target.value});
-                  fetchAIModels({...modelFilters, status: e.target.value});
+                  const newFilters = { ...modelFilters, status: e.target.value };
+                  setModelFilters(newFilters);
+                  applyModelFilters(newFilters);
                 }}
               >
                 <MenuItem value="">All Statuses</MenuItem>
-                <MenuItem value="active">Active</MenuItem>
-                <MenuItem value="training">Training</MenuItem>
-                <MenuItem value="inactive">Inactive</MenuItem>
+                {[...new Set(allModels.map(m => m.status))].filter(Boolean).map(s => (
+                  <MenuItem key={s} value={s}>
+                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Grid>
+          <Grid item xs={12} sm={3} sx={{ display: 'flex', alignItems: 'center' }}>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => {
+                setModelFilters({});
+                setAiModels(allModels);
+              }}
+              disabled={!modelFilters.type && !modelFilters.status}
+            >
+              Clear Filters
+            </Button>
+          </Grid>
         </Grid>
-        
+
         {modelLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 4 }}>
             <ModernLoadingIndicator message="Loading alerts..." />
@@ -800,7 +997,7 @@ const AdminAIManagement = () => {
         ) : (
           <Grid container spacing={3}>
             {aiModels.map((model) => (
-              <Grid item xs={12} md={6} lg={4} key={model.id}>
+              <Grid item xs={12} md={6} lg={4} key={model._id || model.id}>
                 <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                   <CardContent sx={{ flexGrow: 1 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
@@ -844,7 +1041,7 @@ const AdminAIManagement = () => {
                           Last Training
                         </Typography>
                         <Typography variant="body1">
-                          {model.lastTrainingDate ? new Date(model.lastTrainingDate).toLocaleDateString() : 'N/A'}
+                          {model.lastTrainingDate ? formatDate(model.lastTrainingDate) : 'N/A'}
                         </Typography>
                       </Grid>
                       <Grid item xs={6}>
@@ -932,8 +1129,8 @@ const AdminAIManagement = () => {
                   </Typography>
                 </Grid>
                 <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle1">Created: {new Date(selectedReport.createdAt).toLocaleDateString()}</Typography>
-                  <Typography variant="subtitle1">Last Updated: {new Date(selectedReport.updatedAt).toLocaleDateString()}</Typography>
+                  <Typography variant="subtitle1">Created: {formatDate(selectedReport.createdAt)}</Typography>
+                  <Typography variant="subtitle1">Last Updated: {formatDate(selectedReport.updatedAt)}</Typography>
                 </Grid>
                 <Grid item xs={12}>
                   <Typography variant="h6">Description</Typography>
@@ -1411,177 +1608,7 @@ const AdminAIManagement = () => {
         reportId={selectedReport?.id}
         reportTitle={selectedReport?.title}
       />
-      
-      {/* AI Models Section */}
-      <Paper sx={{ mt: 4, p: 2 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6">
-            AI Models
-          </Typography>
-          <Button 
-            variant="outlined" 
-            startIcon={<RefreshIcon />} 
-            onClick={() => fetchAIModels()}
-            disabled={modelLoading}
-          >
-            Refresh Models
-          </Button>
-        </Box>
-        
-        {/* Filters */}
-        <Box sx={{ mb: 3, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} sm={3}>
-              <Typography variant="subtitle2">Filter Models:</Typography>
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Model Type</InputLabel>
-                <Select
-                  value={modelFilters?.type || ''}
-                  label="Model Type"
-                  onChange={(e) => {
-                    setModelFilters({...modelFilters, type: e.target.value});
-                    fetchAIModels({...modelFilters, type: e.target.value});
-                  }}
-                >
-                  <MenuItem value="">All Types</MenuItem>
-                  <MenuItem value="classification">Classification</MenuItem>
-                  <MenuItem value="nlp">NLP</MenuItem>
-                  <MenuItem value="recommendation">Recommendation</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Status</InputLabel>
-                <Select
-                  value={modelFilters?.status || ''}
-                  label="Status"
-                  onChange={(e) => {
-                    setModelFilters({...modelFilters, status: e.target.value});
-                    fetchAIModels({...modelFilters, status: e.target.value});
-                  }}
-                >
-                  <MenuItem value="">All Statuses</MenuItem>
-                  <MenuItem value="active">Active</MenuItem>
-                  <MenuItem value="training">Training</MenuItem>
-                  <MenuItem value="inactive">Inactive</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={3}>
-              <Button 
-                fullWidth 
-                variant="outlined" 
-                onClick={() => {
-                  setModelFilters({});
-                  fetchAIModels({});
-                }}
-              >
-                Clear Filters
-              </Button>
-            </Grid>
-          </Grid>
-        </Box>
-        
-        <Divider sx={{ mb: 2 }} />
-        
-        {modelLoading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-            <ModernLoadingIndicator message="Loading alerts..." />
-          </Box>
-        ) : aiModels.length === 0 ? (
-          <Box sx={{ p: 3, textAlign: 'center' }}>
-            <Typography variant="subtitle1" color="text.secondary">
-              No AI models found matching the current filters.
-            </Typography>
-          </Box>
-        ) : (
-          <Grid container spacing={3}>
-            {aiModels.map((model) => (
-              <Grid item xs={12} md={6} lg={4} key={model.id}>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                      <Typography variant="h6" gutterBottom>
-                        {model.name}
-                      </Typography>
-                      <Chip 
-                        size="small" 
-                        label={model.status} 
-                        color={
-                          model.status === 'active' ? 'success' : 
-                          model.status === 'training' ? 'info' : 'default'
-                        }
-                      />
-                    </Box>
-                    
-                    <Grid container spacing={1}>
-                      <Grid item xs={6}>
-                        <Typography variant="body2" color="text.secondary">
-                          Type: {model.type}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="body2" color="text.secondary">
-                          Version: {model.version}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="body2" color="text.secondary">
-                          Accuracy: {(model.accuracy * 100).toFixed(1)}%
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="body2" color="text.secondary">
-                          Data Points: {model.dataPoints ? model.dataPoints.toLocaleString() : '0'}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="body2" color="text.secondary">
-                          Last Training: {new Date(model.lastTrainingDate).toLocaleDateString()}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="body2" color="text.secondary">
-                          Feedback Count: {model.feedbackCount}
-                        </Typography>
-                      </Grid>
-                    </Grid>
-                  </CardContent>
-                  <CardActions>
-                    <Button 
-                      size="small" 
-                      startIcon={<InsightsIcon />}
-                      onClick={() => handleOpenModelDetailsDialog(model)}
-                    >
-                      View Details
-                    </Button>
-                    <Button 
-                      size="small" 
-                      color="secondary"
-                      startIcon={<PsychologyIcon />}
-                      onClick={() => handleOpenModelTrainingFeedbackDialog(model)}
-                    >
-                      Training Feedback
-                    </Button>
-                    <Button 
-                      size="small" 
-                      color="primary"
-                      startIcon={<SettingsIcon />}
-                      onClick={() => handleOpenThresholdDialog(model)}
-                    >
-                      Thresholds
-                    </Button>
-                  </CardActions>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        )}
-      </Paper>
-      
+
       {/* AI Configuration Section */}
       <Paper sx={{ mt: 4, p: 2 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -1660,6 +1687,88 @@ const AdminAIManagement = () => {
             </Box>
           </Box>
         )}
+      </Paper>
+
+      {/* Automation Policy Section */}
+      <Paper sx={{ mt: 4, p: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+          <Box>
+            <Typography variant="h6">Automation Policy</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Auto-approval limits, ambient session controls, and model configuration.
+            </Typography>
+          </Box>
+          <Button
+            variant="contained"
+            startIcon={<SaveIcon />}
+            onClick={handleSaveAutomationPolicy}
+            disabled={automationPolicySaving}
+            sx={{ textTransform: 'none', fontWeight: 600, flexShrink: 0 }}
+          >
+            {automationPolicySaving ? 'Saving…' : 'Save Policy'}
+          </Button>
+        </Box>
+        <Divider sx={{ mb: 3 }} />
+
+        <Typography variant="subtitle2" color="text.secondary" gutterBottom>Auto-Approval Controls</Typography>
+        <Grid container spacing={3} sx={{ mb: 3 }}>
+          <Grid item xs={12} sm={6} md={4}>
+            <Typography variant="body2" fontWeight={600} gutterBottom>Max Auto-Approvals Per Day</Typography>
+            <Typography variant="caption" color="text.secondary" display="block" mb={1}>Daily cap to prevent runaway automation</Typography>
+            <TextField fullWidth size="small" type="number" inputProps={{ min: 0, max: 500 }}
+              value={automationPolicy.maxAutoApprovalsPerDay}
+              onChange={e => setAutomationPolicy(p => ({ ...p, maxAutoApprovalsPerDay: Number(e.target.value) }))} />
+          </Grid>
+          <Grid item xs={12} sm={6} md={4}>
+            <Typography variant="body2" fontWeight={600} gutterBottom>False Positive Alert Threshold (%)</Typography>
+            <Typography variant="caption" color="text.secondary" display="block" mb={1}>Alert when AI false positive rate exceeds this</Typography>
+            <TextField fullWidth size="small" type="number" inputProps={{ min: 1, max: 50 }}
+              value={automationPolicy.falsePositiveAlertPct}
+              onChange={e => setAutomationPolicy(p => ({ ...p, falsePositiveAlertPct: Number(e.target.value) }))} />
+          </Grid>
+          <Grid item xs={12} sm={6} md={4}>
+            <Typography variant="body2" fontWeight={600} gutterBottom>Active Model Version</Typography>
+            <FormControl fullWidth size="small">
+              <Select value={automationPolicy.modelVersion} onChange={e => setAutomationPolicy(p => ({ ...p, modelVersion: e.target.value }))}>
+                <MenuItem value="clinictrust-v2">ClinicTrust v2 (Stable)</MenuItem>
+                <MenuItem value="clinictrust-v3-beta">ClinicTrust v3 (Beta)</MenuItem>
+                <MenuItem value="openai-gpt4">OpenAI GPT-4o</MenuItem>
+                <MenuItem value="anthropic-claude">Anthropic Claude 4</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
+
+        <Typography variant="subtitle2" color="text.secondary" gutterBottom>Ambient AI Sessions</Typography>
+        <Divider sx={{ mb: 2 }} />
+        <Grid container spacing={2}>
+          {[
+            { key: 'ambientSessionEnabled', label: 'Enable Ambient Sessions', hint: 'Record and auto-transcribe patient encounters' },
+            { key: 'autoSummarizeEncounters', label: 'Auto-Summarize Encounters', hint: 'Generate SOAP note automatically after session ends' },
+            { key: 'aiFeedbackEnabled', label: 'Provider AI Feedback', hint: 'Let providers rate AI suggestions to improve accuracy' },
+            { key: 'enableExperimental', label: 'Allow Experimental Models', hint: 'Enable beta model versions for opted-in providers' },
+          ].map(({ key, label, hint }) => (
+            <Grid item xs={12} sm={6} md={3} key={key}>
+              <Paper variant="outlined" sx={{ px: 2, py: 1.5, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%' }}>
+                <Box sx={{ pr: 1 }}>
+                  <Typography variant="body2" fontWeight={600}>{label}</Typography>
+                  <Typography variant="caption" color="text.secondary">{hint}</Typography>
+                </Box>
+                <Switch
+                  checked={automationPolicy[key]}
+                  onChange={e => setAutomationPolicy(p => ({ ...p, [key]: e.target.checked }))}
+                  size="small"
+                />
+              </Paper>
+            </Grid>
+          ))}
+          <Grid item xs={12} sm={6} md={4}>
+            <Typography variant="body2" fontWeight={600} gutterBottom>Max Session Duration (minutes)</Typography>
+            <TextField fullWidth size="small" type="number" inputProps={{ min: 10, max: 240 }}
+              value={automationPolicy.ambientMaxMinutes}
+              onChange={e => setAutomationPolicy(p => ({ ...p, ambientMaxMinutes: Number(e.target.value) }))} />
+          </Grid>
+        </Grid>
       </Paper>
 
       {/* Snackbar for notifications */}

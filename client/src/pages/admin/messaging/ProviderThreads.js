@@ -15,15 +15,7 @@ import {
   RadioButtonUnchecked as UnreadIcon,
 } from '@mui/icons-material';
 import messagingService from '../../../services/messagingService';
-
-const fmtTime = (ts) => {
-  if (!ts) return '—';
-  const d = new Date(ts);
-  const diff = (Date.now() - d) / 60000;
-  if (diff < 60)   return `${Math.floor(diff)}m ago`;
-  if (diff < 1440) return `${Math.floor(diff / 60)}h ago`;
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-};
+import { formatRelativeTime } from '../../../utils/dateFormatter';
 
 const AVATAR_COLORS = ['#1976d2', '#388e3c', '#7b1fa2', '#f57c00', '#0288d1'];
 const avatarColor = (name = '') => AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
@@ -69,7 +61,7 @@ function ThreadRow({ thread }) {
           <Chip label={totalMessages} size="small" color="primary" variant="outlined" />
         </TableCell>
         <TableCell>
-          <Typography variant="caption" color="text.secondary">{fmtTime(lm?.createdAt)}</Typography>
+          <Typography variant="caption" color="text.secondary">{formatRelativeTime(lm?.createdAt)}</Typography>
         </TableCell>
         <TableCell>
           <Chip
@@ -98,7 +90,7 @@ function ThreadRow({ thread }) {
                         <Box flex={1}>
                           <Box display="flex" alignItems="center" gap={1}>
                             <Typography variant="caption" fontWeight={600}>{msg.senderName}</Typography>
-                            <Typography variant="caption" color="text.disabled">{fmtTime(msg.createdAt)}</Typography>
+                            <Typography variant="caption" color="text.disabled">{formatRelativeTime(msg.createdAt)}</Typography>
                             {msg.readAt
                               ? <ReadIcon sx={{ fontSize: 12, color: 'success.main' }} />
                               : <UnreadIcon sx={{ fontSize: 12, color: 'text.disabled' }} />

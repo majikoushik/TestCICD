@@ -20,6 +20,7 @@ import {
 } from '@mui/icons-material';
 import { get, post, patch, del } from '../../utils/apiUtils';
 import { authStorage } from '../../utils/storageUtils';
+import { formatDate, formatDateTime } from '../../utils/dateFormatter';
 
 const _RAW = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 const API_BASE = _RAW.replace(/\/api$/, '');
@@ -90,7 +91,6 @@ const KYC_STATUS = {
 const EDITABLE_STATUSES = ['pending_email', 'profile_incomplete', 'doc_pending', 'under_review', 'verified', 'rejected'];
 const STATUS_TABS = ['all', 'profile_incomplete', 'doc_pending', 'under_review', 'verified', 'rejected'];
 
-const fmtDate = d => d ? new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 const initials = name => (name || '').split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
 const avatarColor = name => ['#1565c0','#2e7d32','#6a1b9a','#c62828','#0277bd'][(name || '').charCodeAt(0) % 5];
 const genderLabel = g => g === 'M' ? 'Male' : g === 'F' ? 'Female' : (g || '—');
@@ -466,7 +466,7 @@ export default function AdminKYC() {
                         <TableCell><Typography variant="body2" fontFamily="monospace">{p.npi || '—'}</Typography></TableCell>
                         <TableCell><Typography variant="body2" noWrap sx={{ maxWidth: 120 }}>{p.specialty || '—'}</Typography></TableCell>
                         <TableCell><Typography variant="body2">{p.licenseNumber || '—'}</Typography></TableCell>
-                        <TableCell><Typography variant="caption" color="text.secondary">{fmtDate(p.createdAt)}</Typography></TableCell>
+                        <TableCell><Typography variant="caption" color="text.secondary">{formatDate(p.createdAt)}</Typography></TableCell>
                         <TableCell>
                           <Chip label={sta.label} color={sta.color} size="small" variant={isReviewable ? 'filled' : 'outlined'} />
                         </TableCell>

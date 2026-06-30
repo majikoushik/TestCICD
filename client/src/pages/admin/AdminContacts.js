@@ -23,6 +23,7 @@ import {
   FiberNew as NewIcon,
 } from '@mui/icons-material';
 import contactAdminService from '../../services/contactAdminService';
+import { formatDateTime } from '../../utils/dateFormatter';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 const STATUS_META = {
@@ -38,11 +39,6 @@ const INQUIRY_META = {
   support:     { label: 'Support',     color: '#ed6c02' },
   partnership: { label: 'Partnership', color: '#7b1fa2' },
   demo:        { label: 'Demo',        color: '#c62828' },
-};
-
-const fmtDate = (d) => {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
 const initials = (name = '') =>
@@ -125,7 +121,7 @@ function DetailDialog({ contact, open, onClose, onStatusChange, onDelete }) {
           />
           <Chip
             icon={<ScheduleIcon sx={{ fontSize: 13 }} />}
-            label={fmtDate(contact.createdAt)}
+            label={formatDateTime(contact.createdAt)}
             size="small"
             variant="outlined"
           />
@@ -472,7 +468,7 @@ export default function AdminContacts() {
                         {/* Date */}
                         <TableCell>
                           <Typography variant="caption" color="text.secondary" noWrap>
-                            {fmtDate(contact.createdAt)}
+                            {formatDateTime(contact.createdAt)}
                           </Typography>
                         </TableCell>
 

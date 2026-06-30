@@ -49,6 +49,7 @@ import {
   Token as TokenIcon,
 } from '@mui/icons-material';
 import adminProviderService from '../../services/adminProviderService';
+import { formatDate, formatDateTime } from '../../utils/dateFormatter';
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -257,8 +258,8 @@ const AdminProviders = () => {
     rejected:           'Rejected',
   }[status] || status || '—');
 
-  const fmt = (date) => date ? new Date(date).toLocaleDateString() : '—';
-  const fmtFull = (date) => date ? new Date(date).toLocaleString() : '—';
+  const fmt = (date) => date ? formatDate(date) : '—';
+  const fmtFull = (date) => date ? formatDateTime(date) : '—';
 
   const getFilteredProvidersByStatus = (status) =>
     status === 'all' ? filteredProviders : filteredProviders.filter(p => p.accountStatus === status);

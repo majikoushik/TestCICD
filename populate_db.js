@@ -2768,273 +2768,243 @@ await db.collection('referraldisputes').insertMany(referralDisputes);
 console.log("Creating admin settings collection...");
 const adminSettings = [
   {
-    _id: "setting-general",
-    category: "general",
-    settings: {
-      systemName: "ClinicTrust AI Platform",
-      organizationName: "ClinicTrust Health Network",
-      supportEmail: "support@clinictrustai.com",
-      supportPhone: "+1-800-555-0123",
-      maintenanceMode: false,
-      maintenanceScheduled: null,
-      lastUpdated: new Date()
-    },
-    access: ["admin"]
+    _id: "settings-organization",
+    key: "organization",
+    category: "organization",
+    description: "Platform organization and branding settings",
+    isActive: true,
+    lastModifiedAt: new Date(),
+    value: {
+      platformName: "ClinicTrust AI",
+      orgName: "ClinicTrust Health Network",
+      supportEmail: "support@clinictrust.ai",
+      contactPhone: "+1 (555) 123-4567",
+      platformUrl: "https://app.clinictrust.ai",
+      timezone: "America/New_York",
+      dateFormat: "MM/DD/YYYY",
+      workStart: "08:00",
+      workEnd: "18:00",
+      address: "123 Healthcare Blvd, New York, NY 10001"
+    }
   },
   {
-    _id: "setting-security",
+    _id: "settings-security",
+    key: "security",
     category: "security",
-    settings: {
-      passwordPolicy: {
-        minLength: 10,
-        requireUppercase: true,
-        requireLowercase: true,
-        requireNumbers: true,
-        requireSpecialChars: true,
-        passwordExpiryDays: 90
-      },
-      mfaRequired: true,
-      sessionTimeout: 30, // minutes
+    description: "Password policy, session, MFA, and HIPAA settings",
+    isActive: true,
+    lastModifiedAt: new Date(),
+    value: {
+      minPasswordLen: 10,
+      requireUppercase: true,
+      requireNumbers: true,
+      requireSpecialChars: true,
+      passwordExpiryDays: 90,
       maxLoginAttempts: 5,
-      ipWhitelist: ["192.168.1.0/24", "10.0.0.0/8"],
-      auditLogRetention: 365 // days
-    },
-    access: ["admin"]
+      lockoutMinutes: 15,
+      sessionTimeoutMinutes: 30,
+      enforceMFA: false,
+      requireHIPAAAgreement: true,
+      ipAllowlistEnabled: false,
+      auditAllActions: true
+    }
   },
   {
-    _id: "setting-notifications",
+    _id: "settings-notifications",
+    key: "notifications",
     category: "notifications",
-    settings: {
-      emailNotifications: true,
-      smsNotifications: true,
-      inAppNotifications: true,
-      criticalAlertChannels: ["email", "sms", "inApp"],
-      dailyDigest: true,
-      digestTime: "08:00",
-      weeklyReport: true,
-      weeklyReportDay: "Monday"
-    },
-    access: ["admin", "manager"]
+    description: "Email, SMS, and event notification settings",
+    isActive: true,
+    lastModifiedAt: new Date(),
+    value: {
+      emailEnabled: true,
+      smsEnabled: false,
+      newReferral: true,
+      referralAccepted: true,
+      referralCompleted: true,
+      paApproved: true,
+      paDenied: true,
+      kycStatusUpdate: true,
+      tokenEarned: false,
+      lowTokenBalance: true,
+      lowBalanceThreshold: 100,
+      systemAlerts: true,
+      dailyDigest: false,
+      digestTime: "08:00"
+    }
   },
   {
-    _id: "setting-ai",
-    category: "ai",
-    settings: {
-      riskThresholds: {
-        readmission: 0.65,
-        adverseEvent: 0.75,
-        medicationInteraction: 0.70
-      },
-      modelVersions: {
-        readmissionPrediction: "v2.3.1",
-        diagnosisSuggestion: "v1.9.4",
-        medicationInteraction: "v3.0.2"
-      },
-      reviewRequired: {
-        highRiskPredictions: true,
-        patientSummaries: true,
-        treatmentRecommendations: true
-      },
-      feedbackCollection: true,
-      continuousLearning: true,
-      explainabilityLevel: "detailed" // basic, standard, detailed
-    },
-    access: ["admin"]
+    _id: "settings-integrations",
+    key: "integrations",
+    category: "integrations",
+    description: "FHIR, EHR, webhook, blockchain, and messaging provider settings",
+    isActive: true,
+    lastModifiedAt: new Date(),
+    value: {
+      fhirEndpoint: "https://fhir.clinictrust.ai/r4",
+      ehrSystem: "Epic",
+      ehrApiKey: "",
+      ehrApiEndpoint: "https://api.epic.com/FHIR/R4",
+      webhookUrl: "https://hooks.clinictrust.ai/events",
+      webhookSecret: "",
+      blockchainNetwork: "Polygon Testnet",
+      blockchainContract: "0x742d35Cc6634C0532925a3b844Bc454Bc9c7F68B",
+      emailProvider: "SendGrid",
+      smsProvider: "Twilio"
+    }
   },
   {
-    _id: "setting-tokens",
-    category: "tokens",
-    settings: {
-      tokenEconomy: true,
-      earnRates: {
-        dataContribution: 10,
-        qualityReporting: 15,
-        researchParticipation: 25,
-        peerReview: 5
-      },
-      redemptionOptions: [
-        {
-          service: "Premium Analytics",
-          cost: 50,
-          active: true
-        },
-        {
-          service: "Priority Referrals",
-          cost: 30,
-          active: true
-        },
-        {
-          service: "Advanced AI Features",
-          cost: 75,
-          active: true
-        }
-      ],
-      transfersEnabled: true,
-      maxDailyEarn: 100
-    },
-    access: ["admin"]
+    _id: "settings-maintenance",
+    key: "maintenance",
+    category: "maintenance",
+    description: "Maintenance mode, backup, data retention, and developer settings",
+    isActive: true,
+    lastModifiedAt: new Date(),
+    value: {
+      maintenanceMode: false,
+      maintenanceMessage: "The platform is undergoing scheduled maintenance. We will be back shortly.",
+      autoBackup: true,
+      backupFrequency: "daily",
+      backupRetentionDays: 30,
+      dataRetentionMonths: 84,
+      auditLogRetentionMonths: 84,
+      maxUploadMB: 10,
+      debugLogging: false,
+      allowPublicRegistration: true
+    }
   }
 ];
 await db.collection('adminsettings').insertMany(adminSettings);
 
-// Create AI reports collection
+// Create AI reports collection — documents must match AIReport schema
 console.log("Creating AI reports collection...");
 const aiReports = [
   {
     _id: "ai-report-001",
     title: "Readmission Risk Analysis - Q2 2023",
-    type: "risk_assessment",
-    status: "published",
+    type: "readmission",
+    status: "approved",
+    confidenceScore: 0.91,
+    createdBy: "user-1",
     createdAt: new Date(2023, 5, 15),
-    publishedAt: new Date(2023, 5, 20),
-    createdBy: {
-      userId: "user-1",
-      name: "Admin User",
-      role: "admin"
+    updatedAt: new Date(2023, 5, 20),
+    data: {
+      summary: "Analysis of 1,245 patient records shows 18% have high readmission risk.",
+      highRiskCount: 223, mediumRiskCount: 412, lowRiskCount: 610,
+      topFactors: ["Previous readmissions within 30 days", "Multiple chronic conditions", "Medication adherence issues"],
+      recommendations: ["Implement targeted follow-up for high-risk patients", "Strengthen discharge planning protocols"]
     },
-    reviewedBy: {
-      userId: "user-2",
-      name: "Dr. John Smith",
-      role: "doctor"
-    },
-    metrics: {
-      accuracy: 0.87,
-      precision: 0.83,
-      recall: 0.91,
-      f1Score: 0.87,
-      falsePositives: 12,
-      falseNegatives: 8,
-      improvementFromLastQuarter: 0.05
-    },
-    summary: "AI readmission risk model performance for Q2 2023 shows significant improvement over Q1. The model successfully identified 91% of high-risk patients, with a false positive rate of 17%. Overall accuracy increased by 5% compared to the previous quarter.",
-    insights: [
-      "Strongest predictors of readmission continue to be previous hospitalizations within 30 days and medication non-adherence",
-      "The model shows improved performance for elderly patients (75+) compared to Q1",
-      "Cardiac patients show the highest prediction accuracy at 92%"
+    feedback: [
+      { type: "accurate", comment: "Analysis aligns with clinical observations", submittedBy: "user-1", submittedAt: new Date(2023, 5, 22) }
     ],
-    recommendations: [
-      "Consider lowering the risk threshold for cardiac patients to capture more potential readmissions",
-      "Implement targeted intervention for medication adherence based on AI predictions",
-      "Expand model to include social determinants of health data for improved accuracy"
-    ],
-    dataPoints: 1250,
-    modelVersion: "2.3.1",
-    tags: ["readmission", "risk", "quarterly", "cardiology"]
+    reviewHistory: [{ action: "approved", reviewer: "user-1", comments: "Report validated by clinical team.", timestamp: new Date(2023, 5, 20) }],
+    thresholds: { readmissionRisk: 0.7, diagnosisConfidence: 0.85, treatmentRecommendation: 0.8 },
+    scheduledReports: []
   },
   {
     _id: "ai-report-002",
     title: "AI-Assisted Diagnosis Accuracy Report",
-    type: "diagnostic_accuracy",
-    status: "under_review",
+    type: "diagnosis",
+    status: "pending_review",
+    confidenceScore: 0.82,
+    createdBy: "user-1",
     createdAt: new Date(2023, 6, 10),
-    publishedAt: null,
-    createdBy: {
-      userId: "user-1",
-      name: "Admin User",
-      role: "admin"
+    updatedAt: new Date(2023, 6, 10),
+    data: {
+      summary: "The AI diagnostic assistance system demonstrated 82% overall accuracy across all specialties.",
+      totalCases: 3450, correctDiagnoses: 2829, partialMatches: 276, incorrectDiagnoses: 345,
+      topSpecialties: [{ name: "Dermatology", accuracy: 0.91 }, { name: "Cardiology", accuracy: 0.88 }, { name: "Neurology", accuracy: 0.76 }]
     },
-    reviewedBy: null,
-    metrics: {
-      accuracy: 0.82,
-      precision: 0.79,
-      recall: 0.85,
-      f1Score: 0.82,
-      falsePositives: 24,
-      falseNegatives: 18,
-      improvementFromLastQuarter: 0.03
-    },
-    summary: "The AI diagnostic assistance system demonstrated an 82% overall accuracy rate across all specialties. Performance varies significantly by specialty, with highest accuracy in dermatology (91%) and lowest in neurology (76%).",
-    insights: [
-      "Image-based diagnoses show significantly higher accuracy (89%) compared to symptom-based diagnoses (74%)",
-      "The system performs better on common conditions versus rare diseases",
-      "Diagnostic confidence scores strongly correlate with actual accuracy"
+    feedback: [
+      { type: "false_positive", comment: "Occasional over-diagnosis in rare disease cases", submittedBy: "user-1", submittedAt: new Date(2023, 6, 12) }
     ],
-    recommendations: [
-      "Expand training data for neurological conditions to improve performance",
-      "Implement specialty-specific confidence thresholds for recommendations",
-      "Add explainability features to improve provider trust and adoption"
-    ],
-    dataPoints: 3450,
-    modelVersion: "1.9.4",
-    tags: ["diagnosis", "accuracy", "specialty", "dermatology", "neurology"]
+    reviewHistory: [{ action: "submitted", reviewer: "user-1", comments: "Submitted for clinical review.", timestamp: new Date(2023, 6, 10) }],
+    thresholds: { readmissionRisk: 0.7, diagnosisConfidence: 0.82, treatmentRecommendation: 0.8 },
+    scheduledReports: []
   },
   {
     _id: "ai-report-003",
-    title: "Medication Interaction Alert System Performance",
-    type: "medication_safety",
-    status: "published",
+    title: "Treatment Recommendation Effectiveness Report",
+    type: "treatment",
+    status: "approved",
+    confidenceScore: 0.89,
+    createdBy: "user-1",
     createdAt: new Date(2023, 6, 5),
-    publishedAt: new Date(2023, 6, 8),
-    createdBy: {
-      userId: "user-1",
-      name: "Admin User",
-      role: "admin"
+    updatedAt: new Date(2023, 6, 8),
+    data: {
+      summary: "Modified antibiotic protocol based on AI recommendations reduced average treatment time by 1.8 days.",
+      protocolsEvaluated: 14, improvingProtocols: 11, neutralProtocols: 2, regressingProtocols: 1,
+      avgTreatmentTimeSaved: 1.8,
+      topImprovements: ["Antibiotic selection accuracy up 12%", "Post-surgical care time reduced 18%", "Chronic disease management improved 22%"]
     },
-    reviewedBy: {
-      userId: "user-5",
-      name: "Dr. Robert Williams",
-      role: "doctor"
-    },
-    metrics: {
-      accuracy: 0.94,
-      precision: 0.92,
-      recall: 0.97,
-      f1Score: 0.94,
-      falsePositives: 8,
-      falseNegatives: 3,
-      improvementFromLastQuarter: 0.02
-    },
-    summary: "The medication interaction alert system demonstrated excellent performance with 94% accuracy and 97% recall, meaning it caught nearly all potential harmful interactions. The system generated 8% fewer false alarms compared to the previous version.",
-    insights: [
-      "System performs exceptionally well for common medications but has some gaps with newer specialty drugs",
-      "Alert fatigue has been reduced by 23% due to improved precision",
-      "Provider override rates decreased from 34% to 21%, indicating improved trust in alerts"
+    feedback: [
+      { type: "accurate", comment: "Treatment time improvements verified in clinical data", submittedBy: "user-1", submittedAt: new Date(2023, 6, 9) },
+      { type: "accurate", comment: "Protocol changes adopted across 3 departments", submittedBy: "user-1", submittedAt: new Date(2023, 6, 15) }
     ],
-    recommendations: [
-      "Update drug database monthly instead of quarterly to capture newer medications",
-      "Implement severity-based alert visualization to further reduce alert fatigue",
-      "Expand interaction checking to include herbal supplements and over-the-counter medications"
-    ],
-    dataPoints: 12500,
-    modelVersion: "3.0.2",
-    tags: ["medication", "interaction", "safety", "alerts"]
+    reviewHistory: [{ action: "approved", reviewer: "user-1", comments: "Approved for publication.", timestamp: new Date(2023, 6, 8) }],
+    thresholds: { readmissionRisk: 0.7, diagnosisConfidence: 0.85, treatmentRecommendation: 0.82 },
+    scheduledReports: []
   },
   {
     _id: "ai-report-004",
-    title: "Clinical Documentation AI Assistant Evaluation",
-    type: "documentation_assistance",
+    title: "Q3 Readmission Risk Stratification Summary",
+    type: "summary",
     status: "draft",
+    confidenceScore: 0.86,
+    createdBy: "user-1",
     createdAt: new Date(2023, 7, 1),
-    publishedAt: null,
-    createdBy: {
-      userId: "user-1",
-      name: "Admin User",
-      role: "admin"
+    updatedAt: new Date(2023, 7, 1),
+    data: {
+      summary: "Preliminary Q3 analysis covering 890 patient records across 4 hospital systems.",
+      recordsAnalyzed: 890, highRisk: 160, mediumRisk: 320, lowRisk: 410,
+      notes: "Full report pending completion of Q3 data collection cycle."
     },
-    reviewedBy: null,
-    metrics: {
-      accuracy: 0.89,
-      precision: 0.91,
-      recall: 0.87,
-      f1Score: 0.89,
-      falsePositives: 15,
-      falseNegatives: 18,
-      improvementFromLastQuarter: 0.07
+    feedback: [],
+    reviewHistory: [{ action: "created", reviewer: "user-1", comments: "Draft created.", timestamp: new Date(2023, 7, 1) }],
+    thresholds: { readmissionRisk: 0.7, diagnosisConfidence: 0.85, treatmentRecommendation: 0.8 },
+    scheduledReports: []
+  },
+  {
+    _id: "ai-report-005",
+    title: "Prior Authorization Risk Assessment - Cardiology",
+    type: "risk_assessment",
+    status: "approved",
+    confidenceScore: 0.94,
+    createdBy: "user-1",
+    createdAt: new Date(2023, 7, 10),
+    updatedAt: new Date(2023, 7, 14),
+    data: {
+      summary: "Prior auth AI model achieved 94% accuracy for cardiology procedures, reducing manual review time by 38%.",
+      totalRequests: 430, autoApproved: 285, autoReferred: 98, manualReview: 47,
+      avgProcessingTimeMins: 4.2, previousAvgMins: 18.5
     },
-    summary: "Preliminary results from the Clinical Documentation AI Assistant show significant improvements in documentation quality and time savings. Providers using the AI assistant completed documentation 37% faster with a 24% reduction in missing information.",
-    insights: [
-      "The system performs best for structured visit types like annual physicals and follow-ups",
-      "Specialty-specific terminology recognition varies widely across medical specialties",
-      "User satisfaction scores average 4.2/5, with time savings cited as the primary benefit"
+    feedback: [
+      { type: "accurate", comment: "Processing time reduction confirmed by department", submittedBy: "user-1", submittedAt: new Date(2023, 7, 15) }
     ],
-    recommendations: [
-      "Expand specialty-specific training data, particularly for surgical specialties",
-      "Implement voice-to-text integration to further improve efficiency",
-      "Develop customizable templates based on provider preferences and specialties"
+    reviewHistory: [{ action: "approved", reviewer: "user-1", comments: "Strong results — approved.", timestamp: new Date(2023, 7, 14) }],
+    thresholds: { readmissionRisk: 0.7, diagnosisConfidence: 0.85, treatmentRecommendation: 0.8 },
+    scheduledReports: []
+  },
+  {
+    _id: "ai-report-006",
+    title: "Custom Risk Scoring Model Validation",
+    type: "custom",
+    status: "rejected",
+    confidenceScore: 0.71,
+    createdBy: "user-1",
+    createdAt: new Date(2023, 8, 3),
+    updatedAt: new Date(2023, 8, 7),
+    data: {
+      summary: "Custom risk scoring model for rare disease cohort; insufficient training data led to high variance.",
+      cohortSize: 180, modelVariance: 0.18, benchmarkVariance: 0.06,
+      recommendation: "Collect additional training data before proceeding to production."
+    },
+    feedback: [
+      { type: "false_negative", comment: "Model missed 29% of true positives in rare disease cohort", submittedBy: "user-1", submittedAt: new Date(2023, 8, 8) }
     ],
-    dataPoints: 850,
-    modelVersion: "1.2.0",
-    tags: ["documentation", "efficiency", "clinical notes", "time savings"]
+    reviewHistory: [{ action: "rejected", reviewer: "user-1", comments: "High variance; needs more training data.", timestamp: new Date(2023, 8, 7) }],
+    thresholds: { readmissionRisk: 0.7, diagnosisConfidence: 0.85, treatmentRecommendation: 0.8 },
+    scheduledReports: []
   }
 ];
 await db.collection('aireports').insertMany(aiReports);

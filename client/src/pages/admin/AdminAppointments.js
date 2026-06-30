@@ -23,6 +23,7 @@ import {
   AccessTime as TimeIcon,
 } from '@mui/icons-material';
 import { get, put } from '../../utils/apiUtils';
+import { formatDate, formatDateTime } from '../../utils/dateFormatter';
 
 // ============================================================================
 // CONSTANTS
@@ -65,13 +66,6 @@ const TYPE_OPTIONS = [
 // ============================================================================
 // HELPERS
 // ============================================================================
-
-function formatDate(d) {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
-  });
-}
 
 function typeLabel(type) {
   const found = TYPE_OPTIONS.find(t => t.value === type);
@@ -191,7 +185,7 @@ function AppointmentDetailDialog({ appointment, open, onClose, onAction }) {
           </Grid>
           <Grid item xs={12} sm={6}>
             <Typography variant="caption" color="text.secondary">Date & Time</Typography>
-            <Typography variant="body2">{formatDate(appointment.appointmentDate || appointment.date)}</Typography>
+            <Typography variant="body2">{formatDateTime(appointment.appointmentDate || appointment.date)}</Typography>
           </Grid>
           <Grid item xs={12} sm={6}>
             <Typography variant="caption" color="text.secondary">Location</Typography>
@@ -221,12 +215,12 @@ function AppointmentDetailDialog({ appointment, open, onClose, onAction }) {
           )}
           <Grid item xs={12} sm={6}>
             <Typography variant="caption" color="text.secondary">Created</Typography>
-            <Typography variant="body2">{formatDate(appointment.createdAt)}</Typography>
+            <Typography variant="body2">{formatDateTime(appointment.createdAt)}</Typography>
           </Grid>
           {appointment.updatedAt && (
             <Grid item xs={12} sm={6}>
               <Typography variant="caption" color="text.secondary">Last Updated</Typography>
-              <Typography variant="body2">{formatDate(appointment.updatedAt)}</Typography>
+              <Typography variant="body2">{formatDateTime(appointment.updatedAt)}</Typography>
             </Grid>
           )}
         </Grid>
@@ -238,11 +232,11 @@ function AppointmentDetailDialog({ appointment, open, onClose, onAction }) {
             {rescheduleHistory.map((entry, idx) => (
               <Box key={idx} sx={{ mb: 1, p: 1, bgcolor: 'action.hover', borderRadius: 1 }}>
                 <Typography variant="caption" color="text.secondary">
-                  {formatDate(entry.rescheduledAt || entry.date)} — {entry.reason || 'No reason provided'}
+                  {formatDateTime(entry.rescheduledAt || entry.date)} — {entry.reason || 'No reason provided'}
                 </Typography>
                 {entry.previousDate && (
                   <Typography variant="caption" display="block" color="text.secondary">
-                    Previous: {formatDate(entry.previousDate)}
+                    Previous: {formatDateTime(entry.previousDate)}
                   </Typography>
                 )}
               </Box>
@@ -689,7 +683,7 @@ export default function AdminAppointments() {
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2" noWrap>
-                            {formatDate(appt.appointmentDate || appt.date)}
+                            {formatDateTime(appt.appointmentDate || appt.date)}
                           </Typography>
                         </TableCell>
                         <TableCell>

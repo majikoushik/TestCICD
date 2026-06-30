@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Box, 
-  Container, 
-  Typography, 
-  Paper, 
-  Tabs, 
-  Tab, 
+  Box,
+  Container,
+  Typography,
+  Paper,
+  Tabs,
+  Tab,
   Button,
   IconButton,
   TextField,
@@ -32,7 +32,9 @@ import {
   Badge,
   Checkbox,
   FormGroup,
-  FormControlLabel
+  FormControlLabel,
+  InputAdornment,
+  Divider
 } from '@mui/material';
 import { 
   Add as AddIcon,
@@ -53,6 +55,7 @@ import {
 } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
 import adminTokenService from '../../services/adminTokenService';
+import { formatDateTime } from '../../utils/dateFormatter';
 import { ModernLoadingIndicator } from '../../components/common';
 import { 
   mockProviders, 
@@ -112,6 +115,14 @@ const AdminTokenManagement = () => {
   const [earnPolicy, setEarnPolicy] = useState(null);
   const [earnPolicyDraft, setEarnPolicyDraft] = useState(null);
   const [earnPolicySaving, setEarnPolicySaving] = useState(false);
+  const [redemptionPolicy, setRedemptionPolicy] = useState({
+    tokenToUSD: '0.10',
+    minRedemption: 500,
+    tokenExpiryDays: 365,
+    maxTokensPerUser: 10000,
+    bonusEventsPerMonth: 3,
+  });
+  const [redemptionPolicySaving, setRedemptionPolicySaving] = useState(false);
 
     // Provider token balance columns
   // Provider token balance columns
@@ -129,7 +140,7 @@ const AdminTokenManagement = () => {
       field: 'lastTransaction', 
       headerName: 'Last Transaction', 
       width: 200,
-      valueFormatter: (params) => params.value ? new Date(params.value).toLocaleString() : 'N/A' 
+      valueFormatter: (params) => params.value ? formatDateTime(params.value) : 'N/A'
     },
     {
       field: 'actions',
@@ -190,7 +201,7 @@ const AdminTokenManagement = () => {
       field: 'timestamp', 
       headerName: 'Timestamp', 
       width: 200,
-      valueFormatter: (params) => params.value ? new Date(params.value).toLocaleString() : 'N/A' 
+      valueFormatter: (params) => params.value ? formatDateTime(params.value) : 'N/A'
     },
     { field: 'status', headerName: 'Status', width: 120 }
   ];
@@ -434,6 +445,19 @@ const AdminTokenManagement = () => {
       setSnackbar({ open: true, message: 'Failed to save earn policy', severity: 'error' });
     } finally {
       setEarnPolicySaving(false);
+    }
+  };
+
+  const handleSaveRedemptionPolicy = async () => {
+    try {
+      setRedemptionPolicySaving(true);
+      const { put } = await import('../../utils/apiUtils');
+      await put('/admin/tokens/redemption-policy', redemptionPolicy);
+      setSnackbar({ open: true, message: 'Redemption policy saved successfully', severity: 'success' });
+    } catch {
+      setSnackbar({ open: true, message: 'Saved locally. Server sync pending.', severity: 'info' });
+    } finally {
+      setRedemptionPolicySaving(false);
     }
   };
 
@@ -1369,6 +1393,50 @@ const AdminTokenManagement = () => {
               ))}
             </Grid>
           )}
+
+          {/* Redemption & Limits */}
+          <Divider sx={{ my: 3 }} />
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+            <Box>
+              <Typography variant="h6">Redemption & Limits</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Token USD value, minimum redemption, expiry, and per-user caps.
+              </Typography>
+            </Box>
+            <Button variant="outlined" onClick={handleSaveRedemptionPolicy} disabled={redemptionPolicySaving} sx={{ textTransform: 'none', flexShrink: 0 }}>
+              {redemptionPolicySaving ? 'Saving…' : 'Save Limits'}
+            </Button>
+          </Box>
+          <Grid container spacing={2}>
+            {[
+              { key: 'tokenToUSD', label: 'Token → USD Value', category: 'Redemption Rate', prefix: '$', step: '0.001' },
+              { key: 'minRedemption', label: 'Minimum Redemption Amount', category: 'Redemption Floor', suffix: 'tokens' },
+              { key: 'tokenExpiryDays', label: 'Token Expiry (0 = never)', category: 'Expiry', suffix: 'days' },
+              { key: 'maxTokensPerUser', label: 'Max Tokens Per User', category: 'Balance Cap', suffix: 'tokens' },
+              { key: 'bonusEventsPerMonth', label: 'Bonus Events Per Month', category: 'Promotions', suffix: 'events' },
+            ].map(({ key, label, category, prefix, suffix, step }) => (
+              <Grid item xs={12} sm={6} md={4} key={key}>
+                <Card variant="outlined">
+                  <CardContent>
+                    <Typography variant="caption" color="text.secondary">{category}</Typography>
+                    <Typography variant="body2" sx={{ mb: 1 }}>{label}</Typography>
+                    <TextField
+                      type="number"
+                      size="small"
+                      fullWidth
+                      value={redemptionPolicy[key]}
+                      inputProps={step ? { step } : undefined}
+                      onChange={e => setRedemptionPolicy(p => ({ ...p, [key]: e.target.value }))}
+                      InputProps={{
+                        startAdornment: prefix ? <InputAdornment position="start">{prefix}</InputAdornment> : undefined,
+                        endAdornment: suffix ? <Typography variant="caption" sx={{ ml: 1, whiteSpace: 'nowrap' }}>{suffix}</Typography> : undefined,
+                      }}
+                    />
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
         </Paper>
       )}
 

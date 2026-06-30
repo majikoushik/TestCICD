@@ -195,6 +195,89 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /provider-utilization - Per-provider fill rates, no-show/cancel counts, peak hours
+router.get('/provider-utilization', async (req, res) => {
+  try {
+    const range = req.query.range || '30d';
+    const rangeDays = { '7d': 7, '30d': 30, '90d': 90, 'ytd': new Date().getMonth() * 30 + 1 }[range] || 30;
+
+    const since = new Date();
+    since.setDate(since.getDate() - rangeDays);
+
+    // Aggregate per-provider counts in one pass
+    const providerAgg = await Appointment.aggregate([
+      { $match: { scheduledDate: { $gte: since } } },
+      {
+        $group: {
+          _id: '$providerId',
+          providerName: { $first: '$providerName' },
+          total:     { $sum: 1 },
+          completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+          noShow:    { $sum: { $cond: [{ $eq: ['$status', 'no_show'] }, 1, 0] } },
+          cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } },
+          avgDuration: { $avg: '$duration' },
+        }
+      },
+      { $sort: { total: -1 } }
+    ]);
+
+    const providers = providerAgg.map(p => {
+      const booked   = p.total;
+      const fillRate = booked > 0 ? Math.round((p.completed / booked) * 100) : 0;
+      const cancelRate = booked > 0 ? Math.round((p.cancelled / booked) * 100) : 0;
+      return {
+        providerId:   String(p._id),
+        providerName: p.providerName || String(p._id),
+        totalSlots:   booked,
+        bookedSlots:  booked,
+        completed:    p.completed,
+        noShow:       p.noShow,
+        cancelled:    p.cancelled,
+        avgDuration:  p.avgDuration ? Math.round(p.avgDuration) : 0,
+        tokensEarned: p.completed * 15,
+        fillRate,
+        cancelRate,
+      };
+    });
+
+    const sortedByFill  = [...providers].sort((a, b) => b.fillRate - a.fillRate);
+    const avgFillRate   = providers.length ? Math.round(providers.reduce((s, p) => s + p.fillRate, 0) / providers.length) : 0;
+    const topPerformer  = sortedByFill[0]?.providerName || '—';
+    const belowThreshold = providers.filter(p => p.fillRate < 60).length;
+
+    // Peak hours — count appointments by hour of scheduledDate
+    const hourAgg = await Appointment.aggregate([
+      { $match: { scheduledDate: { $gte: since } } },
+      { $group: { _id: { $hour: '$scheduledDate' }, count: { $sum: 1 } } },
+      { $sort: { _id: 1 } }
+    ]);
+
+    const HOUR_LABELS = {
+      8: '8:00 – 9:00 AM', 9: '9:00 – 10:00 AM', 10: '10:00 – 11:00 AM',
+      11: '11:00 – 12:00 PM', 13: '1:00 – 2:00 PM', 14: '2:00 – 3:00 PM',
+      15: '3:00 – 4:00 PM', 16: '4:00 – 5:00 PM',
+    };
+    const peakHours = hourAgg.map(h => ({
+      hour:  h._id,
+      label: HOUR_LABELS[h._id] || `${h._id}:00`,
+      count: h.count,
+    }));
+
+    return res.json({
+      success: true,
+      data: {
+        range,
+        rangeDays,
+        summary: { totalProviders: providers.length, avgFillRate, topPerformer, belowThreshold },
+        providers: sortedByFill,
+        peakHours,
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // GET /:id - Get single appointment
 router.get('/:id', async (req, res) => {
   try {

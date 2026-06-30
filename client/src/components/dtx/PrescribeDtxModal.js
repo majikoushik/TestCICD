@@ -2,59 +2,64 @@ import React, { useState } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, Typography, Box, Alert, Chip,
-  CircularProgress, Divider, Grid,
+  CircularProgress, Divider, Paper,
 } from '@mui/material';
 import LocalPharmacyIcon from '@mui/icons-material/LocalPharmacy';
+import PersonIcon from '@mui/icons-material/Person';
 import { prescribeProgram } from '../../services/dtxService';
+import PatientSearchAutocomplete from '../common/PatientSearchAutocomplete';
 
 const EVIDENCE_LABELS = {
-  fda_cleared: 'FDA Cleared',
+  fda_cleared:    'FDA Cleared',
   fda_authorized: 'FDA Authorized',
-  peer_reviewed: 'Peer Reviewed',
+  peer_reviewed:  'Peer Reviewed',
   evidence_based: 'Evidence Based',
   clinical_study: 'Clinical Study',
 };
 
 const EVIDENCE_COLORS = {
-  fda_cleared: 'success',
+  fda_cleared:    'success',
   fda_authorized: 'success',
-  peer_reviewed: 'primary',
+  peer_reviewed:  'primary',
   evidence_based: 'info',
   clinical_study: 'secondary',
 };
 
 export default function PrescribeDtxModal({ open, onClose, program, onSuccess, prefillReferralId }) {
-  const [form, setForm] = useState({
-    patientName: '',
-    patientId: '',
-    patientEmail: '',
-    patientPhone: '',
-    clinicalNotes: '',
-  });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [clinicalNotes, setClinicalNotes]     = useState('');
+  const [saving, setSaving]                   = useState(false);
+  const [error, setError]                     = useState('');
 
-  const handleChange = (field) => (e) => setForm(prev => ({ ...prev, [field]: e.target.value }));
+  const patientName = selectedPatient
+    ? (selectedPatient.name || `${selectedPatient.firstName || ''} ${selectedPatient.lastName || ''}`.trim())
+    : '';
+
+  const handlePatientChange = (_, patient) => {
+    setSelectedPatient(patient);
+    if (error) setError('');
+  };
 
   const handleSubmit = async () => {
-    if (!form.patientName.trim()) {
-      setError('Patient name is required.');
+    if (!selectedPatient) {
+      setError('Please select a patient to prescribe this program.');
       return;
     }
     setSaving(true);
     setError('');
     try {
       await prescribeProgram({
-        programId: program._id,
-        patientName: form.patientName.trim(),
-        patientId: form.patientId.trim() || undefined,
-        patientEmail: form.patientEmail.trim() || undefined,
-        patientPhone: form.patientPhone.trim() || undefined,
-        clinicalNotes: form.clinicalNotes.trim() || undefined,
-        linkedReferralId: prefillReferralId || undefined,
+        programId:       program._id,
+        patientName,
+        patientId:       selectedPatient.patientId   || undefined,
+        patientEmail:    selectedPatient.contactInfo?.email  || selectedPatient.email  || undefined,
+        patientPhone:    selectedPatient.contactInfo?.phone  || selectedPatient.phone  || undefined,
+        clinicalNotes:   clinicalNotes.trim() || undefined,
+        linkedReferralId: prefillReferralId   || undefined,
       });
-      setForm({ patientName: '', patientId: '', patientEmail: '', patientPhone: '', clinicalNotes: '' });
-      onSuccess && onSuccess();
+      setSelectedPatient(null);
+      setClinicalNotes('');
+      onSuccess?.();
       onClose();
     } catch (err) {
       setError(err?.message || 'Failed to create prescription. Please try again.');
@@ -65,6 +70,8 @@ export default function PrescribeDtxModal({ open, onClose, program, onSuccess, p
 
   const handleClose = () => {
     if (saving) return;
+    setSelectedPatient(null);
+    setClinicalNotes('');
     setError('');
     onClose();
   };
@@ -81,7 +88,8 @@ export default function PrescribeDtxModal({ open, onClose, program, onSuccess, p
       </DialogTitle>
 
       <DialogContent dividers>
-        {/* Program Summary */}
+
+        {/* ── Program summary ─────────────────────────────────────────────── */}
         <Box sx={{ p: 2, mb: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, bgcolor: 'action.hover' }}>
           <Box display="flex" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
             <Box>
@@ -112,71 +120,85 @@ export default function PrescribeDtxModal({ open, onClose, program, onSuccess, p
 
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
+        {/* ── Patient search ───────────────────────────────────────────────── */}
         <Divider sx={{ mb: 2 }}>
           <Typography variant="caption" color="text.secondary">Patient Information</Typography>
         </Divider>
 
-        <Grid container spacing={2}>
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              required
-              size="small"
-              label="Patient Full Name"
-              value={form.patientName}
-              onChange={handleChange('patientName')}
-              disabled={saving}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Patient ID (MRN)"
-              value={form.patientId}
-              onChange={handleChange('patientId')}
-              disabled={saving}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Patient Email"
-              type="email"
-              value={form.patientEmail}
-              onChange={handleChange('patientEmail')}
-              disabled={saving}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Patient Phone"
-              value={form.patientPhone}
-              onChange={handleChange('patientPhone')}
-              disabled={saving}
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              size="small"
-              multiline
-              rows={3}
-              label="Clinical Notes (optional)"
-              placeholder="Reason for prescribing, special instructions, goals..."
-              value={form.clinicalNotes}
-              onChange={handleChange('clinicalNotes')}
-              disabled={saving}
-            />
-          </Grid>
-        </Grid>
+        <PatientSearchAutocomplete
+          value={selectedPatient}
+          onChange={handlePatientChange}
+          required
+          label="Search Patient"
+          disabled={saving}
+          size="small"
+        />
+
+        {/* Selected patient confirmation card */}
+        {selectedPatient && (
+          <Paper
+            variant="outlined"
+            sx={{ mt: 1.5, mb: 2, p: 1.5, borderRadius: 2, borderColor: 'success.light', bgcolor: 'success.50' }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+              <Box sx={{
+                width: 38, height: 38, borderRadius: '50%', bgcolor: 'primary.main', flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <PersonIcon fontSize="small" sx={{ color: '#fff' }} />
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap', mb: 0.25 }}>
+                  <Typography variant="body2" fontWeight={700}>{patientName}</Typography>
+                  {selectedPatient.patientId && (
+                    <Chip label={selectedPatient.patientId} size="small" variant="outlined"
+                      sx={{ height: 18, fontSize: '0.65rem', borderRadius: '4px' }} />
+                  )}
+                  {selectedPatient.gender && (
+                    <Chip label={selectedPatient.gender} size="small"
+                      sx={{ height: 18, fontSize: '0.65rem', bgcolor: 'grey.100', borderRadius: '4px' }} />
+                  )}
+                </Box>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', columnGap: 2 }}>
+                  {(selectedPatient.contactInfo?.email || selectedPatient.email) && (
+                    <Typography variant="caption" color="text.secondary">
+                      ✉ {selectedPatient.contactInfo?.email || selectedPatient.email}
+                    </Typography>
+                  )}
+                  {(selectedPatient.contactInfo?.phone || selectedPatient.phone) && (
+                    <Typography variant="caption" color="text.secondary">
+                      📞 {selectedPatient.contactInfo?.phone || selectedPatient.phone}
+                    </Typography>
+                  )}
+                  {selectedPatient.insuranceInfo?.provider && (
+                    <Typography variant="caption" color="primary.main" fontWeight={500}>
+                      🏥 {selectedPatient.insuranceInfo.provider}
+                      {selectedPatient.insuranceInfo.policyNumber ? ` · ${selectedPatient.insuranceInfo.policyNumber}` : ''}
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+            </Box>
+          </Paper>
+        )}
+
+        {/* ── Clinical notes ───────────────────────────────────────────────── */}
+        <TextField
+          fullWidth
+          size="small"
+          multiline
+          rows={3}
+          label="Clinical Notes (optional)"
+          placeholder="Reason for prescribing, special instructions, goals..."
+          value={clinicalNotes}
+          onChange={e => setClinicalNotes(e.target.value)}
+          disabled={saving}
+        />
 
         <Alert severity="success" icon={false} sx={{ mt: 2, fontSize: '0.8rem' }}>
           Completing this program will award <strong>+{program.tokenReward || 10} tokens</strong> to your account.
         </Alert>
+
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
@@ -184,8 +206,8 @@ export default function PrescribeDtxModal({ open, onClose, program, onSuccess, p
         <Button
           variant="contained"
           onClick={handleSubmit}
-          disabled={saving || !form.patientName.trim()}
-          startIcon={saving ? <CircularProgress size={16} /> : <LocalPharmacyIcon />}
+          disabled={saving || !selectedPatient}
+          startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <LocalPharmacyIcon />}
         >
           {saving ? 'Prescribing…' : 'Prescribe Program'}
         </Button>

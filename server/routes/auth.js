@@ -8,6 +8,7 @@ const { protect } = require('../middleware/auth');
 const ProviderProfile = require('../models/ProviderProfile');
 const { sendEmail, verificationEmailHtml, verificationEmailText, kycStatusUpdateHtml } = require('../services/emailService');
 const logger = require('../utils/logger');
+const AdminSetting = require('../models/Admin');
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -28,6 +29,14 @@ router.post('/register', async (req, res) => {
       logger.debug('[REGISTER] 400: password too short');
       return res.status(400).json({ success: false, error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` });
     }
+    // Check if public registration is enabled
+    try {
+      const mSetting = await AdminSetting.findOne({ key: 'maintenance' }).lean();
+      if (mSetting && mSetting.value && mSetting.value.allowPublicRegistration === false) {
+        return res.status(403).json({ success: false, error: 'Public registration is currently disabled. Contact your administrator.' });
+      }
+    } catch { /* fail open */ }
+
     const privilegedRoles = ['admin', 'superadmin'];
     if (privilegedRoles.includes(role)) {
       return res.status(403).json({ success: false, error: 'Cannot self-register with this role' });
@@ -159,6 +168,22 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ success: false, error: 'Invalid credentials' });
     }
 
+    // Enforce account lockout from security settings
+    let maxAttempts = 5;
+    let lockoutMins = 15;
+    try {
+      const secSetting = await AdminSetting.findOne({ key: 'security' }).lean();
+      if (secSetting && secSetting.value) {
+        maxAttempts = secSetting.value.maxLoginAttempts || maxAttempts;
+        lockoutMins = secSetting.value.lockoutMinutes || lockoutMins;
+      }
+    } catch { /* use defaults */ }
+
+    if (user.lockedUntil && user.lockedUntil > Date.now()) {
+      const minsLeft = Math.ceil((user.lockedUntil - Date.now()) / 60000);
+      return res.status(429).json({ success: false, error: `Account locked due to too many failed attempts. Try again in ${minsLeft} minute(s).` });
+    }
+
     const isMatch = await user.matchPassword(password);
 
     // Record the attempt in the dedicated LoginHistory collection
@@ -175,6 +200,11 @@ router.post('/login', async (req, res) => {
 
     if (!isMatch) {
       user.loginAttempts = (user.loginAttempts || 0) + 1;
+      user.lastFailedLogin = new Date();
+      if (user.loginAttempts >= maxAttempts) {
+        user.lockedUntil = new Date(Date.now() + lockoutMins * 60000);
+        logger.warn('Account locked after too many failed attempts', { userId: user._id, email });
+      }
       await user.save();
       return res.status(401).json({ success: false, error: 'Invalid credentials' });
     }
@@ -204,6 +234,7 @@ router.post('/login', async (req, res) => {
     // Successful login — update metadata and reset failure counter
     user.lastLogin = timestamp;
     user.loginAttempts = 0;
+    user.lockedUntil = null;
     await user.save();
 
     const token = jwt.sign(

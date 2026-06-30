@@ -24,6 +24,23 @@ router.get('/settings', protect, authorize('admin'), async (req, res) => {
 });
 
 /**
+ * @route   GET /api/admin/settings-map
+ * @desc    Return all settings as a { [key]: value } map for the settings UI
+ * @access  Admin only
+ */
+router.get('/settings-map', protect, authorize('admin'), async (req, res) => {
+  try {
+    const settings = await AdminSetting.find().lean();
+    const map = {};
+    settings.forEach(s => { map[s.key] = s.value; });
+    res.json({ success: true, data: map });
+  } catch (error) {
+    logger.error('Error fetching settings map', logger.reqCtx(req, error));
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+/**
  * @route   GET /api/admin/settings/:category
  * @desc    Get admin settings by category
  * @access  Admin only
@@ -114,30 +131,25 @@ router.post('/settings', protect, authorize('admin'), async (req, res) => {
  */
 router.put('/settings/:key', protect, authorize('admin'), async (req, res) => {
   try {
-    const { value, description, isActive } = req.body;
-    
-    // Find setting by key
-    const setting = await AdminSetting.findOne({ key: req.params.key });
-    
-    if (!setting) {
-      return res.status(404).json({ 
-        success: false, 
-        error: `Setting not found with key: ${req.params.key}` 
-      });
-    }
-    
-    // Update fields
-    setting.value = value !== undefined ? value : setting.value;
-    setting.description = description || setting.description;
-    setting.isActive = isActive !== undefined ? isActive : setting.isActive;
-    setting.lastModifiedBy = req.user.id;
-    setting.lastModifiedAt = Date.now();
-    
-    await setting.save();
-    
+    const { value, description, isActive, category } = req.body;
+    const setFields = { lastModifiedBy: req.user.id, lastModifiedAt: Date.now() };
+    if (value !== undefined) setFields.value = value;
+    if (isActive !== undefined) setFields.isActive = isActive;
+
+    const setting = await AdminSetting.findOneAndUpdate(
+      { key: req.params.key },
+      {
+        $set: setFields,
+        $setOnInsert: {
+          category: category || req.params.key.split('.')[0] || 'general',
+          description: description || `Setting: ${req.params.key}`,
+        },
+      },
+      { new: true, upsert: true, runValidators: false }
+    );
     res.json({ success: true, data: setting });
   } catch (error) {
-    logger.error(`Error updating setting with key ${req.params.key}`, logger.reqCtx(req, error));
+    logger.error(`Error upserting setting ${req.params.key}`, logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });

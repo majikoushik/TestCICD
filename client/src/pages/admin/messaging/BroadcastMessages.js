@@ -33,7 +33,7 @@ import {
   Send as SendIcon,
   Visibility as VisibilityIcon
 } from '@mui/icons-material';
-import { format } from 'date-fns';
+import { formatDateTime } from '../../../utils/dateFormatter';
 import * as adminMessagingService from '../../../services/adminMessagingService';
 
 /**
@@ -194,11 +194,6 @@ const BroadcastMessages = () => {
     }
   };
 
-  // Format date for display
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return format(new Date(dateString), 'MMM d, yyyy h:mm a');
-  };
 
   return (
     <Box>
@@ -266,7 +261,7 @@ const BroadcastMessages = () => {
                         size="small"
                       />
                     </TableCell>
-                    <TableCell>{message.sentAt ? formatDate(message.sentAt) : 'Not sent'}</TableCell>
+                    <TableCell>{message.sentAt ? formatDateTime(message.sentAt) : 'Not sent'}</TableCell>
                     <TableCell>
                       {message.status === 'sent' ? `${message.readCount}/${message.recipientCount}` : 'N/A'}
                     </TableCell>
@@ -432,7 +427,7 @@ const BroadcastMessages = () => {
               
               {currentMessage.sentAt && (
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  Sent: {formatDate(currentMessage.sentAt)} | 
+                  Sent: {formatDateTime(currentMessage.sentAt)} | 
                   Read by: {currentMessage.readCount}/{currentMessage.recipientCount} recipients
                 </Typography>
               )}

@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
+import { exportDialogToPDF } from '../../utils/pdfExport';
 import {
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   Button,
+  CircularProgress,
   Grid,
   Typography,
   Box,
@@ -30,6 +32,21 @@ import {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
 const AIStatisticsDialog = ({ open, onClose, statistics }) => {
+  const contentRef = useRef(null);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportPDF = async () => {
+    if (!contentRef.current) return;
+    setExporting(true);
+    try {
+      await exportDialogToPDF(contentRef.current, 'ai-performance-statistics.pdf');
+    } catch (err) {
+      console.error('PDF export failed:', err);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // If no statistics are provided, show placeholder message
   if (!statistics) {
     return (
@@ -55,7 +72,7 @@ const AIStatisticsDialog = ({ open, onClose, statistics }) => {
           Aggregate data across all AI models and reports
         </Typography>
       </DialogTitle>
-      <DialogContent>
+      <DialogContent ref={contentRef}>
         <Grid container spacing={3}>
           {/* Overview Cards */}
           <Grid item xs={12}>
@@ -226,8 +243,14 @@ const AIStatisticsDialog = ({ open, onClose, statistics }) => {
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Close</Button>
-        <Button variant="contained" color="primary">
-          Export Report
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleExportPDF}
+          disabled={exporting}
+          startIcon={exporting ? <CircularProgress size={16} color="inherit" /> : null}
+        >
+          {exporting ? 'Generating PDF…' : 'Export Report'}
         </Button>
       </DialogActions>
     </Dialog>

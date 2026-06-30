@@ -1,219 +1,141 @@
 /**
  * Date Formatter Utility
- * 
- * This utility provides consistent date formatting throughout the application
+ *
+ * Reads the admin-configured date format (MM/DD/YYYY, DD/MM/YYYY, YYYY-MM-DD)
+ * from localStorage so every page honours the platform setting automatically.
+ * Call setDateFormat() whenever the admin saves or loads their org settings.
  */
 
+const DATE_FORMAT_KEY = 'ct_dateFormat';
+
+/** Read the currently active date format preference */
+export const getDateFormat = () =>
+  (typeof localStorage !== 'undefined' && localStorage.getItem(DATE_FORMAT_KEY)) || 'MM/DD/YYYY';
+
+/** Persist a new date format preference (called from AdminSettings on load/save) */
+export const setDateFormat = (fmt) => {
+  if (typeof localStorage !== 'undefined') localStorage.setItem(DATE_FORMAT_KEY, fmt);
+};
+
 /**
- * Format a date to a standard date string (e.g., "Jan 1, 2023")
- * 
- * @param {string|Date} date - Date to format
- * @param {Object} options - Formatting options
- * @returns {string} Formatted date string
+ * Core formatter — applies the stored format to a Date object.
+ * Returns e.g. "12/31/2024", "31/12/2024", or "2024-12-31"
  */
-export const formatDate = (date, options = {}) => {
+const applyFormat = (dateObj, fmt) => {
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const d = String(dateObj.getDate()).padStart(2, '0');
+  switch (fmt) {
+    case 'DD/MM/YYYY': return `${d}/${m}/${y}`;
+    case 'YYYY-MM-DD': return `${y}-${m}-${d}`;
+    default:           return `${m}/${d}/${y}`; // MM/DD/YYYY
+  }
+};
+
+/**
+ * Format a date using the platform's configured date format.
+ * @param {string|Date} date
+ * @returns {string}  e.g. "12/31/2024"
+ */
+export const formatDate = (date) => {
   if (!date) return '';
-  
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
-    
-    // Check if date is valid
-    if (isNaN(dateObj.getTime())) {
-      return '';
-    }
-    
-    const defaultOptions = {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    };
-    
-    return dateObj.toLocaleDateString('en-US', { ...defaultOptions, ...options });
-  } catch (error) {
-    console.error('Error formatting date:', error);
+    if (isNaN(dateObj.getTime())) return '';
+    return applyFormat(dateObj, getDateFormat());
+  } catch {
     return '';
   }
 };
 
 /**
- * Format a date to a standard date and time string (e.g., "Jan 1, 2023, 12:00 PM")
- * 
- * @param {string|Date} date - Date to format
- * @param {Object} options - Formatting options
- * @returns {string} Formatted date and time string
+ * Format a date + time using the platform's configured date format.
+ * @param {string|Date} date
+ * @returns {string}  e.g. "12/31/2024, 02:30 PM"
  */
-export const formatDateTime = (date, options = {}) => {
+export const formatDateTime = (date) => {
   if (!date) return '';
-  
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
-    
-    // Check if date is valid
-    if (isNaN(dateObj.getTime())) {
-      return '';
-    }
-    
-    const defaultOptions = {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    };
-    
-    return dateObj.toLocaleString('en-US', { ...defaultOptions, ...options });
-  } catch (error) {
-    console.error('Error formatting date and time:', error);
+    if (isNaN(dateObj.getTime())) return '';
+    const datePart = applyFormat(dateObj, getDateFormat());
+    const timePart = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    return `${datePart}, ${timePart}`;
+  } catch {
     return '';
   }
 };
 
 /**
- * Format a date to a relative time string (e.g., "2 days ago", "in 3 hours")
- * 
- * @param {string|Date} date - Date to format
- * @returns {string} Relative time string
+ * Format a date to a relative time string (e.g., "2 days ago", "just now").
+ * Falls back to formatDate() for dates older than 7 days.
+ * @param {string|Date} date
+ * @returns {string}
  */
 export const formatRelativeTime = (date) => {
   if (!date) return '';
-  
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
-    
-    // Check if date is valid
-    if (isNaN(dateObj.getTime())) {
-      return '';
-    }
-    
-    const now = new Date();
-    const diffInSeconds = Math.floor((now - dateObj) / 1000);
+    if (isNaN(dateObj.getTime())) return '';
+    const diffInSeconds = Math.floor((Date.now() - dateObj.getTime()) / 1000);
     const diffInMinutes = Math.floor(diffInSeconds / 60);
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    const diffInDays = Math.floor(diffInHours / 24);
-    
-    if (diffInSeconds < 60) {
-      return 'just now';
-    } else if (diffInMinutes < 60) {
-      return `${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''} ago`;
-    } else if (diffInHours < 24) {
-      return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
-    } else if (diffInDays < 7) {
-      return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
-    } else {
-      return formatDate(dateObj);
-    }
-  } catch (error) {
-    console.error('Error formatting relative time:', error);
+    const diffInHours   = Math.floor(diffInMinutes / 60);
+    const diffInDays    = Math.floor(diffInHours / 24);
+    if (diffInSeconds < 60)  return 'just now';
+    if (diffInMinutes < 60)  return `${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''} ago`;
+    if (diffInHours < 24)    return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+    if (diffInDays < 7)      return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+    return formatDate(dateObj);
+  } catch {
     return '';
   }
 };
 
 /**
- * Format a date range (e.g., "Jan 1 - Jan 5, 2023")
- * 
- * @param {string|Date} startDate - Start date
- * @param {string|Date} endDate - End date
- * @param {Object} options - Formatting options
- * @returns {string} Formatted date range string
+ * Format a date range (e.g. "12/01/2024 - 12/31/2024")
+ * @param {string|Date} startDate
+ * @param {string|Date} endDate
+ * @returns {string}
  */
-export const formatDateRange = (startDate, endDate, options = {}) => {
-  if (!startDate || !endDate) return '';
-  
-  try {
-    const startDateObj = typeof startDate === 'string' ? new Date(startDate) : startDate;
-    const endDateObj = typeof endDate === 'string' ? new Date(endDate) : endDate;
-    
-    // Check if dates are valid
-    if (isNaN(startDateObj.getTime()) || isNaN(endDateObj.getTime())) {
-      return '';
-    }
-    
-    // If same year, don't repeat the year
-    const sameYear = startDateObj.getFullYear() === endDateObj.getFullYear();
-    
-    // If same month and year, don't repeat the month and year
-    const sameMonth = sameYear && startDateObj.getMonth() === endDateObj.getMonth();
-    
-    const startOptions = {
-      year: sameYear ? undefined : 'numeric',
-      month: 'short',
-      day: 'numeric'
-    };
-    
-    const endOptions = {
-      year: 'numeric',
-      month: sameMonth ? undefined : 'short',
-      day: 'numeric'
-    };
-    
-    const formattedStartDate = startDateObj.toLocaleDateString('en-US', { ...startOptions, ...options });
-    const formattedEndDate = endDateObj.toLocaleDateString('en-US', { ...endOptions, ...options });
-    
-    return `${formattedStartDate} - ${formattedEndDate}`;
-  } catch (error) {
-    console.error('Error formatting date range:', error);
-    return '';
-  }
+export const formatDateRange = (startDate, endDate) => {
+  const s = formatDate(startDate);
+  const e = formatDate(endDate);
+  if (!s || !e) return s || e || '';
+  return `${s} – ${e}`;
 };
 
 /**
- * Format a time (e.g., "12:00 PM")
- * 
- * @param {string|Date} date - Date to format
- * @param {Object} options - Formatting options
- * @returns {string} Formatted time string
+ * Format a time only (e.g., "02:30 PM")
+ * @param {string|Date} date
+ * @returns {string}
  */
-export const formatTime = (date, options = {}) => {
+export const formatTime = (date) => {
   if (!date) return '';
-  
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
-    
-    // Check if date is valid
-    if (isNaN(dateObj.getTime())) {
-      return '';
-    }
-    
-    const defaultOptions = {
-      hour: '2-digit',
-      minute: '2-digit'
-    };
-    
-    return dateObj.toLocaleTimeString('en-US', { ...defaultOptions, ...options });
-  } catch (error) {
-    console.error('Error formatting time:', error);
+    if (isNaN(dateObj.getTime())) return '';
+    return dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  } catch {
     return '';
   }
 };
 
 /**
- * Get age from date of birth
- * 
- * @param {string|Date} dateOfBirth - Date of birth
- * @returns {number} Age in years
+ * Get age in years from a date of birth.
+ * @param {string|Date} dateOfBirth
+ * @returns {number}
  */
 export const getAge = (dateOfBirth) => {
   if (!dateOfBirth) return 0;
-  
   try {
     const dob = typeof dateOfBirth === 'string' ? new Date(dateOfBirth) : dateOfBirth;
-    
-    // Check if date is valid
-    if (isNaN(dob.getTime())) {
-      return 0;
-    }
-    
+    if (isNaN(dob.getTime())) return 0;
     const now = new Date();
     let age = now.getFullYear() - dob.getFullYear();
-    const monthDiff = now.getMonth() - dob.getMonth();
-    
-    if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < dob.getDate())) {
-      age--;
-    }
-    
+    const m = now.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) age--;
     return age;
-  } catch (error) {
-    console.error('Error calculating age:', error);
+  } catch {
     return 0;
   }
 };

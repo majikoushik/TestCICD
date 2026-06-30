@@ -16,6 +16,7 @@ import {
 } from '@mui/icons-material';
 import { getAdminPatients, getAdminPatientById } from '../../services/adminPatientsService';
 import { ModernLoadingIndicator } from '../../components/common';
+import { formatDate } from '../../utils/dateFormatter';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -57,11 +58,6 @@ function statusColor(status) {
 function hasActiveConsent(consentRecords) {
   if (!Array.isArray(consentRecords) || consentRecords.length === 0) return false;
   return consentRecords.some(r => !r.expiryDate || new Date(r.expiryDate) > new Date());
-}
-
-function formatDate(d) {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 // Map real patient data → display record for the table

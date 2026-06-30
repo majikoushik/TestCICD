@@ -84,6 +84,18 @@ async function verifyOnce(t) {
 async function sendEmail({ to, subject, html, text, category = 'general' }) {
   const t = getTransporter();
 
+  // Respect admin notification settings (skip for auth-critical categories)
+  if (category !== 'auth' && category !== 'verification' && category !== 'password-reset') {
+    try {
+      const AdminSetting = require('../models/Admin');
+      const ns = await AdminSetting.findOne({ key: 'notifications' }).lean();
+      if (ns && ns.value && ns.value.emailEnabled === false) {
+        logger.info('[Email] Skipped — email notifications disabled in settings', { to, subject, category });
+        return { messageId: 'disabled-by-settings', skipped: true };
+      }
+    } catch { /* fail open — always send if settings unavailable */ }
+  }
+
   if (!t) {
     // Dev / CI mode — log instead of sending
     logger.info('[Email] DEV MODE — not sent', { to, subject, category });

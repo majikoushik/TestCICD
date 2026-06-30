@@ -43,7 +43,7 @@ import {
   Check as CheckIcon,
   Clear as ClearIcon
 } from '@mui/icons-material';
-import { format } from 'date-fns';
+import { formatDateTime } from '../../../utils/dateFormatter';
 import * as adminMessagingService from '../../../services/adminMessagingService';
 
 /**
@@ -248,12 +248,6 @@ const TargetedAlerts = () => {
     }
   };
 
-  // Format date for display
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return format(new Date(dateString), 'MMM d, yyyy h:mm a');
-  };
-
   // Get read status count
   const getReadCount = (recipients) => {
     if (!recipients || recipients.length === 0) return '0/0';
@@ -329,7 +323,7 @@ const TargetedAlerts = () => {
                       />
                     </TableCell>
                     <TableCell>{alert.recipients?.length || 0}</TableCell>
-                    <TableCell>{alert.sentAt ? formatDate(alert.sentAt) : 'Not sent'}</TableCell>
+                    <TableCell>{alert.sentAt ? formatDateTime(alert.sentAt) : 'Not sent'}</TableCell>
                     <TableCell>{getReadCount(alert.recipients)}</TableCell>
                     <TableCell>
                       <Tooltip title="View">
@@ -553,7 +547,7 @@ const TargetedAlerts = () => {
               
               {currentAlert.sentAt && (
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  Sent: {formatDate(currentAlert.sentAt)}
+                  Sent: {formatDateTime(currentAlert.sentAt)}
                 </Typography>
               )}
               
@@ -592,7 +586,7 @@ const TargetedAlerts = () => {
                                 <>
                                   <CheckIcon color="success" fontSize="small" sx={{ mr: 0.5 }} />
                                   <Typography variant="body2" color="text.secondary">
-                                    Read at {formatDate(recipient.readAt)}
+                                    Read at {formatDateTime(recipient.readAt)}
                                   </Typography>
                                 </>
                               ) : (

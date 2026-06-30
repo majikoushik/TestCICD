@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../../middleware/auth');
 const Referral = require('../../models/Referral');
+const User = require('../../models/User');
 const logger = require('../../utils/logger');
 const ReferralDispute = require('../../models/ReferralDispute');
 const ReferralTransaction = require('../../models/ReferralTransaction');
@@ -293,19 +294,39 @@ router.get('/stats/overview', protect, authorize('admin', 'superadmin'), async (
       }
     ]);
 
+    // Resolve provider names for top referrers and receivers
+    const allProviderIds = [
+      ...topReferrersRaw.map(r => r._id),
+      ...topReceiversRaw.map(r => r._id),
+    ].filter(Boolean);
+    const providerDocs = await User.find({ _id: { $in: allProviderIds } }).select('_id name firstName lastName');
+    const nameMap = {};
+    providerDocs.forEach(u => {
+      nameMap[String(u._id)] = u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || String(u._id);
+    });
+
     res.json({
       success: true,
       data: {
         totalReferrals: total,
         pendingReferrals: pending,
         acceptedReferrals: accepted,
+        approvedReferrals: accepted,
         completedReferrals: completed,
         cancelledReferrals: cancelled,
         rejectedReferrals: rejected,
         activeDisputes,
         averageCompletionTime,
-        topReferrers: topReferrersRaw.map(r => ({ providerId: r._id, count: r.count })),
-        topReceivers: topReceiversRaw.map(r => ({ providerId: r._id, count: r.count })),
+        topReferrers: topReferrersRaw.map(r => ({
+          providerId: r._id,
+          providerName: nameMap[String(r._id)] || r._id,
+          count: r.count,
+        })),
+        topReceivers: topReceiversRaw.map(r => ({
+          providerId: r._id,
+          providerName: nameMap[String(r._id)] || r._id,
+          count: r.count,
+        })),
         monthlyTrends
       }
     });

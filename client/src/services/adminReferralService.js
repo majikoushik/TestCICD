@@ -282,7 +282,7 @@ const adminReferralService = {
       }
 
       // Make API call using apiUtils
-      const response = await get('/admin/referrals/stats');
+      const response = await get('/admin/referrals/stats/overview');
       return {
         success: true,
         data: response.data

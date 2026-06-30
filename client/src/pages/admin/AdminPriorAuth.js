@@ -34,6 +34,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid
 } from 'recharts';
 import { ModernLoadingIndicator } from '../../components/common';
+import { formatDate, formatDateTime } from '../../utils/dateFormatter';
 import {
   adminGetPriorAuths,
   adminReviewPriorAuth,
@@ -137,7 +138,7 @@ function PATimeline({ history, loading }) {
             <Box sx={{ pb: isLast ? 0 : 2 }}>
               <Chip label={meta.label} size="small" color={meta.color} variant="outlined" sx={{ mb: 0.25 }} />
               <Typography variant="caption" color="text.secondary" display="block">
-                {new Date(entry.timestamp).toLocaleString()} · {entry.userEmail || entry.userRole || 'System'}
+                {formatDateTime(entry.timestamp)} · {entry.userEmail || entry.userRole || 'System'}
               </Typography>
             </Box>
           </Box>
@@ -344,9 +345,6 @@ export default function AdminPriorAuth() {
       setError('Failed to load analytics.');
     }
   };
-
-  const formatDate = (d) => d ? new Date(d).toLocaleDateString() : '—';
-  const formatDateTime = (d) => d ? new Date(d).toLocaleString() : '—';
 
   const pieData = Object.entries(stats)
     .filter(([k]) => ['Pending', 'Under Review', 'Approved', 'Denied', 'Appealing', 'Expired'].includes(k))
@@ -764,7 +762,7 @@ export default function AdminPriorAuth() {
         </DialogTitle>
         <DialogContent dividers>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-            {selectedPA?.serviceType} · Submitted {selectedPA ? new Date(selectedPA.createdAt).toLocaleDateString() : ''}
+            {selectedPA?.serviceType} · Submitted {selectedPA ? formatDate(selectedPA.createdAt) : ''}
           </Typography>
           <PATimeline history={paHistory} loading={historyLoading} />
         </DialogContent>

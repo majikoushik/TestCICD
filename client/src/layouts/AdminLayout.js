@@ -106,7 +106,6 @@ const getMenuItems = () => [
   { text: 'Matching Rules', icon: <TuneIcon />, path: '/admin/matching-config' },
   { text: 'Appointments', icon: <AssignmentIcon />, path: '/admin/appointments' },
   { text: 'DTx Marketplace', icon: <StorefrontIcon />, path: '/admin/dtx' },
-  { text: 'Settings', icon: <SettingsIcon />, path: '/admin/settings' },
   { text: 'Patient Records', icon: <PatientRecordsIcon />, path: '/admin/patient-records' },
   { text: 'Referrals', icon: <ReferralsIcon />, path: '/admin/referrals' },
   { text: 'AI Management', icon: <AIIcon />, path: '/admin/ai-management' },
@@ -115,6 +114,7 @@ const getMenuItems = () => [
   { text: 'Messaging', icon: <MessageIcon />, path: '/admin/messaging' },
   { text: 'KYC Verification', icon: <VerifiedUserIcon />, path: '/admin/kyc' },
   { text: 'Contact Inquiries', icon: <ContactMailIcon />, path: '/admin/contacts' },
+  { text: 'Settings', icon: <SettingsIcon />, path: '/admin/settings' },
 ];
 
 const AdminLayout = () => {

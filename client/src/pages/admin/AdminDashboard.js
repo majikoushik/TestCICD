@@ -43,6 +43,7 @@ import {
 } from 'recharts';
 import { adminAnalyticsService } from '../../services';
 import { post } from '../../utils/apiUtils';
+import { formatDate, formatDateTime, formatRelativeTime } from '../../utils/dateFormatter';
 import { useNavigate } from 'react-router-dom';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -204,13 +205,6 @@ function AlertsPanel({ alerts, loading }) {
 function ActivityFeedPanel({ feed, loading }) {
   if (loading) return <ModernLoadingIndicator variant="dots" message="Loading activity…" />;
   if (!feed || feed.length === 0) return <Typography color="text.secondary" variant="body2">No recent activity.</Typography>;
-  const fmt = (ts) => {
-    const d = new Date(ts);
-    const diff = (Date.now() - d) / 60000;
-    if (diff < 60) return `${Math.round(diff)}m ago`;
-    if (diff < 1440) return `${Math.round(diff / 60)}h ago`;
-    return d.toLocaleDateString();
-  };
   return (
     <List dense disablePadding sx={{ maxHeight: 320, overflowY: 'auto' }}>
       {feed.map((ev, i) => (
@@ -224,7 +218,7 @@ function ActivityFeedPanel({ feed, loading }) {
               secondary={
                 <Box display="flex" alignItems="center" gap={1} mt={0.2}>
                   <Chip label={ev.type.replace('_', ' ')} size="small" sx={{ height: 16, fontSize: 10, bgcolor: FEED_COLORS[ev.type] + '22', color: FEED_COLORS[ev.type] }} />
-                  <Typography variant="caption" color="text.secondary">{fmt(ev.timestamp)}</Typography>
+                  <Typography variant="caption" color="text.secondary">{formatRelativeTime(ev.timestamp)}</Typography>
                 </Box>
               }
             />
@@ -1004,8 +998,8 @@ const AdminDashboard = () => {
                           <TableCell>{r.name}</TableCell>
                           <TableCell><Chip label={r.frequency} size="small" color={r.frequency === 'weekly' ? 'primary' : 'secondary'} /></TableCell>
                           <TableCell>{r.recipients?.join(', ')}</TableCell>
-                          <TableCell>{r.lastSent ? new Date(r.lastSent).toLocaleDateString() : '—'}</TableCell>
-                          <TableCell>{r.nextScheduled ? new Date(r.nextScheduled).toLocaleDateString() : '—'}</TableCell>
+                          <TableCell>{r.lastSent ? formatDate(r.lastSent) : '—'}</TableCell>
+                          <TableCell>{r.nextScheduled ? formatDate(r.nextScheduled) : '—'}</TableCell>
                           <TableCell>
                             <IconButton size="small" onClick={() => { setSelectedReport(r); setScheduleDialogOpen(true); }}><EditIcon fontSize="small" /></IconButton>
                             <IconButton size="small" onClick={() => handleDeleteReport(r.id)}><DeleteIcon fontSize="small" /></IconButton>

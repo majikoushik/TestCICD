@@ -61,7 +61,7 @@ import {
   Timeline as TimelineIcon,
   FilterList as FilterListIcon
 } from '@mui/icons-material';
-import { format } from 'date-fns';
+import { formatDateTime } from '../../../utils/dateFormatter';
 import * as adminMessagingService from '../../../services/adminMessagingService';
 
 /**
@@ -325,12 +325,6 @@ const EscalationWorkflows = () => {
     }
   };
 
-  // Format date for display
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return format(new Date(dateString), 'MMM d, yyyy h:mm a');
-  };
-
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -482,7 +476,7 @@ const EscalationWorkflows = () => {
                     <TableCell>
                       {workflow.assignedTo ? workflow.assignedTo.name : 'Unassigned'}
                     </TableCell>
-                    <TableCell>{formatDate(workflow.flaggedAt)}</TableCell>
+                    <TableCell>{formatDateTime(workflow.flaggedAt)}</TableCell>
                     <TableCell>
                       <Tooltip title="View Details">
                         <IconButton
@@ -606,7 +600,7 @@ const EscalationWorkflows = () => {
                           </ListItemIcon>
                           <ListItemText 
                             primary="Flagged At" 
-                            secondary={formatDate(currentWorkflow.flaggedAt)} 
+                            secondary={formatDateTime(currentWorkflow.flaggedAt)} 
                           />
                         </ListItem>
                         <ListItem>
@@ -684,7 +678,7 @@ const EscalationWorkflows = () => {
                           {currentWorkflow.timeline.map((event, index) => (
                             <TimelineItem key={index}>
                               <TimelineOppositeContent sx={{ m: 'auto 0' }} color="text.secondary">
-                                {formatDate(event.timestamp)}
+                                {formatDateTime(event.timestamp)}
                               </TimelineOppositeContent>
                               <TimelineSeparator>
                                 <TimelineDot color={
@@ -726,7 +720,7 @@ const EscalationWorkflows = () => {
                           {currentWorkflow.resolution.notes}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          Resolved by {currentWorkflow.resolution.resolvedBy.name} on {formatDate(currentWorkflow.resolution.timestamp)}
+                          Resolved by {currentWorkflow.resolution.resolvedBy.name} on {formatDateTime(currentWorkflow.resolution.timestamp)}
                         </Typography>
                       </CardContent>
                     </Card>

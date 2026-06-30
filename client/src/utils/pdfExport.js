@@ -1,6 +1,154 @@
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { format } from 'date-fns';
+import html2canvas from 'html2canvas';
+
+/**
+ * Resolve the rendered pixel dimensions of an SVG element.
+ * Multiple fallbacks ensure we never produce a 0-size raster image.
+ */
+const getSvgDimensions = (svg) => {
+  const rect = svg.getBoundingClientRect();
+  if (rect.width > 0 && rect.height > 0) return { w: rect.width, h: rect.height };
+
+  const attrW = parseFloat(svg.getAttribute('width'));
+  const attrH = parseFloat(svg.getAttribute('height'));
+  if (attrW > 0 && attrH > 0) return { w: attrW, h: attrH };
+
+  const vb = svg.viewBox && svg.viewBox.baseVal;
+  if (vb && vb.width > 0 && vb.height > 0) return { w: vb.width, h: vb.height };
+
+  const parent = svg.parentElement;
+  if (parent) {
+    const pr = parent.getBoundingClientRect();
+    if (pr.width > 0 && pr.height > 0) return { w: pr.width, h: pr.height };
+  }
+
+  return { w: 400, h: 300 };
+};
+
+/**
+ * Convert one SVG element to a PNG data URL string.
+ * Uses a Blob URL (more reliable than encodeURIComponent data URLs for complex SVGs).
+ * Returns null on failure — caller skips that SVG.
+ */
+const svgToPng = (svg) =>
+  new Promise((resolve) => {
+    const { w, h } = getSvgDimensions(svg);
+
+    const clone = svg.cloneNode(true);
+    clone.setAttribute('width', w);
+    clone.setAttribute('height', h);
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+    clone.querySelectorAll('text, tspan').forEach((t) => {
+      t.style.fontFamily = 'Arial, sans-serif';
+      if (!t.style.fontSize) t.style.fontSize = '12px';
+    });
+
+    const serialized = new XMLSerializer().serializeToString(clone);
+    const blob = new Blob([serialized], { type: 'image/svg+xml;charset=utf-8' });
+    const blobUrl = URL.createObjectURL(blob);
+
+    const tmpImg = new Image(w, h);
+    tmpImg.onload = () => {
+      URL.revokeObjectURL(blobUrl);
+      const c = document.createElement('canvas');
+      c.width = w * 2;
+      c.height = h * 2;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, c.width, c.height);
+      ctx.drawImage(tmpImg, 0, 0, c.width, c.height);
+      resolve({ dataUrl: c.toDataURL('image/png'), w, h });
+    };
+    tmpImg.onerror = () => { URL.revokeObjectURL(blobUrl); resolve(null); };
+    tmpImg.src = blobUrl;
+  });
+
+/**
+ * Capture a dialog's DialogContent element (including Recharts SVG charts)
+ * as a multi-page A4 PDF and trigger a browser download.
+ *
+ * Strategy: pre-render ALL SVGs to PNG data-URLs BEFORE calling html2canvas,
+ * then inject them synchronously via onclone so html2canvas always sees <img>
+ * elements (which it renders correctly) instead of raw <svg> (which it skips).
+ *
+ * @param {HTMLElement} el       - The DialogContent DOM node (from a ref)
+ * @param {string}      filename - Download filename (default: 'report.pdf')
+ */
+export const exportDialogToPDF = async (el, filename = 'report.pdf') => {
+  // ── 1. Expand to full scroll height so nothing is clipped ─────────────────
+  const saved = {
+    overflow:  el.style.overflow,
+    maxHeight: el.style.maxHeight,
+    height:    el.style.height,
+  };
+  el.style.overflow  = 'visible';
+  el.style.maxHeight = 'none';
+  el.style.height    = el.scrollHeight + 'px';
+  el.scrollTop = 0;
+  // Wait for Recharts animations (default 400ms) + layout reflow
+  await new Promise((r) => setTimeout(r, 500));
+
+  // ── 2. Pre-render every SVG → PNG data URL (async, before html2canvas) ────
+  const originalSvgs = Array.from(el.querySelectorAll('svg'));
+  const pngResults = await Promise.all(originalSvgs.map(svgToPng));
+  // pngResults[i] === { dataUrl, w, h } | null, indexed same as originalSvgs
+
+  // ── 3. Capture via html2canvas; inject PNGs in onclone (sync, no DOM mess) ─
+  const fullWidth  = el.offsetWidth;
+  const fullHeight = el.scrollHeight;
+  let canvas;
+  try {
+    canvas = await html2canvas(el, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      width:        fullWidth,
+      height:       fullHeight,
+      windowWidth:  fullWidth,
+      windowHeight: fullHeight,
+      scrollX: 0,
+      scrollY: 0,
+      onclone: (_clonedDoc, clonedEl) => {
+        // Replace every SVG in the CLONE with the pre-rendered PNG.
+        // This runs synchronously so html2canvas sees <img> elements, not SVGs.
+        const clonedSvgs = Array.from(clonedEl.querySelectorAll('svg'));
+        clonedSvgs.forEach((clonedSvg, i) => {
+          const result = pngResults[i];
+          if (!result) return;
+          const img = document.createElement('img');
+          img.src = result.dataUrl;
+          img.style.cssText = `width:${result.w}px;height:${result.h}px;display:block;`;
+          if (clonedSvg.parentNode) clonedSvg.parentNode.replaceChild(img, clonedSvg);
+        });
+      },
+    });
+  } finally {
+    // ── 4. Always restore element styles ──────────────────────────────────────
+    el.style.overflow  = saved.overflow;
+    el.style.maxHeight = saved.maxHeight;
+    el.style.height    = saved.height;
+  }
+
+  // ── 5. Build multi-page A4 PDF ─────────────────────────────────────────────
+  const margin     = 10;
+  const imgData    = canvas.toDataURL('image/png');
+  const pdf        = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageW      = pdf.internal.pageSize.getWidth();
+  const pageH      = pdf.internal.pageSize.getHeight();
+  const printW     = pageW - margin * 2;
+  const printH     = pageH - margin * 2;
+  const scaledH    = printW * (canvas.height / canvas.width);
+  const totalPages = Math.ceil(scaledH / printH);
+  for (let i = 0; i < totalPages; i++) {
+    if (i > 0) pdf.addPage();
+    pdf.addImage(imgData, 'PNG', margin, margin - i * printH, printW, scaledH);
+  }
+  pdf.save(filename);
+};
 
 /**
  * Utility for generating PDF reports from analytics data

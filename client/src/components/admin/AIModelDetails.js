@@ -277,7 +277,7 @@ const AIModelDetails = ({ modelId, modelName, modelType, model }) => {
               <Box sx={{ height: 300 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={modelDetails.features.sort((a, b) => b.importance - a.importance)}
+                    data={[...modelDetails.features].sort((a, b) => b.importance - a.importance)}
                     layout="vertical"
                     margin={{ top: 5, right: 30, left: 120, bottom: 5 }}
                   >
