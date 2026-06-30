@@ -805,11 +805,16 @@ router.delete('/notifications/:id', protect, (req, res) => {
 // ---------------------------------------------------------------------------
 
 const syntheticTokenProviders = [
-  { id: 'prov-1', name: 'Dr. Sarah Johnson', organization: 'Metro Health', specialty: 'Cardiology', tokenBalance: 420, lastTransaction: new Date(Date.now() - 2 * 86400000).toISOString(), status: 'active', tokenActivity: 'high', email: 'sarah.johnson@metrohealth.com', phoneNumber: '(555) 201-3344' },
-  { id: 'prov-2', name: 'Dr. Michael Chen', organization: 'City Medical', specialty: 'Neurology', tokenBalance: 185, lastTransaction: new Date(Date.now() - 5 * 86400000).toISOString(), status: 'active', tokenActivity: 'medium', email: 'michael.chen@citymedical.com', phoneNumber: '(555) 402-7788' },
-  { id: 'prov-3', name: 'Dr. Emily Davis', organization: 'Regional Care', specialty: 'Orthopedics', tokenBalance: 72, lastTransaction: new Date(Date.now() - 10 * 86400000).toISOString(), status: 'active', tokenActivity: 'low', email: 'emily.davis@regionalcare.com', phoneNumber: '(555) 603-9900' },
-  { id: 'prov-4', name: 'Dr. James Wilson', organization: 'Riverside Clinic', specialty: 'Oncology', tokenBalance: 310, lastTransaction: new Date(Date.now() - 1 * 86400000).toISOString(), status: 'active', tokenActivity: 'high', email: 'james.wilson@riversideclinic.com', phoneNumber: '(555) 804-1122' },
-  { id: 'prov-5', name: 'Dr. Linda Martinez', organization: 'Summit Medical', specialty: 'Dermatology', tokenBalance: 95, lastTransaction: new Date(Date.now() - 7 * 86400000).toISOString(), status: 'inactive', tokenActivity: 'low', email: 'linda.martinez@summitmedical.com', phoneNumber: '(555) 305-6677' },
+  { id: 'prov-1',  name: 'Dr. Sarah Johnson',   role: 'doctor',   organization: 'Metro Health',      specialty: 'Cardiology',     tokenBalance: 420, lastTransaction: new Date(Date.now() -  2 * 86400000).toISOString(), status: 'active', tokenActivity: 'high',   email: 'sarah.johnson@metrohealth.com',      phoneNumber: '(555) 201-3344' },
+  { id: 'prov-2',  name: 'Dr. Michael Chen',    role: 'doctor',   organization: 'City Medical',       specialty: 'Neurology',      tokenBalance: 185, lastTransaction: new Date(Date.now() -  5 * 86400000).toISOString(), status: 'active', tokenActivity: 'medium', email: 'michael.chen@citymedical.com',       phoneNumber: '(555) 402-7788' },
+  { id: 'prov-3',  name: 'Dr. Emily Davis',     role: 'doctor',   organization: 'Regional Care',      specialty: 'Orthopedics',    tokenBalance:  72, lastTransaction: new Date(Date.now() - 10 * 86400000).toISOString(), status: 'active', tokenActivity: 'low',    email: 'emily.davis@regionalcare.com',       phoneNumber: '(555) 603-9900' },
+  { id: 'prov-4',  name: 'Dr. James Wilson',    role: 'doctor',   organization: 'Riverside Clinic',   specialty: 'Oncology',       tokenBalance: 310, lastTransaction: new Date(Date.now() -  1 * 86400000).toISOString(), status: 'active', tokenActivity: 'high',   email: 'james.wilson@riversideclinic.com',   phoneNumber: '(555) 804-1122' },
+  { id: 'prov-5',  name: 'Dr. Linda Martinez',  role: 'doctor',   organization: 'Summit Medical',     specialty: 'Dermatology',    tokenBalance:  95, lastTransaction: new Date(Date.now() -  7 * 86400000).toISOString(), status: 'active', tokenActivity: 'low',    email: 'linda.martinez@summitmedical.com',   phoneNumber: '(555) 305-6677' },
+  { id: 'prov-6',  name: 'Dr. Robert Kim',      role: 'doctor',   organization: 'Lakeside Health',    specialty: 'Gastroenterology', tokenBalance: 240, lastTransaction: new Date(Date.now() - 3 * 86400000).toISOString(), status: 'active', tokenActivity: 'medium', email: 'robert.kim@lakesidehealth.com',      phoneNumber: '(555) 506-2233' },
+  { id: 'prov-7',  name: 'Dr. Priya Patel',     role: 'doctor',   organization: 'Westside Wellness',  specialty: 'Endocrinology',  tokenBalance: 155, lastTransaction: new Date(Date.now() -  4 * 86400000).toISOString(), status: 'active', tokenActivity: 'medium', email: 'priya.patel@westsidewellness.com',   phoneNumber: '(555) 707-4455' },
+  { id: 'prov-8',  name: 'Northgate Lab',       role: 'lab',      organization: 'Northgate Lab',      specialty: 'Diagnostics',    tokenBalance:  60, lastTransaction: new Date(Date.now() - 12 * 86400000).toISOString(), status: 'active', tokenActivity: 'low',    email: 'admin@northgatelab.com',             phoneNumber: '(555) 808-5566' },
+  { id: 'prov-9',  name: 'Central City Clinic', role: 'clinic',   organization: 'Central City Clinic', specialty: 'Family Medicine', tokenBalance: 390, lastTransaction: new Date(Date.now() - 1 * 86400000).toISOString(), status: 'active', tokenActivity: 'high',   email: 'info@centralcityclinic.com',         phoneNumber: '(555) 909-6677' },
+  { id: 'prov-10', name: 'Dr. Angela Foster',   role: 'nurse',    organization: 'Metro Health',       specialty: 'Pediatrics',     tokenBalance:  45, lastTransaction: new Date(Date.now() - 20 * 86400000).toISOString(), status: 'active', tokenActivity: 'low',    email: 'angela.foster@metrohealth.com',      phoneNumber: '(555) 110-7788' },
 ];
 
 const syntheticTokenCatalog = [
@@ -838,8 +843,32 @@ const syntheticProviderTokenHistory = {
   ],
 };
 
+const SYNTHETIC_PROVIDER_ROLES = ['doctor', 'lab', 'clinic', 'hospital', 'provider', 'nurse'];
+
+// Helper: get a provider user from store.users, falling back to syntheticTokenProviders for legacy fake IDs
+function findProviderUser(id) {
+  return store.users.findById(id) || syntheticTokenProviders.find(p => p.id === id) || null;
+}
+
 router.get('/admin/tokens/providers', protect, authorize('admin', 'superadmin'), (req, res) => {
-  res.json({ success: true, data: syntheticTokenProviders });
+  // Read from the same store that the provider dashboard uses — no more separate fake list
+  const providerUsers = store.users.findAll().filter(u =>
+    SYNTHETIC_PROVIDER_ROLES.includes(u.role) && u.isActive !== false
+  );
+  const data = providerUsers.map(p => ({
+    id: p._id || p.id,
+    name: p.name || `${p.firstName || ''} ${p.lastName || ''}`.trim(),
+    email: p.email || '',
+    organization: p.organization || '',
+    specialty: p.specialty || '',
+    role: p.role || '',
+    tokenBalance: p.tokenBalance || 0,
+    walletAddress: p.walletAddress || null,
+    lastTransaction: p.tokenLastActivity || p.lastLogin || null,
+    joinedAt: p.createdAt,
+    status: p.isActive !== false ? 'active' : 'inactive',
+  }));
+  res.json({ success: true, data });
 });
 
 router.get('/admin/tokens/providers/:providerId/history', protect, authorize('admin', 'superadmin'), (req, res) => {
@@ -851,22 +880,34 @@ router.get('/admin/tokens/providers/:providerId/history', protect, authorize('ad
 
 router.post('/admin/tokens/mint', protect, authorize('admin', 'superadmin'), (req, res) => {
   const { providerId, amount, reason } = req.body;
-  const provider = syntheticTokenProviders.find(p => p.id === providerId);
-  if (provider) { provider.tokenBalance += parseInt(amount) || 0; provider.lastTransaction = new Date().toISOString(); }
+  const provider = store.users.findById(providerId);
+  if (provider) {
+    provider.tokenBalance = (provider.tokenBalance || 0) + (parseInt(amount) || 0);
+    provider.tokenLastActivity = new Date().toISOString();
+    store.users.save(provider);
+  }
   res.json({ success: true, message: `Minted ${amount} tokens`, data: { providerId, amount, reason, timestamp: new Date().toISOString() } });
 });
 
 router.post('/admin/tokens/burn', protect, authorize('admin', 'superadmin'), (req, res) => {
   const { providerId, amount, reason } = req.body;
-  const provider = syntheticTokenProviders.find(p => p.id === providerId);
-  if (provider) { provider.tokenBalance = Math.max(0, provider.tokenBalance - (parseInt(amount) || 0)); provider.lastTransaction = new Date().toISOString(); }
+  const provider = store.users.findById(providerId);
+  if (provider) {
+    provider.tokenBalance = Math.max(0, (provider.tokenBalance || 0) - (parseInt(amount) || 0));
+    provider.tokenLastActivity = new Date().toISOString();
+    store.users.save(provider);
+  }
   res.json({ success: true, message: `Burned ${amount} tokens`, data: { providerId, amount, reason, timestamp: new Date().toISOString() } });
 });
 
 router.post('/admin/tokens/bonus', protect, authorize('admin', 'superadmin'), (req, res) => {
   const { providerId, amount, reason } = req.body;
-  const provider = syntheticTokenProviders.find(p => p.id === providerId);
-  if (provider) { provider.tokenBalance += parseInt(amount) || 0; provider.lastTransaction = new Date().toISOString(); }
+  const provider = store.users.findById(providerId);
+  if (provider) {
+    provider.tokenBalance = (provider.tokenBalance || 0) + (parseInt(amount) || 0);
+    provider.tokenLastActivity = new Date().toISOString();
+    store.users.save(provider);
+  }
   res.json({ success: true, message: `Bonus of ${amount} tokens approved`, data: { providerId, amount, reason, timestamp: new Date().toISOString() } });
 });
 
@@ -919,7 +960,9 @@ router.put('/admin/tokens/earn-policy', protect, authorize('admin', 'superadmin'
 
 // Token analytics (synthetic aggregation)
 router.get('/admin/tokens/analytics', protect, authorize('admin', 'superadmin'), (req, res) => {
-  const total = syntheticTokenProviders.reduce((s, p) => s + (p.tokenBalance || 0), 0);
+  const providerUsers = store.users.findAll().filter(u => SYNTHETIC_PROVIDER_ROLES.includes(u.role));
+  const total = providerUsers.reduce((s, p) => s + (p.tokenBalance || 0), 0);
+  const topEarners = [...providerUsers].sort((a, b) => (b.tokenBalance || 0) - (a.tokenBalance || 0)).slice(0, 5);
   res.json({
     success: true,
     data: {
@@ -928,7 +971,7 @@ router.get('/admin/tokens/analytics', protect, authorize('admin', 'superadmin'),
       spent30Days: 125,
       netVelocity30Days: 305,
       totalTransactions: 48,
-      topEarners: syntheticTokenProviders.slice(0, 5).map(p => ({ name: p.name, email: p.email, tokenBalance: p.tokenBalance })),
+      topEarners: topEarners.map(p => ({ name: p.name, email: p.email, tokenBalance: p.tokenBalance || 0 })),
       topServices: [
         { serviceId: 'ai-analysis-basic', count: 12 },
         { serviceId: 'priority-referral', count: 8 },

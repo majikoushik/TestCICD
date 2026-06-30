@@ -55,8 +55,9 @@ export const transferTokens = createAsyncThunk(
   async (transferData, { rejectWithValue, dispatch }) => {
     try {
       const response = await tokenService.transferTokens(transferData);
-      // After successful transfer, refresh the balance
+      // Refresh both balance and transaction list after transfer
       dispatch(fetchTokenBalance());
+      dispatch(fetchTokenTransactions());
       return response;
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Failed to transfer tokens');
@@ -80,6 +81,7 @@ export const redeemTokens = createAsyncThunk(
 
 const initialState = {
   balance: 0,
+  walletAddress: null,
   transactions: [],
   redemptionServices: [],
   earnSources: [],
@@ -116,11 +118,15 @@ const tokenSlice = createSlice({
       })
       .addCase(fetchTokenBalance.fulfilled, (state, action) => {
         state.loading.balance = false;
-        // Handle nested response structure from mockResponse
         if (action.payload && action.payload.data) {
-          state.balance = action.payload.data.balance || 0;
+          // Real API: { success, data: { tokenBalance, walletAddress } }
+          state.balance = action.payload.data.tokenBalance ?? action.payload.data.balance ?? 0;
+          if (action.payload.data.walletAddress) {
+            state.walletAddress = action.payload.data.walletAddress;
+          }
         } else {
-          state.balance = action.payload?.balance || 0;
+          // mockResponse flat shape: { balance }
+          state.balance = action.payload?.tokenBalance ?? action.payload?.balance ?? 0;
         }
       })
       .addCase(fetchTokenBalance.rejected, (state, action) => {
@@ -135,12 +141,13 @@ const tokenSlice = createSlice({
       })
       .addCase(fetchTokenTransactions.fulfilled, (state, action) => {
         state.loading.transactions = false;
-        // Handle nested response structure from mockResponse
-        if (action.payload && action.payload.data) {
-          state.transactions = action.payload.data.transactions || [];
-        } else {
-          state.transactions = action.payload?.transactions || [];
-        }
+        // Both real and synthetic endpoints return { data: [...txArray...] }
+        // Normalize type names: 'earn' → 'earned', 'spend' → 'spent'
+        const normType = (t) => t === 'earn' ? 'earned' : t === 'spend' ? 'spent' : (t || 'earned');
+        const raw = action.payload?.data
+          ? (Array.isArray(action.payload.data) ? action.payload.data : (action.payload.data.transactions || []))
+          : (action.payload?.transactions || []);
+        state.transactions = raw.map(tx => ({ ...tx, id: tx._id || tx.id, type: normType(tx.type) }));
       })
       .addCase(fetchTokenTransactions.rejected, (state, action) => {
         state.loading.transactions = false;
@@ -222,6 +229,7 @@ export const { updateTokenBalance, clearTokenError } = tokenSlice.actions;
 
 // Export selectors
 export const selectTokenBalance = (state) => state.tokens.balance;
+export const selectTokenWalletAddress = (state) => state.tokens.walletAddress;
 export const selectTokenTransactions = (state) => state.tokens.transactions;
 export const selectRedemptionServices = (state) => state.tokens.redemptionServices;
 export const selectTokenEarnSources = (state) => state.tokens.earnSources;

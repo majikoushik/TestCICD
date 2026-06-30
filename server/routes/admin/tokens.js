@@ -111,8 +111,9 @@ async function applyTokenOp(providerId, amount, reason, type, source, adminUserI
 // GET /admin/tokens/providers
 router.get('/providers', async (req, res) => {
   try {
-    const providers = await User.find({ role: 'provider' })
-      .select('name email organization specialty tokenBalance walletAddress createdAt')
+    const PROVIDER_ROLES = ['doctor', 'lab', 'clinic', 'hospital', 'provider', 'nurse'];
+    const providers = await User.find({ role: { $in: PROVIDER_ROLES }, isActive: true })
+      .select('name firstName lastName email organization specialty tokenBalance walletAddress createdAt isActive role')
       .sort({ tokenBalance: -1 })
       .lean();
 
@@ -134,6 +135,7 @@ router.get('/providers', async (req, res) => {
       email: p.email,
       organization: p.organization || '',
       specialty: p.specialty || '',
+      role: p.role || '',
       tokenBalance: p.tokenBalance || 0,
       walletAddress: p.walletAddress || null,
       lastTransaction: lastTxMap[String(p._id)] || null,

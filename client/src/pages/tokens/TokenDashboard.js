@@ -7,6 +7,7 @@ import {
   fetchRedemptionServices,
   fetchTokenEarnSources,
   selectTokenBalance,
+  selectTokenWalletAddress,
   selectTokenTransactions,
   selectRedemptionServices,
   selectTokenEarnSources,
@@ -48,15 +49,13 @@ import {
   Token as TokenIcon,
   SwapHoriz as SwapHorizIcon,
   ShoppingCart as ShoppingCartIcon,
-  TrendingUp as TrendingUpIcon,
   ArrowUpward as ArrowUpwardIcon,
   ArrowDownward as ArrowDownwardIcon,
-  DataUsage as DataUsageIcon,
   VerifiedUser as VerifiedUserIcon,
-  People as PeopleIcon,
   Lock as LockIcon,
   LockOpen as LockOpenIcon,
   Savings as SavingsIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { post, get, del } from '../../utils/apiUtils';
 
@@ -76,7 +75,7 @@ const TabPanel = memo(function TabPanel(props) {
       {...other}
     >
       {value === index && (
-        <Box sx={{ py: 3 }}>
+        <Box sx={{ p: 3 }}>
           {children}
         </Box>
       )}
@@ -91,25 +90,28 @@ function TokenDashboard() {
   
   // Get state from Redux
   const balance = useSelector(selectTokenBalance);
+  const walletAddress = useSelector(selectTokenWalletAddress);
   const transactions = useSelector(selectTokenTransactions);
   const services = useSelector(selectRedemptionServices);
   const earnSources = useSelector(selectTokenEarnSources);
-  const loading = useSelector(state => 
-    state.tokens.loading.balance || 
-    state.tokens.loading.transactions || 
+  const loading = useSelector(state =>
+    state.tokens.loading.balance ||
+    state.tokens.loading.transactions ||
     state.tokens.loading.services ||
     state.tokens.loading.sources
   );
   const error = useSelector(selectTokenError);
-  
+
   // Create memoized tokenData object from Redux state to prevent recalculations on every render
-  const tokenData = useMemo(() => ({
-    balance: balance || 0,
-    lifetimeEarned: Array.isArray(transactions) ? transactions.reduce((sum, tx) => sum + (tx.type === 'earned' ? tx.amount : 0), 0) : 0,
-    lifetimeSpent: Array.isArray(transactions) ? transactions.reduce((sum, tx) => sum + (tx.type === 'spent' ? tx.amount : 0), 0) : 0,
-    walletAddress: '0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9', // Placeholder
-    blockchainNetwork: 'Ethereum' // Placeholder
-  }), [balance, transactions]);
+  const tokenData = useMemo(() => {
+    const txList = Array.isArray(transactions) ? transactions : [];
+    return {
+      balance: balance || 0,
+      tokensReceived: txList.filter(tx => tx.amount > 0).reduce((sum, tx) => sum + tx.amount, 0),
+      tokensSpent: txList.filter(tx => tx.amount < 0).reduce((sum, tx) => sum + Math.abs(tx.amount), 0),
+      txCount: txList.length,
+    };
+  }, [balance, transactions]);
 
   useEffect(() => {
     // Fetch data from Redux
@@ -220,92 +222,33 @@ function TokenDashboard() {
         <Grid container spacing={3}>
           <Grid item xs={12} sm={4}>
             <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="h5" component="div">
-                {tokenData ? tokenData.lifetimeEarned : 0}
+              <Typography variant="h5" component="div" color="success.main">
+                +{tokenData ? tokenData.tokensReceived : 0}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Lifetime Earned
+                Tokens Received
+              </Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h5" component="div" color="error.main">
+                -{tokenData ? tokenData.tokensSpent : 0}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Tokens Spent
               </Typography>
             </Box>
           </Grid>
           <Grid item xs={12} sm={4}>
             <Box sx={{ textAlign: 'center' }}>
               <Typography variant="h5" component="div">
-                {tokenData ? tokenData.lifetimeSpent : 0}
+                {tokenData ? tokenData.txCount : 0}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Lifetime Spent
+                Total Transactions
               </Typography>
             </Box>
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="h5" component="div">
-                {tokenData ? (tokenData.lifetimeEarned - tokenData.lifetimeSpent) : 0}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Net Balance
-              </Typography>
-            </Box>
-          </Grid>
-        </Grid>
-      </Paper>
-      
-      {/* Performance Summary Section */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h5" component="h2" gutterBottom>
-          Performance Summary
-        </Typography>
-        <Grid container spacing={3}>
-          {/* Section 1 */}
-          <Grid item xs={12} md={4}>
-            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <DataUsageIcon sx={{ color: 'success.main', fontSize: 28, mr: 1 }} />
-                  <Typography variant="h6" component="div" sx={{ fontWeight: 'medium' }}>
-                    Improved Contribution by 25%
-                  </Typography>
-                </Box>
-                <Typography variant="body2" color="text.secondary">
-                  Sharing and collaboration is incentivized
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          
-          {/* Section 2 */}
-          <Grid item xs={12} md={4}>
-            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <TrendingUpIcon sx={{ color: 'info.main', fontSize: 28, mr: 1 }} />
-                  <Typography variant="h6" component="div" sx={{ fontWeight: 'medium' }}>
-                    Total utilization up 30%
-                  </Typography>
-                </Box>
-                <Typography variant="body2" color="text.secondary">
-                  More tokens are being spent on premium AI services
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          
-          {/* Section 3 */}
-          <Grid item xs={12} md={4}>
-            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <PeopleIcon sx={{ color: 'warning.main', fontSize: 28, mr: 1 }} />
-                  <Typography variant="h6" component="div" sx={{ fontWeight: 'medium' }}>
-                    User engagement up 35%
-                  </Typography>
-                </Box>
-                <Typography variant="body2" color="text.secondary">
-                  Doctors are more active on the platform
-                </Typography>
-              </CardContent>
-            </Card>
           </Grid>
         </Grid>
       </Paper>
@@ -323,13 +266,23 @@ function TokenDashboard() {
         
         {/* Transactions Tab */}
         <TabPanel value={tabValue} index={0}>
-          <Typography variant="h6" gutterBottom>
-            Recent Transactions
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">
+              Recent Transactions
+            </Typography>
+            <Button
+              size="small"
+              startIcon={<RefreshIcon />}
+              onClick={() => dispatch(fetchTokenTransactions())}
+              disabled={loading}
+            >
+              Refresh
+            </Button>
+          </Box>
           <Paper variant="outlined">
             <List>
               {Array.isArray(transactions) && transactions.map((transaction, index) => (
-                <React.Fragment key={transaction.id}>
+                <React.Fragment key={transaction.id || transaction._id || index}>
                   <ListItem>
                     <ListItemIcon>
                       {getTransactionIcon(transaction.type)}
@@ -338,32 +291,32 @@ function TokenDashboard() {
                       primary={
                         <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                           <Typography variant="body1">
-                            {transaction.description}
+                            {transaction.reason || transaction.description || 'Token transaction'}
                           </Typography>
-                          <Typography 
-                            variant="body1" 
-                            sx={{ 
-                              fontWeight: 'bold', 
-                              color: transaction.type === 'earned' ? 'success.main' : 
-                                     transaction.type === 'spent' ? 'error.main' : 
+                          <Typography
+                            variant="body1"
+                            sx={{
+                              fontWeight: 'bold',
+                              color: transaction.amount > 0 ? 'success.main' :
+                                     transaction.amount < 0 ? 'error.main' :
                                      'info.main'
                             }}
                           >
-                            {transaction.type === 'earned' ? '+' : '-'}{transaction.amount} Tokens
+                            {transaction.amount > 0 ? '+' : ''}{transaction.amount} Tokens
                           </Typography>
                         </Box>
                       }
                       secondary={
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
                           <Typography variant="body2" color="text.secondary">
-                            {formatDate(transaction.timestamp)}
+                            {formatDate(transaction.createdAt || transaction.timestamp)}
                           </Typography>
                           <Chip
-                            label={transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
+                            label={(transaction.type || 'transaction').charAt(0).toUpperCase() + (transaction.type || 'transaction').slice(1)}
                             size="small"
                             color={
-                              transaction.type === 'earned' ? 'success' : 
-                              transaction.type === 'spent' ? 'error' : 
+                              transaction.type === 'earned' ? 'success' :
+                              transaction.type === 'spent' ? 'error' :
                               'info'
                             }
                             variant="outlined"
@@ -448,9 +401,9 @@ function TokenDashboard() {
             <Grid container spacing={3}>
               <Grid item xs={12}>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <VerifiedUserIcon sx={{ fontSize: 40, mr: 2, color: 'success.main' }} />
+                  <VerifiedUserIcon sx={{ fontSize: 40, mr: 2, color: walletAddress ? 'success.main' : 'text.disabled' }} />
                   <Typography variant="h6">
-                    Verified Blockchain Wallet
+                    {walletAddress ? 'Verified Blockchain Wallet' : 'Wallet Not Assigned'}
                   </Typography>
                 </Box>
               </Grid>
@@ -458,20 +411,18 @@ function TokenDashboard() {
                 <Typography variant="body2" color="text.secondary">
                   Wallet Address
                 </Typography>
-                <Typography variant="body1" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
-                  {tokenData ? tokenData.walletAddress : 'Not connected'}
-                </Typography>
+                {walletAddress ? (
+                  <Typography variant="body1" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                    {walletAddress}
+                  </Typography>
+                ) : (
+                  <Typography variant="body2" color="text.disabled">
+                    Not assigned — contact your administrator
+                  </Typography>
+                )}
               </Grid>
               <Grid item xs={12}>
-                <Typography variant="body2" color="text.secondary">
-                  Blockchain Network
-                </Typography>
-                <Typography variant="body1">
-                  {tokenData ? tokenData.blockchainNetwork : 'Not connected'}
-                </Typography>
-              </Grid>
-              <Grid item xs={12}>
-                <Alert severity="info" sx={{ mt: 2 }}>
+                <Alert severity="info" sx={{ mt: 1 }}>
                   <Typography variant="body2">
                     Your tokens are securely stored on the blockchain. All transactions are immutable and transparent.
                     Token rewards are automatically processed when you contribute data or complete certain actions in the platform.

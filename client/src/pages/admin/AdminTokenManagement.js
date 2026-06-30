@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
+import {
   Box,
   Container,
   Typography,
@@ -34,7 +34,10 @@ import {
   FormGroup,
   FormControlLabel,
   InputAdornment,
-  Divider
+  Divider,
+  Autocomplete,
+  CircularProgress,
+  Chip,
 } from '@mui/material';
 import { 
   Add as AddIcon,
@@ -96,7 +99,8 @@ const AdminTokenManagement = () => {
   // Dialog states
   const [mintDialogOpen, setMintDialogOpen] = useState(false);
   const [burnDialogOpen, setBurnDialogOpen] = useState(false);
-  const [bonusDialogOpen, setBonusDialogOpen] = useState(false);
+  const [bonusSaving, setBonusSaving] = useState(false);
+  const [recentBonuses, setRecentBonuses] = useState([]);
   const [catalogDialogOpen, setCatalogDialogOpen] = useState(false);
   const [conversionRulesDialogOpen, setConversionRulesDialogOpen] = useState(false);
   
@@ -486,11 +490,6 @@ const AdminTokenManagement = () => {
     setBurnDialogOpen(true);
   };
   
-  // Handle opening bonus dialog
-  const handleOpenBonusDialog = () => {
-    setBonusForm({ providerId: '', amount: 0, reason: 'Performance bonus' });
-    setBonusDialogOpen(true);
-  };
       
   // Handle minting tokens
   const handleMintTokens = async () => {
@@ -567,41 +566,39 @@ const AdminTokenManagement = () => {
       setLoading(false);
     }
   };
-        // Handle approving bonus tokens
+  // Handle crediting bonus tokens directly to a provider
   const handleApproveBonus = async () => {
+    if (!bonusForm.providerId || bonusForm.amount <= 0) {
+      setSnackbar({ open: true, message: 'Please select a provider and enter a valid amount', severity: 'error' });
+      return;
+    }
+    setBonusSaving(true);
     try {
-      setLoading(true);
-      
-      if (bonusForm.amount <= 0 || !bonusForm.providerId) {
-        setSnackbar({
-          open: true,
-          message: 'Please select a provider and enter a valid amount',
-          severity: 'error'
-        });
-        setLoading(false);
-        return;
-      }
-      
       await adminTokenService.approveBonus(bonusForm);
-      
+      const provider = providers.find(p => p.id === bonusForm.providerId);
+      setRecentBonuses(prev => [
+        {
+          providerId: bonusForm.providerId,
+          providerName: provider?.name || bonusForm.providerId,
+          organization: provider?.organization || '',
+          amount: bonusForm.amount,
+          reason: bonusForm.reason,
+          createdAt: new Date().toISOString(),
+        },
+        ...prev,
+      ]);
       setSnackbar({
         open: true,
-        message: `Successfully approved ${bonusForm.amount} bonus tokens`,
-        severity: 'success'
+        message: `Successfully credited ${bonusForm.amount} tokens to ${provider?.name || 'provider'}`,
+        severity: 'success',
       });
-      
-      setBonusDialogOpen(false);
-      fetchProviders(); // Refresh provider list
-      
-      setLoading(false);
+      setBonusForm({ providerId: '', amount: 0, reason: '' });
+      fetchProviders();
     } catch (err) {
-      console.error('Error approving bonus tokens:', err);
-      setSnackbar({
-        open: true,
-        message: 'Failed to approve bonus tokens',
-        severity: 'error'
-      });
-      setLoading(false);
+      console.error('Error crediting bonus tokens:', err);
+      setSnackbar({ open: true, message: 'Failed to credit bonus tokens', severity: 'error' });
+    } finally {
+      setBonusSaving(false);
     }
   };
   
@@ -962,164 +959,165 @@ const AdminTokenManagement = () => {
       
       {/* Bonus Distribution Tab */}
       {tabValue === 1 && (
-        <Paper sx={{ p: 2, mb: 3 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-            <Typography variant="h6">
-              Bonus Token Distribution
-            </Typography>
-            <Button 
-              variant="contained" 
-              color="primary" 
-              startIcon={<BonusIcon />}
-              onClick={handleOpenBonusDialog}
-            >
-              Approve Bonus
-            </Button>
-          </Box>
-          
-          <Typography variant="body1" paragraph>
-            Approve bonus token distributions for top contributors and high-performing providers.
-          </Typography>
-          
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-              <Card variant="outlined">
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Top Contributors This Month
-                  </Typography>
-                      <TableContainer>
-                        <Table size="small">
-                          <TableHead>
-                            <TableRow>
-                              <TableCell>Provider</TableCell>
-                              <TableCell>Contributions</TableCell>
-                              <TableCell>Suggested Bonus</TableCell>
-                              <TableCell>Actions</TableCell>
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            <TableRow>
-                              <TableCell>Dr. Sarah Johnson</TableCell>
-                              <TableCell>42 referrals</TableCell>
-                              <TableCell>50 tokens</TableCell>
-                              <TableCell>
-                                <Button 
-                                  size="small" 
-                                  variant="outlined" 
-                                  color="primary"
-                                  onClick={() => {
-                                    setBonusForm({
-                                      providerId: 'provider-1',
-                                      amount: 50,
-                                      reason: 'Top referral contributor'
-                                    });
-                                    setBonusDialogOpen(true);
-                                  }}
-                                >
-                                  Approve
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell>Dr. Michael Chen</TableCell>
-                              <TableCell>38 referrals</TableCell>
-                              <TableCell>40 tokens</TableCell>
-                              <TableCell>
-                                <Button 
-                                  size="small" 
-                                  variant="outlined" 
-                                  color="primary"
-                                  onClick={() => {
-                                    setBonusForm({
-                                      providerId: 'provider-2',
-                                      amount: 40,
-                                      reason: 'Top referral contributor'
-                                    });
-                                    setBonusDialogOpen(true);
-                                  }}
-                                >
-                                  Approve
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          </TableBody>
-                        </Table>
-                      </TableContainer>
-                    </CardContent>
-                  </Card>
-                </Grid>
-                
-                <Grid item xs={12} md={6}>
-                  <Card variant="outlined">
-                    <CardContent>
-                      <Typography variant="h6" gutterBottom>
-                        Quality Metrics Leaders
+        <Grid container spacing={3} sx={{ mb: 3 }}>
+          {/* Left — Credit form */}
+          <Grid item xs={12} md={5}>
+            <Paper sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                <BonusIcon color="primary" />
+                <Typography variant="h6">Credit Bonus Tokens</Typography>
+              </Box>
+
+              <Autocomplete
+                options={providers}
+                getOptionLabel={(p) => p.name || ''}
+                isOptionEqualToValue={(opt, val) => opt.id === val.id}
+                renderOption={(props, p) => (
+                  <Box component="li" {...props} key={p.id}>
+                    <Box>
+                      <Typography variant="body2" fontWeight={600}>{p.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {[p.organization, p.specialty].filter(Boolean).join(' · ')}
                       </Typography>
-                      <TableContainer>
-                        <Table size="small">
-                          <TableHead>
-                            <TableRow>
-                              <TableCell>Provider</TableCell>
-                              <TableCell>Quality Score</TableCell>
-                              <TableCell>Suggested Bonus</TableCell>
-                              <TableCell>Actions</TableCell>
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            <TableRow>
-                              <TableCell>Dr. Emily Rodriguez</TableCell>
-                              <TableCell>98%</TableCell>
-                              <TableCell>75 tokens</TableCell>
-                              <TableCell>
-                                <Button 
-                                  size="small" 
-                                  variant="outlined" 
-                                  color="primary"
-                                  onClick={() => {
-                                    setBonusForm({
-                                      providerId: 'provider-3',
-                                      amount: 75,
-                                      reason: 'Top quality metrics'
-                                    });
-                                    setBonusDialogOpen(true);
-                                  }}
-                                >
-                                  Approve
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell>Dr. James Wilson</TableCell>
-                              <TableCell>95%</TableCell>
-                              <TableCell>60 tokens</TableCell>
-                              <TableCell>
-                                <Button 
-                                  size="small" 
-                                  variant="outlined" 
-                                  color="primary"
-                                  onClick={() => {
-                                    setBonusForm({
-                                      providerId: 'provider-4',
-                                      amount: 60,
-                                      reason: 'Top quality metrics'
-                                    });
-                                    setBonusDialogOpen(true);
-                                  }}
-                                >
-                                  Approve
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          </TableBody>
-                        </Table>
-                      </TableContainer>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              </Grid>
-          </Paper>
-        )}
+                    </Box>
+                  </Box>
+                )}
+                value={providers.find(p => p.id === bonusForm.providerId) || null}
+                onChange={(_, p) => setBonusForm({ ...bonusForm, providerId: p?.id || '' })}
+                renderInput={(params) => (
+                  <TextField {...params} label="Select Provider" size="small" required />
+                )}
+                fullWidth
+                sx={{ mb: 2 }}
+              />
+
+              <TextField
+                label="Token Amount"
+                type="number"
+                fullWidth
+                size="small"
+                value={bonusForm.amount || ''}
+                onChange={(e) => setBonusForm({ ...bonusForm, amount: parseInt(e.target.value) || 0 })}
+                inputProps={{ min: 1 }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <TokenIcon fontSize="small" color="action" />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{ mb: 2 }}
+              />
+
+              <TextField
+                label="Reason (optional)"
+                fullWidth
+                size="small"
+                placeholder="e.g. Q1 performance bonus, top referral contributor…"
+                value={bonusForm.reason}
+                onChange={(e) => setBonusForm({ ...bonusForm, reason: e.target.value })}
+                sx={{ mb: 3 }}
+              />
+
+              {bonusForm.providerId && (() => {
+                const p = providers.find(pr => pr.id === bonusForm.providerId);
+                if (!p) return null;
+                const newBalance = (p.tokenBalance || 0) + (bonusForm.amount > 0 ? bonusForm.amount : 0);
+                return (
+                  <Paper variant="outlined" sx={{ mb: 2, p: 2, borderRadius: 2, borderColor: 'primary.light', bgcolor: 'primary.50' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                        Current Balance
+                      </Typography>
+                      <Chip
+                        icon={<TokenIcon fontSize="small" />}
+                        label={`${(p.tokenBalance || 0).toLocaleString()} tokens`}
+                        color="primary"
+                        variant="outlined"
+                        size="small"
+                      />
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">{p.name}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {[p.organization, p.specialty, p.role].filter(Boolean).join(' · ')}
+                    </Typography>
+                    {bonusForm.amount > 0 && (
+                      <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="caption" color="text.secondary">Balance after credit</Typography>
+                        <Chip label={`${newBalance.toLocaleString()} tokens`} color="success" size="small" />
+                      </Box>
+                    )}
+                  </Paper>
+                );
+              })()}
+
+              <Button
+                variant="contained"
+                color="primary"
+                fullWidth
+                size="large"
+                startIcon={bonusSaving ? <CircularProgress size={18} color="inherit" /> : <BonusIcon />}
+                onClick={handleApproveBonus}
+                disabled={bonusSaving || !bonusForm.providerId || bonusForm.amount <= 0}
+              >
+                {bonusSaving ? 'Crediting…' : 'Credit Tokens'}
+              </Button>
+            </Paper>
+          </Grid>
+
+          {/* Right — Recent credits */}
+          <Grid item xs={12} md={7}>
+            <Paper sx={{ p: 3, height: '100%' }}>
+              <Typography variant="h6" sx={{ mb: 2 }}>Recent Bonus Credits</Typography>
+              {recentBonuses.length === 0 ? (
+                <Box sx={{ py: 8, textAlign: 'center' }}>
+                  <BonusIcon sx={{ fontSize: 52, color: 'text.disabled', mb: 1 }} />
+                  <Typography color="text.secondary" variant="body2">
+                    No bonus credits in this session yet.
+                  </Typography>
+                  <Typography color="text.secondary" variant="caption">
+                    Credits you make will appear here.
+                  </Typography>
+                </Box>
+              ) : (
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Provider</TableCell>
+                        <TableCell align="right">Amount</TableCell>
+                        <TableCell>Reason</TableCell>
+                        <TableCell>Time</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {recentBonuses.map((b, i) => (
+                        <TableRow key={i}>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={600}>{b.providerName}</Typography>
+                            {b.organization && (
+                              <Typography variant="caption" color="text.secondary">{b.organization}</Typography>
+                            )}
+                          </TableCell>
+                          <TableCell align="right">
+                            <Chip label={`+${b.amount}`} color="success" size="small" />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="caption">{b.reason || '—'}</Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="caption">{formatDateTime(b.createdAt)}</Typography>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </Paper>
+          </Grid>
+        </Grid>
+      )}
         
         {/* Redemption Catalog Tab */}
       {tabValue === 2 && (
@@ -1520,59 +1518,6 @@ const AdminTokenManagement = () => {
             </DialogActions>
           </Dialog>
           
-          {/* Bonus Tokens Dialog */}
-          <Dialog 
-            open={bonusDialogOpen} 
-            onClose={() => setBonusDialogOpen(false)}
-            maxWidth="sm"
-            fullWidth
-          >
-            <DialogTitle>Approve Bonus Tokens</DialogTitle>
-            <DialogContent>
-              <Box sx={{ mt: 2 }}>
-                <FormControl fullWidth sx={{ mb: 2 }}>
-                  <InputLabel>Provider</InputLabel>
-                  <Select
-                    value={bonusForm.providerId}
-                    onChange={(e) => setBonusForm({ ...bonusForm, providerId: e.target.value })}
-                    label="Provider"
-                  >
-                    {providers.map((provider) => (
-                      <MenuItem key={provider.id} value={provider.id}>
-                        {provider.name} - {provider.organization}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-                <TextField
-                  label="Amount"
-                  type="number"
-                  fullWidth
-                  value={bonusForm.amount}
-                  onChange={(e) => setBonusForm({ ...bonusForm, amount: parseInt(e.target.value) || 0 })}
-                  sx={{ mb: 2 }}
-                />
-                <TextField
-                  label="Reason"
-                  fullWidth
-                  value={bonusForm.reason}
-                  onChange={(e) => setBonusForm({ ...bonusForm, reason: e.target.value })}
-                  sx={{ mb: 2 }}
-                />
-              </Box>
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={() => setBonusDialogOpen(false)}>Cancel</Button>
-              <Button 
-                variant="contained" 
-                color="primary" 
-                onClick={handleApproveBonus}
-                disabled={loading}
-              >
-                {loading ? <ModernLoadingIndicator size={24} /> : 'Approve Bonus'}
-              </Button>
-            </DialogActions>
-          </Dialog>
           
           {/* Catalog Item Dialog */}
           <Dialog 

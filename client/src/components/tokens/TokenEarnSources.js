@@ -27,12 +27,13 @@ import {
  */
 const TokenEarnSources = ({ earnSources = [] }) => {
   // Get icon based on source type - memoized with useCallback
-  const getSourceIcon = useCallback((type) => {
-    switch (type.toLowerCase()) {
+  const getSourceIcon = useCallback((category) => {
+    switch ((category || '').toLowerCase()) {
       case 'analytics':
         return <AnalyticsIcon color="primary" />;
       case 'data':
         return <DataUsageIcon color="secondary" />;
+      case 'referrals':
       case 'referral':
         return <SwapHorizIcon color="success" />;
       case 'clinical':
@@ -64,7 +65,7 @@ const TokenEarnSources = ({ earnSources = [] }) => {
             <React.Fragment key={source.id || index}>
               <ListItem alignItems="flex-start" sx={{ py: 1.5 }}>
                 <ListItemIcon>
-                  {getSourceIcon(source.type)}
+                  {getSourceIcon(source.category || source.type)}
                 </ListItemIcon>
                 <ListItemText
                   primary={
@@ -73,8 +74,8 @@ const TokenEarnSources = ({ earnSources = [] }) => {
                         {source.name}
                       </Typography>
                       <Tooltip title="Tokens earned for this activity">
-                        <Chip 
-                          label={`+${source.tokenAmount}`} 
+                        <Chip
+                          label={`+${source.tokenReward ?? source.tokenAmount ?? 0}`}
                           color="primary" 
                           size="small" 
                           sx={{ fontWeight: 'bold' }}

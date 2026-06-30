@@ -22,7 +22,7 @@ const TokenTransactionSchema = new mongoose.Schema({
   relatedEntity: {
     entityType: {
       type: String,
-      enum: ['patient', 'referral', 'analytics', 'service']
+      enum: ['patient', 'referral', 'analytics', 'service', 'user']
     },
     entityId: String
   },

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from '../../contexts/AuthContext';
+import { get } from '../../utils/apiUtils';
 import { 
   fetchTokenBalance, 
   transferTokens,
@@ -42,7 +43,7 @@ import {
 const steps = ['Select Recipient', 'Amount & Purpose', 'Confirm Transfer'];
 
 export default function TokenTransfer() {
-  useAuth();
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -74,52 +75,22 @@ export default function TokenTransfer() {
     // Fetch token balance from Redux
     dispatch(fetchTokenBalance());
     
-    // Fetch available recipients
+    // Fetch available recipients from the real provider list
     const fetchRecipients = async () => {
       try {
         setLoading(prev => ({ ...prev, recipients: true }));
-        
-        // In a real app, this would be an API call to fetch recipients
-        // For this demo, we'll simulate the data
-        
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Simulate recipient data
-        const mockRecipients = [
-          {
-            id: 'user-2',
-            name: 'Dr. Robert Chen',
-            organization: 'City Medical Center',
-            role: 'doctor'
-          },
-          {
-            id: 'user-3',
-            name: 'Dr. Emily Taylor',
-            organization: 'Community Health Partners',
-            role: 'doctor'
-          },
-          {
-            id: 'user-4',
-            name: 'Dr. Michael Brown',
-            organization: 'Premier Medical Group',
-            role: 'doctor'
-          },
-          {
-            id: 'user-5',
-            name: 'Central Hospital',
-            organization: 'Central Hospital',
-            role: 'hospital'
-          },
-          {
-            id: 'user-6',
-            name: 'Advanced Diagnostics',
-            organization: 'Advanced Diagnostics',
-            role: 'lab'
-          }
-        ];
-        
-        setRecipients(mockRecipients);
+        const res = await get('/providers');
+        const all = Array.isArray(res?.data) ? res.data : [];
+        // Exclude the currently logged-in user — you can't transfer to yourself
+        const myId = currentUser?._id || currentUser?.id;
+        const filtered = all.filter(p => (p._id || p.id) !== myId);
+        setRecipients(filtered.map(p => ({
+          id: p._id || p.id,
+          name: p.name || `${p.firstName || ''} ${p.lastName || ''}`.trim(),
+          organization: p.organization || '',
+          specialty: p.specialty || '',
+          role: p.role || 'provider',
+        })));
       } catch (err) {
         console.error('Error fetching recipients:', err);
         setError('Failed to load recipients. Please try again later.');
@@ -160,17 +131,8 @@ export default function TokenTransfer() {
         // Validate recipient selection
         return !!transferData.recipient;
       case 1:
-        // Validate amount and purpose
-        if (
-          transferData.amount &&
-          !isNaN(transferData.amount) &&
-          !Number.isInteger(Number(transferData.amount))
-        ) {
-          setError('Token amount must be a whole number');
-          return false;
-        }
-        setError('');
-        return (
+        // Validate amount and purpose — no setState here (called during render)
+        return !!(
           transferData.amount &&
           !isNaN(transferData.amount) &&
           Number.isInteger(Number(transferData.amount)) &&
@@ -228,7 +190,7 @@ export default function TokenTransfer() {
             <Autocomplete
               options={recipients}
               loading={loading.recipients}
-              getOptionLabel={(option) => `${option.name} (${option.organization})`}
+              getOptionLabel={(option) => option.name || ''}
               value={transferData.recipient}
               onChange={handleRecipientChange}
               renderInput={(params) => (
@@ -248,11 +210,11 @@ export default function TokenTransfer() {
                 />
               )}
               renderOption={(props, option) => (
-                <li {...props}>
+                <li {...props} key={option.id}>
                   <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                    <Typography variant="body1">{option.name}</Typography>
+                    <Typography variant="body2" fontWeight={600}>{option.name}</Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {option.organization} | {option.role.charAt(0).toUpperCase() + option.role.slice(1)}
+                      {[option.organization, option.specialty, option.role ? option.role.charAt(0).toUpperCase() + option.role.slice(1) : ''].filter(Boolean).join(' · ')}
                     </Typography>
                   </Box>
                 </li>
@@ -262,19 +224,19 @@ export default function TokenTransfer() {
             
             {transferData.recipient && (
               <Paper variant="outlined" sx={{ p: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <PersonIcon sx={{ mr: 2 }} />
-                  <Box>
-                    <Typography variant="subtitle1">
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <PersonIcon sx={{ mr: 2, color: 'primary.main' }} />
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="subtitle1" fontWeight={600}>
                       {transferData.recipient.name}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {transferData.recipient.organization}
+                      {[transferData.recipient.organization, transferData.recipient.specialty].filter(Boolean).join(' · ')}
                     </Typography>
                   </Box>
                 </Box>
-                <Typography variant="body2">
-                  Role: {transferData.recipient.role.charAt(0).toUpperCase() + transferData.recipient.role.slice(1)}
+                <Typography variant="body2" color="text.secondary">
+                  Role: <strong>{transferData.recipient.role.charAt(0).toUpperCase() + transferData.recipient.role.slice(1)}</strong>
                 </Typography>
               </Paper>
             )}
@@ -306,8 +268,9 @@ export default function TokenTransfer() {
                   error={transferData.amount && (isNaN(transferData.amount) || parseInt(transferData.amount) <= 0 || parseInt(transferData.amount) > tokenBalance)}
                   helperText={
                     transferData.amount && isNaN(transferData.amount) ? 'Please enter a valid number' :
-                    transferData.amount && parseInt(transferData.amount) <= 0 ? 'Amount must be greater than 0' :
-                    transferData.amount && parseInt(transferData.amount) > tokenBalance ? `Insufficient balance (${tokenBalance} tokens available)` :
+                    transferData.amount && !Number.isInteger(Number(transferData.amount)) ? 'Token amount must be a whole number' :
+                    transferData.amount && parseInt(transferData.amount, 10) <= 0 ? 'Amount must be greater than 0' :
+                    transferData.amount && parseInt(transferData.amount, 10) > tokenBalance ? `Insufficient balance (${tokenBalance} tokens available)` :
                     `Available balance: ${tokenBalance} tokens`
                   }
                 />
