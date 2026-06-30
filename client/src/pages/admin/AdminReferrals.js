@@ -62,9 +62,11 @@ const AdminReferrals = () => {
           const response = await adminReferralService.getAllReferrals();
           
           if (response.success) {
-            setReferrals(response.data?.referrals || []);
-            setFilteredReferrals(response.data?.referrals || []);
-            setReferralStats(response.data?.stats || {});
+            // Backend returns { success, data: [...] } — data is the array directly
+            const list = Array.isArray(response.data) ? response.data : (response.data?.referrals || []);
+            setReferrals(list);
+            setFilteredReferrals(list);
+            setReferralStats(response.data?.stats || null);
           } else {
             throw new Error('Failed to fetch referrals');
           }
@@ -86,33 +88,20 @@ const AdminReferrals = () => {
         // Apply search filter
         if (searchQuery.trim() !== '') {
           const query = searchQuery.toLowerCase();
-          filtered = filtered.filter(referral => 
-            referral.patientName?.toLowerCase().includes(query) || 
-            referral.referringProviderName?.toLowerCase().includes(query) ||
-            referral.targetProviderName?.toLowerCase().includes(query) ||
-            referral.reason?.toLowerCase().includes(query) ||
-            referral.patientId?.toLowerCase().includes(query)
-          );
+          filtered = filtered.filter(referral => {
+            const pat = referral.patient || {};
+            const refProv = referral.referringProvider || {};
+            const recProv = referral.receivingProvider || {};
+            const patName = (pat.name || [pat.firstName, pat.lastName].filter(Boolean).join(' ')).toLowerCase();
+            const refName = (refProv.firstName || refProv.name || '').toLowerCase();
+            const recName = (recProv.firstName || recProv.name || '').toLowerCase();
+            return patName.includes(query) || refName.includes(query) || recName.includes(query) || (referral.reason || '').toLowerCase().includes(query);
+          });
         }
-        
+
         // Apply status filter
         if (filterStatus !== 'all') {
           filtered = filtered.filter(referral => referral.status === filterStatus);
-        }
-        
-        // Apply dispute filter
-        if (filterHasDispute !== 'all') {
-          filtered = filtered.filter(referral => 
-            filterHasDispute === 'yes' ? referral.hasDispute : !referral.hasDispute
-          );
-        }
-        
-        // Apply provider filter
-        if (filterProvider) {
-          filtered = filtered.filter(referral => 
-            referral.referringProviderId === filterProvider || 
-            referral.targetProviderId === filterProvider
-          );
         }
         
         setFilteredReferrals(filtered);
@@ -141,16 +130,12 @@ const AdminReferrals = () => {
 
       const getStatusColor = (status) => {
         switch (status) {
-          case 'Completed':
-            return 'success';
-          case 'Pending':
-            return 'warning';
-          case 'Approved':
-            return 'info';
-          case 'Cancelled':
-            return 'error';
-          default:
-            return 'default';
+          case 'completed': return 'success';
+          case 'pending':   return 'warning';
+          case 'accepted':  return 'info';
+          case 'cancelled': return 'default';
+          case 'rejected':  return 'error';
+          default:          return 'default';
         }
       };
     
@@ -190,18 +175,12 @@ const AdminReferrals = () => {
     
       const getFilteredReferralsByTab = (tabIndex) => {
         switch (tabIndex) {
-          case 0: // All Referrals
-            return filteredReferrals;
-          case 1: // Pending Referrals
-            return filteredReferrals.filter(ref => ref.status === 'Pending');
-          case 2: // Active Referrals
-            return filteredReferrals.filter(ref => ref.status === 'Approved');
-          case 3: // Completed Referrals
-            return filteredReferrals.filter(ref => ref.status === 'Completed');
-          case 4: // Disputed Referrals
-            return filteredReferrals.filter(ref => ref.hasDispute);
-          default:
-            return filteredReferrals;
+          case 0: return filteredReferrals;
+          case 1: return filteredReferrals.filter(ref => ref.status === 'pending');
+          case 2: return filteredReferrals.filter(ref => ref.status === 'accepted');
+          case 3: return filteredReferrals.filter(ref => ref.status === 'completed');
+          case 4: return filteredReferrals.filter(ref => ref.status === 'cancelled' || ref.status === 'rejected');
+          default: return filteredReferrals;
         }
       };
 
@@ -227,61 +206,49 @@ const AdminReferrals = () => {
               <TableBody>
                 {displayReferrals
                   .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((referral) => (
-                    <TableRow key={referral.id}>
-                      <TableCell>{referral.patientName}</TableCell>
-                      <TableCell>{referral.referringProviderName}</TableCell>
-                      <TableCell>{referral.targetProviderName}</TableCell>
+                  .map((referral) => {
+                    const refId = referral._id || referral.id;
+                    const patient = referral.patient || {};
+                    const patientName = patient.name || [patient.firstName, patient.lastName].filter(Boolean).join(' ') || '—';
+                    const refProv = referral.referringProvider || {};
+                    const recProv = referral.receivingProvider || {};
+                    const refProvName = refProv.firstName ? `Dr. ${refProv.firstName} ${refProv.lastName || ''}`.trim() : (refProv.name || '—');
+                    const recProvName = recProv.firstName ? `Dr. ${recProv.firstName} ${recProv.lastName || ''}`.trim() : (recProv.name || '—');
+                    const billingStatus = referral.billing?.status || 'pending';
+                    return (
+                    <TableRow key={refId}>
                       <TableCell>
-                        <Chip 
-                          label={referral.status} 
-                          color={getStatusColor(referral.status)}
-                          size="small"
-                        />
+                        <Typography variant="body2" fontWeight={500}>{patientName}</Typography>
+                        <Typography variant="caption" color="text.secondary">{patient.patientId}</Typography>
                       </TableCell>
                       <TableCell>
-                        <Chip 
-                          label={referral.priority} 
-                          color={getPriorityColor(referral.priority)}
-                          size="small"
-                        />
+                        <Typography variant="body2">{refProvName}</Typography>
+                        <Typography variant="caption" color="text.secondary">{refProv.specialty}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">{recProvName}</Typography>
+                        <Typography variant="caption" color="text.secondary">{recProv.specialty}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip label={referral.status} color={getStatusColor(referral.status)} size="small" />
+                      </TableCell>
+                      <TableCell>
+                        <Chip label={referral.urgency || 'routine'} color={referral.urgency === 'emergency' ? 'error' : referral.urgency === 'urgent' ? 'warning' : 'default'} size="small" variant="outlined" />
                       </TableCell>
                       <TableCell>{formatDate(referral.createdAt)}</TableCell>
                       <TableCell>
-                        <Chip 
-                          label={referral.paymentStatus} 
-                          color={getPaymentStatusColor(referral.paymentStatus)}
-                          size="small"
-                        />
+                        <Chip label={billingStatus} color={getPaymentStatusColor(billingStatus)} size="small" />
                       </TableCell>
                       <TableCell>
-                        {referral.hasDispute ? (
-                          <Tooltip title={referral.dispute.status === 'Resolved' ? 'Dispute resolved' : 'Active dispute'}>
-                            <Chip 
-                              icon={referral.dispute.status === 'Resolved' ? <CheckCircleIcon /> : <WarningIcon />} 
-                              label={referral.dispute.status} 
-                              color={referral.dispute.status === 'Resolved' ? 'success' : 'error'} 
-                              size="small"
-                            />
-                          </Tooltip>
-                        ) : (
-                          <Typography variant="body2" color="textSecondary">
-                            None
-                          </Typography>
-                        )}
+                        <Typography variant="body2" color="text.secondary">None</Typography>
                       </TableCell>
                       <TableCell>
-                        <IconButton 
-                          size="small" 
-                          color="primary"
-                          onClick={() => handleViewDetails(referral)}
-                        >
+                        <IconButton size="small" color="primary" onClick={() => handleViewDetails(referral)}>
                           <VisibilityIcon fontSize="small" />
                         </IconButton>
-                        
                       </TableCell>
                     </TableRow>
-                  ))}
+                  );})}
                 
                 {displayReferrals.length === 0 && (
                   <TableRow>
@@ -323,10 +290,11 @@ const AdminReferrals = () => {
                   onChange={(e) => setFilterStatus(e.target.value)}
                 >
                   <MenuItem value="all">All</MenuItem>
-                  <MenuItem value="Pending">Pending</MenuItem>
-                  <MenuItem value="Approved">Approved</MenuItem>
-                  <MenuItem value="Completed">Completed</MenuItem>
-                  <MenuItem value="Cancelled">Cancelled</MenuItem>
+                  <MenuItem value="pending">Pending</MenuItem>
+                  <MenuItem value="accepted">Accepted</MenuItem>
+                  <MenuItem value="completed">Completed</MenuItem>
+                  <MenuItem value="cancelled">Cancelled</MenuItem>
+                  <MenuItem value="rejected">Rejected</MenuItem>
                 </Select>
               </FormControl>
               
@@ -373,23 +341,23 @@ const AdminReferrals = () => {
                     </Badge>
                   } />
                   <Tab label={
-                    <Badge badgeContent={filteredReferrals.filter(ref => ref.status === 'Pending').length} color="warning">
+                    <Badge badgeContent={filteredReferrals.filter(ref => ref.status === 'pending').length} color="warning">
                       Pending
                     </Badge>
                   } />
                   <Tab label={
-                    <Badge badgeContent={filteredReferrals.filter(ref => ref.status === 'Approved').length} color="info">
-                      Active
+                    <Badge badgeContent={filteredReferrals.filter(ref => ref.status === 'accepted').length} color="info">
+                      Accepted
                     </Badge>
                   } />
                   <Tab label={
-                    <Badge badgeContent={filteredReferrals.filter(ref => ref.status === 'Completed').length} color="success">
+                    <Badge badgeContent={filteredReferrals.filter(ref => ref.status === 'completed').length} color="success">
                       Completed
                     </Badge>
                   } />
                   <Tab label={
-                    <Badge badgeContent={filteredReferrals.filter(ref => ref.hasDispute).length} color="error">
-                      Disputed
+                    <Badge badgeContent={filteredReferrals.filter(ref => ref.status === 'cancelled' || ref.status === 'rejected').length} color="error">
+                      Cancelled/Rejected
                     </Badge>
                   } />
                 </Tabs>
@@ -435,188 +403,93 @@ const AdminReferrals = () => {
         </DialogTitle>
         
         <DialogContent>
-          {currentReferral && (
+          {currentReferral && (() => {
+            const cp = currentReferral;
+            const pat = cp.patient || {};
+            const refProv = cp.referringProvider || {};
+            const recProv = cp.receivingProvider || {};
+            const patName = pat.name || [pat.firstName, pat.lastName].filter(Boolean).join(' ') || '—';
+            const refName = refProv.firstName ? `Dr. ${refProv.firstName} ${refProv.lastName || ''}`.trim() : (refProv.name || '—');
+            const recName = recProv.firstName ? `Dr. ${recProv.firstName} ${recProv.lastName || ''}`.trim() : (recProv.name || '—');
+            return (
             <Grid container spacing={3} sx={{ mt: 1 }}>
               <Grid item xs={12} md={6}>
                 <Card variant="outlined">
                   <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Patient Information
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Patient ID:</strong> {currentReferral.patientId}
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Patient Name:</strong> {currentReferral.patientName}
-                    </Typography>
+                    <Typography variant="h6" gutterBottom>Patient Information</Typography>
+                    <Typography variant="body2"><strong>Patient ID:</strong> {pat.patientId || '—'}</Typography>
+                    <Typography variant="body2"><strong>Name:</strong> {patName}</Typography>
                   </CardContent>
                 </Card>
               </Grid>
-              
+
               <Grid item xs={12} md={6}>
                 <Card variant="outlined">
                   <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Referral Status
-                    </Typography>
+                    <Typography variant="h6" gutterBottom>Referral Status</Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <Typography variant="body2" sx={{ mr: 1 }}>
-                        <strong>Status:</strong>
-                      </Typography>
-                      <Chip 
-                        label={currentReferral.status} 
-                        color={getStatusColor(currentReferral.status)}
-                        size="small"
-                      />
+                      <Typography variant="body2" sx={{ mr: 1 }}><strong>Status:</strong></Typography>
+                      <Chip label={cp.status} color={getStatusColor(cp.status)} size="small" />
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <Typography variant="body2" sx={{ mr: 1 }}>
-                        <strong>Priority:</strong>
-                      </Typography>
-                      <Chip 
-                        label={currentReferral.priority} 
-                        color={getPriorityColor(currentReferral.priority)}
-                        size="small"
-                      />
+                      <Typography variant="body2" sx={{ mr: 1 }}><strong>Urgency:</strong></Typography>
+                      <Chip label={cp.urgency || 'routine'} size="small" variant="outlined" />
                     </Box>
-                    <Typography variant="body2">
-                      <strong>Created:</strong> {formatDate(currentReferral.createdAt)}
-                    </Typography>
-                    {currentReferral.completedAt && (
-                      <Typography variant="body2">
-                        <strong>Completed:</strong> {formatDate(currentReferral.completedAt)}
-                      </Typography>
+                    <Typography variant="body2"><strong>Created:</strong> {formatDate(cp.createdAt)}</Typography>
+                    {cp.completionDate && (
+                      <Typography variant="body2"><strong>Completed:</strong> {formatDate(cp.completionDate)}</Typography>
                     )}
                   </CardContent>
                 </Card>
               </Grid>
-              
+
               <Grid item xs={12} md={6}>
                 <Card variant="outlined">
                   <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Referring Provider
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Name:</strong> {currentReferral.referringProviderName}
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Specialty:</strong> {currentReferral.referringProviderSpecialty}
-                    </Typography>
+                    <Typography variant="h6" gutterBottom>Referring Provider</Typography>
+                    <Typography variant="body2"><strong>Name:</strong> {refName}</Typography>
+                    <Typography variant="body2"><strong>Specialty:</strong> {refProv.specialty || '—'}</Typography>
+                    <Typography variant="body2"><strong>Organization:</strong> {refProv.organization || '—'}</Typography>
                   </CardContent>
                 </Card>
               </Grid>
-              
+
               <Grid item xs={12} md={6}>
                 <Card variant="outlined">
                   <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Target Provider
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Name:</strong> {currentReferral.targetProviderName}
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Specialty:</strong> {currentReferral.targetProviderSpecialty}
-                    </Typography>
+                    <Typography variant="h6" gutterBottom>Receiving Provider</Typography>
+                    <Typography variant="body2"><strong>Name:</strong> {recName}</Typography>
+                    <Typography variant="body2"><strong>Specialty:</strong> {recProv.specialty || '—'}</Typography>
+                    <Typography variant="body2"><strong>Organization:</strong> {recProv.organization || '—'}</Typography>
                   </CardContent>
                 </Card>
               </Grid>
               <Grid item xs={12}>
                 <Card variant="outlined">
                   <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Referral Details
-                    </Typography>
-                    <Typography variant="body2">
-                      <strong>Reason:</strong> {currentReferral.reason}
-                    </Typography>
-                    {currentReferral.notes && (
-                      <Typography variant="body2">
-                        <strong>Notes:</strong> {currentReferral.notes}
-                      </Typography>
-                    )}
+                    <Typography variant="h6" gutterBottom>Referral Details</Typography>
+                    <Typography variant="body2"><strong>Reason:</strong> {cp.reason}</Typography>
+                    {cp.notes && <Typography variant="body2"><strong>Notes:</strong> {cp.notes}</Typography>}
                   </CardContent>
                 </Card>
               </Grid>
-              
+
               <Grid item xs={12} md={6}>
                 <Card variant="outlined">
                   <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Payment Information
-                    </Typography>
+                    <Typography variant="h6" gutterBottom>Billing</Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <Typography variant="body2" sx={{ mr: 1 }}>
-                        <strong>Status:</strong>
-                      </Typography>
-                      <Chip 
-                        label={currentReferral.paymentStatus} 
-                        color={getPaymentStatusColor(currentReferral.paymentStatus)}
-                        size="small"
-                      />
+                      <Typography variant="body2" sx={{ mr: 1 }}><strong>Status:</strong></Typography>
+                      <Chip label={cp.billing?.status || 'pending'} color={getPaymentStatusColor(cp.billing?.status)} size="small" />
                     </Box>
-                    {currentReferral.paymentAmount && (
-                      <Typography variant="body2">
-                        <strong>Amount:</strong> ${currentReferral.paymentAmount}
-                      </Typography>
-                    )}
-                    {currentReferral.paymentTxHash && (
-                      <Typography variant="body2">
-                        <strong>Transaction:</strong> {currentReferral.paymentTxHash.substring(0, 10)}...
-                      </Typography>
-                    )}
+                    {cp.billing?.amount && <Typography variant="body2"><strong>Amount:</strong> ${cp.billing.amount}</Typography>}
+                    {cp.billing?.transactionId && <Typography variant="body2"><strong>Tx ID:</strong> {cp.billing.transactionId}</Typography>}
                   </CardContent>
                 </Card>
               </Grid>
-              
-              {currentReferral.hasDispute && (
-                <Grid item xs={12} md={6}>
-                  <Card variant="outlined">
-                    <CardContent>
-                      <Typography variant="h6" gutterBottom>
-                        Dispute Information
-                      </Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                        <Typography variant="body2" sx={{ mr: 1 }}>
-                          <strong>Status:</strong>
-                        </Typography>
-                        <Chip 
-                          label={currentReferral.dispute.status} 
-                          color={currentReferral.dispute.status === 'Resolved' ? 'success' : 'error'}
-                          size="small"
-                        />
-                      </Box>
-                      <Typography variant="body2">
-                        <strong>Initiated By:</strong> {currentReferral.dispute.initiatorName}
-                      </Typography>
-                      <Typography variant="body2">
-                        <strong>Reason:</strong> {currentReferral.dispute.reason}
-                      </Typography>
-                      <Typography variant="body2">
-                        <strong>Requested Amount:</strong> ${currentReferral.dispute.requestedAmount}
-                      </Typography>
-                      {currentReferral.dispute.status === 'Resolved' && (
-                        <>
-                          <Typography variant="body2">
-                            <strong>Resolution:</strong> {currentReferral.dispute.resolution}
-                          </Typography>
-                          <Typography variant="body2">
-                            <strong>Final Amount:</strong> ${currentReferral.dispute.finalAmount}
-                          </Typography>
-                          <Typography variant="body2">
-                            <strong>Resolved On:</strong> {formatDate(currentReferral.dispute.resolvedAt)}
-                          </Typography>
-                        </>
-                      )}
-                    </CardContent>
-                  </Card>
-                </Grid>
-              )}
-              
-
             </Grid>
-          )}
+            );
+          })()}
         </DialogContent>
         
         <DialogActions>

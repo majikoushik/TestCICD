@@ -24,6 +24,7 @@ const crypto = require('crypto');
 const User = require('../../models/User');
 const { Token } = require('../../models/Token');
 const ConversionRule = require('../../models/ConversionRule');
+const TokenCatalog = require('../../models/TokenCatalog');
 const TokenEarnPolicy = require('../../models/TokenEarnPolicy');
 const TokenOperation = require('../../models/TokenOperation');
 const { processTokenTransaction } = require('../../blockchain/contracts');
@@ -262,19 +263,23 @@ router.post('/bonus', async (req, res) => {
   }
 });
 
-// ── Catalog (= ConversionRule CRUD) ──────────────────────────────────────────
+// ── Catalog (TokenCatalog CRUD) ───────────────────────────────────────────────
 
 // GET /admin/tokens/catalog
 router.get('/catalog', async (req, res) => {
   try {
-    const items = await ConversionRule.find().sort({ sortOrder: 1, createdAt: 1 }).lean();
+    const items = await TokenCatalog.find().sort({ sortOrder: 1, createdAt: 1 }).lean();
     const data = items.map(r => ({
       id: String(r._id),
+      _id: String(r._id),
       serviceId: r.serviceId,
       name: r.name,
       description: r.description,
       category: r.category,
       tokenCost: r.tokenCost,
+      features: r.features || [],
+      tier: r.tier || 'standard',
+      iconName: r.iconName || '',
       isActive: r.isActive,
       sortOrder: r.sortOrder,
     }));
@@ -287,12 +292,28 @@ router.get('/catalog', async (req, res) => {
 // POST /admin/tokens/catalog
 router.post('/catalog', async (req, res) => {
   try {
-    const { serviceId, name, description, category, tokenCost, sortOrder } = req.body;
+    const { serviceId, name, description, category, tokenCost, features, tier, iconName, sortOrder } = req.body;
     if (!serviceId || !name || !tokenCost) return res.status(400).json({ success: false, error: 'serviceId, name, and tokenCost are required' });
-    const item = await ConversionRule.create({ serviceId, name, description, category, tokenCost, sortOrder: sortOrder || 0 });
+    const item = await TokenCatalog.create({ serviceId, name, description, category, tokenCost, features: features || [], tier: tier || 'standard', iconName: iconName || '', sortOrder: sortOrder || 0 });
     res.status(201).json({ success: true, data: item });
   } catch (err) {
-    if (err.code === 11000) return res.status(409).json({ success: false, error: 'A service with that ID already exists' });
+    if (err.code === 11000) return res.status(409).json({ success: false, error: 'A catalog item with that service ID already exists' });
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// PUT /admin/tokens/catalog/:itemId
+router.put('/catalog/:itemId', async (req, res) => {
+  try {
+    const ALLOWED = ['name', 'description', 'category', 'tokenCost', 'features', 'tier', 'iconName', 'sortOrder', 'isActive'];
+    const updates = {};
+    for (const f of ALLOWED) {
+      if (req.body[f] !== undefined) updates[f] = req.body[f];
+    }
+    const item = await TokenCatalog.findByIdAndUpdate(req.params.itemId, { $set: updates }, { new: true, runValidators: true });
+    if (!item) return res.status(404).json({ success: false, error: 'Catalog item not found' });
+    res.json({ success: true, data: item });
+  } catch (err) {
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
@@ -300,7 +321,7 @@ router.post('/catalog', async (req, res) => {
 // DELETE /admin/tokens/catalog/:itemId
 router.delete('/catalog/:itemId', async (req, res) => {
   try {
-    const item = await ConversionRule.findByIdAndDelete(req.params.itemId);
+    const item = await TokenCatalog.findByIdAndDelete(req.params.itemId);
     if (!item) return res.status(404).json({ success: false, error: 'Catalog item not found' });
     res.json({ success: true, message: 'Catalog item deleted' });
   } catch (err) {
@@ -308,7 +329,7 @@ router.delete('/catalog/:itemId', async (req, res) => {
   }
 });
 
-// ── Conversion Rules (alias view of the same ConversionRule collection) ────────
+// ── Conversion Rules (ConversionRule CRUD — spend-rate rules) ─────────────────
 
 // GET /admin/tokens/conversion-rules
 router.get('/conversion-rules', async (req, res) => {
@@ -316,11 +337,13 @@ router.get('/conversion-rules', async (req, res) => {
     const rules = await ConversionRule.find({ isActive: true }).sort({ sortOrder: 1, createdAt: 1 }).lean();
     const data = rules.map(r => ({
       id: String(r._id),
+      _id: String(r._id),
       service: r.name,
       serviceId: r.serviceId,
       tokenAmount: r.tokenCost,
       description: r.description,
       category: r.category,
+      isActive: r.isActive,
     }));
     res.json({ success: true, data });
   } catch (err) {
@@ -338,6 +361,23 @@ router.post('/conversion-rules', async (req, res) => {
     res.status(201).json({ success: true, data: rule });
   } catch (err) {
     if (err.code === 11000) return res.status(409).json({ success: false, error: 'A rule with that service ID already exists' });
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// PUT /admin/tokens/conversion-rules/:ruleId
+router.put('/conversion-rules/:ruleId', async (req, res) => {
+  try {
+    const ALLOWED = ['name', 'description', 'category', 'tokenCost', 'sortOrder', 'isActive'];
+    const updates = {};
+    for (const f of ALLOWED) {
+      if (req.body[f] !== undefined) updates[f] = req.body[f];
+    }
+    if (req.body.tokenAmount !== undefined) updates.tokenCost = req.body.tokenAmount;
+    const rule = await ConversionRule.findByIdAndUpdate(req.params.ruleId, { $set: updates }, { new: true, runValidators: true });
+    if (!rule) return res.status(404).json({ success: false, error: 'Conversion rule not found' });
+    res.json({ success: true, data: rule });
+  } catch (err) {
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });

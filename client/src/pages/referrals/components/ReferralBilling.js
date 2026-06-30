@@ -22,12 +22,13 @@ import {
   Schedule as ScheduleIcon
 } from '@mui/icons-material';
 
-export default function ReferralBilling({ billing, onBillingUpdate, status }) {
+export default function ReferralBilling({ billing: billingProp, onBillingUpdate, status }) {
+  const billing = billingProp || {};
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [billingData, setBillingData] = useState({
-    amount: billing.amount,
-    currency: billing.currency,
+    amount: billing.amount ?? '',
+    currency: billing.currency || 'USD',
     insuranceClaim: {
       claimId: billing.insuranceClaim?.claimId || '',
       status: billing.insuranceClaim?.status || 'pending',
@@ -43,8 +44,8 @@ export default function ReferralBilling({ billing, onBillingUpdate, status }) {
     setDialogOpen(false);
     // Reset form data
     setBillingData({
-      amount: billing.amount,
-      currency: billing.currency,
+      amount: billing.amount ?? '',
+      currency: billing.currency || 'USD',
       insuranceClaim: {
         claimId: billing.insuranceClaim?.claimId || '',
         status: billing.insuranceClaim?.status || 'pending',
@@ -122,10 +123,11 @@ export default function ReferralBilling({ billing, onBillingUpdate, status }) {
 
   // Format currency
   const formatCurrency = (amount, currency) => {
+    if (amount == null || amount === '' || isNaN(Number(amount))) return 'Not set';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currency || 'USD'
-    }).format(amount);
+    }).format(Number(amount));
   };
 
   // Check if editing is allowed based on referral status

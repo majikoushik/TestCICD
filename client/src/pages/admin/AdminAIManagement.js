@@ -78,16 +78,14 @@ const AdminAIManagement = () => {
   const [aiConfigs, setAiConfigs] = useState([]);
   const [aiConfigEditValues, setAiConfigEditValues] = useState({});
   
-  // Define columns for data grid
+  // Define columns for data grid — fields match AIReport model (title, type, status, accuracy, createdAt)
   const columns = [
-    { field: 'id', headerName: 'ID', width: 70 },
-    { field: 'name', headerName: 'Name', width: 200 },
-    { field: 'type', headerName: 'Type', width: 130 },
-    { field: 'status', headerName: 'Status', width: 100 },
-    { field: 'accuracy', headerName: 'Accuracy', width: 130, valueFormatter: (params) => params.value ? `${(params.value * 100).toFixed(1)}%` : 'N/A' },
-    { field: 'lastTrainingDate', headerName: 'Last Training', width: 150, valueFormatter: (params) => params.value ? new Date(params.value).toLocaleDateString() : 'N/A' },
-    { field: 'dataPoints', headerName: 'Data Points', width: 130, valueFormatter: (params) => params.value ? params.value.toLocaleString() : '0' },
-    { field: 'version', headerName: 'Version', width: 100 }
+    { field: 'title', headerName: 'Title', width: 280 },
+    { field: 'type', headerName: 'Type', width: 150 },
+    { field: 'status', headerName: 'Status', width: 130 },
+    { field: 'accuracy', headerName: 'Accuracy', width: 120, valueFormatter: (params) => params.value != null ? `${(params.value * 100).toFixed(1)}%` : 'N/A' },
+    { field: 'confidenceScore', headerName: 'Confidence', width: 120, valueFormatter: (params) => params.value != null ? `${(params.value * 100).toFixed(1)}%` : 'N/A' },
+    { field: 'createdAt', headerName: 'Created', width: 150, valueFormatter: (params) => params.value ? new Date(params.value).toLocaleDateString() : 'N/A' },
   ];
   
   // Thresholds state
@@ -128,16 +126,21 @@ const AdminAIManagement = () => {
     setLoading(true);
     try {
       // Check if we should use mock data or real API
+      const normalizeRow = (r, i) => ({
+        ...r,
+        id: (r._id != null ? String(r._id) : null) || (r.id != null ? String(r.id) : null) || `row-${i}`,
+      });
       if (process.env.REACT_APP_MOCK_API === 'true') {
         // Using mock data
         setTimeout(() => {
-          setReports(adminMockData.aiReports || []);
+          setReports((adminMockData.aiReports || []).map(normalizeRow));
           setLoading(false);
         }, 500);
       } else {
         // Using real API
         const data = await aiManagementService.getReports();
-        setReports(data?.data || data || []);
+        const rawReports = data?.data || (Array.isArray(data) ? data : []);
+        setReports(rawReports.map(normalizeRow));
         setLoading(false);
       }
     } catch (err) {
@@ -722,7 +725,7 @@ const AdminAIManagement = () => {
               if (tabValue === 3) return report.status === 'rejected';
               return true;
             })}
-            getRowId={(row) => row._id || row.id}
+            getRowId={(row) => String(row.id)}
             columns={columns}
             pageSize={10}
             rowsPerPageOptions={[10]}

@@ -204,8 +204,17 @@ export default function CreateReferral() {
       setIsSubmitting(true);
       setError('');
       
-      // Use the referralService to create a new referral
-      const response = await referralService.createReferral(referralData);
+      // Map full objects to IDs expected by the backend
+      const payload = {
+        patientId: referralData.patient?._id || referralData.patient?.id,
+        receivingProviderId: referralData.receivingProvider?._id || referralData.receivingProvider?.id,
+        reason: referralData.reason,
+        urgency: referralData.urgency,
+        notes: referralData.notes,
+        appointmentDate: referralData.appointmentDate,
+        attachedRecords: referralData.attachedRecords,
+      };
+      const response = await referralService.createReferral(payload);
       
       console.log('Created referral:', response);
       

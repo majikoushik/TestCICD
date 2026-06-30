@@ -18,7 +18,7 @@ const {
 // @route   POST api/referrals
 // @desc    Create a new referral
 // @access  Private (doctors, clinics, hospitals)
-router.post('/', protect, authorize('doctor', 'clinic', 'hospital'), ehiAudit('Referral', 'CREATE'), async (req, res) => {
+router.post('/', protect, authorize('doctor', 'clinic', 'hospital', 'provider'), ehiAudit('Referral', 'CREATE'), async (req, res) => {
   try {
     const {
       patientId,
@@ -165,7 +165,7 @@ router.get('/status-counts', protect, async (req, res) => {
 // @route   GET api/referrals
 // @desc    Get all referrals for the provider (sent or received)
 // @access  Private (all healthcare providers)
-router.get('/', protect, authorize('doctor', 'clinic', 'hospital', 'lab'), ehiAudit('Referral', 'READ'), async (req, res) => {
+router.get('/', protect, authorize('doctor', 'clinic', 'hospital', 'lab', 'provider'), ehiAudit('Referral', 'READ'), async (req, res) => {
   try {
     const { type, status } = req.query;
     const query = {};
@@ -183,8 +183,8 @@ router.get('/', protect, authorize('doctor', 'clinic', 'hospital', 'lab'), ehiAu
       ];
     }
 
-    // Filter by status if provided
-    if (status) {
+    // Filter by status if provided (ignore 'all' sentinel)
+    if (status && status !== 'all') {
       query.status = status;
     }
 
@@ -221,9 +221,11 @@ router.get('/:id', protect, ehiAudit('Referral', 'READ'), async (req, res) => {
     }
 
     // Check if user is the referring or receiving provider
+    const refId = referral.referringProvider?._id || referral.referringProvider;
+    const recId = referral.receivingProvider?._id || referral.receivingProvider;
     if (
-      referral.referringProvider._id.toString() !== req.user.id &&
-      referral.receivingProvider._id.toString() !== req.user.id
+      refId?.toString() !== req.user.id &&
+      recId?.toString() !== req.user.id
     ) {
       return oncDeny(res, 'GET /api/referrals/:id').status(403).json({
         success: false,

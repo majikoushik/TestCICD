@@ -69,35 +69,25 @@ const referralsSlice = createSlice({
       })
       .addCase(fetchReferrals.fulfilled, (state, action) => {
         state.loading = false;
-        
-        // Handle nested response structure from mock API
-        if (action.payload && action.payload.data) {
-          if (action.payload.data.referrals) {
-            state.referrals = action.payload.data.referrals;
-            state.pagination = {
-              ...state.pagination,
-              totalItems: action.payload.data.pagination?.total || 0,
-              currentPage: action.payload.data.pagination?.page || 0,
-              pageSize: action.payload.data.pagination?.limit || 10,
-              totalPages: action.payload.data.pagination?.pages || 0
-            };
-          }
-        } else if (action.payload && action.payload.referrals) {
-          // Handle direct response structure
-          state.referrals = action.payload.referrals;
-          state.pagination.totalItems = action.payload.totalCount || action.payload.referrals.length;
-          state.pagination.totalPages = Math.ceil(state.pagination.totalItems / state.pagination.pageSize);
+        const payload = action.payload;
+        if (!payload) { state.referrals = []; return; }
+
+        // Backend returns { success: true, count: N, data: [...] }
+        if (Array.isArray(payload.data)) {
+          state.referrals = payload.data;
+          state.pagination.totalItems = payload.count || payload.data.length;
+        } else if (payload.data?.referrals) {
+          // mock API / paginated structure
+          state.referrals = payload.data.referrals;
+          state.pagination.totalItems = payload.data.pagination?.total || payload.data.referrals.length;
+        } else if (Array.isArray(payload)) {
+          state.referrals = payload;
+          state.pagination.totalItems = payload.length;
         } else {
-          // Try to handle any other structure
-          if (Array.isArray(action.payload)) {
-            state.referrals = action.payload;
-            state.pagination.totalItems = action.payload.length;
-            state.pagination.totalPages = Math.ceil(action.payload.length / state.pagination.pageSize);
-          } else {
-            // Fallback to empty array if no referrals are found
-            state.referrals = [];
-          }
+          state.referrals = [];
+          state.pagination.totalItems = 0;
         }
+        state.pagination.totalPages = Math.ceil(state.pagination.totalItems / state.pagination.pageSize);
       })
       .addCase(fetchReferrals.rejected, (state, action) => {
         state.loading = false;

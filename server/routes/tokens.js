@@ -4,19 +4,11 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const { Token } = require('../models/Token');
 const ConversionRule = require('../models/ConversionRule');
+const TokenCatalog = require('../models/TokenCatalog');
 const { protect } = require('../middleware/auth');
 const { processTokenTransaction } = require('../blockchain/contracts');
 const logger = require('../utils/logger');
 
-// Default services used as fallback when DB collection is empty
-const DEFAULT_SERVICES = [
-  { serviceId: 'ai-analysis-basic',    name: 'Basic AI Analysis',              description: 'Run basic AI analysis on your patient data',                     tokenCost: 10, category: 'analytics'  },
-  { serviceId: 'ai-analysis-advanced', name: 'Advanced AI Analysis',           description: 'Run advanced AI analysis with predictive modeling',               tokenCost: 25, category: 'analytics'  },
-  { serviceId: 'priority-referral',    name: 'Priority Referral Processing',   description: 'Get priority handling for your referrals',                       tokenCost: 5,  category: 'operations' },
-  { serviceId: 'pa-fast-track',        name: 'PA Fast-Track',                  description: 'Skip the queue and get priority PA review (10 token cost)',       tokenCost: 10, category: 'priority'   },
-  { serviceId: 'extended-data-access', name: 'Extended Network Data Access',   description: 'Access anonymized data from the entire network for research',    tokenCost: 50, category: 'research'   },
-  { serviceId: 'premium-support',      name: 'Premium Support',                description: 'Get priority technical support',                                 tokenCost: 15, category: 'support'    },
-];
 
 // @route   GET api/tokens/balance
 // @desc    Get user token balance
@@ -184,20 +176,21 @@ router.post('/transfer', protect, async (req, res) => {
 // @access  Private
 router.get('/services', protect, async (req, res) => {
   try {
-    let services;
-    try {
-      const dbRules = await ConversionRule.find({ isActive: true }).sort({ sortOrder: 1, createdAt: 1 }).lean();
-      if (dbRules.length > 0) {
-        services = dbRules.map(r => ({
-          id: r.serviceId, name: r.name, description: r.description,
-          tokenCost: r.tokenCost, category: r.category,
-        }));
-      }
-    } catch (_) {}
-    if (!services) {
-      services = DEFAULT_SERVICES.map(s => ({ id: s.serviceId, name: s.name, description: s.description, tokenCost: s.tokenCost, category: s.category }));
+    // Prefer TokenCatalog (richer data); fall back to ConversionRule
+    let items = await TokenCatalog.find({ isActive: true }).sort({ sortOrder: 1, createdAt: 1 }).lean();
+    if (!items.length) {
+      items = await ConversionRule.find({ isActive: true }).sort({ sortOrder: 1, createdAt: 1 }).lean();
     }
-
+    const services = items.map(r => ({
+      id: r.serviceId,
+      name: r.name,
+      description: r.description,
+      tokenCost: r.tokenCost,
+      category: r.category,
+      features: r.features || [],
+      tier: r.tier || 'standard',
+      iconName: r.iconName || '',
+    }));
     res.status(200).json({ success: true, count: services.length, data: services });
   } catch (error) {
     logger.error('Get services error', logger.reqCtx(req, error));
@@ -247,15 +240,14 @@ router.post('/redeem', protect, async (req, res) => {
       });
     }
 
-    // Look up service in DB; fall back to defaults if not found
+    // Look up service in TokenCatalog first, then ConversionRule
     let service = null;
-    try {
-      const dbRule = await ConversionRule.findOne({ serviceId, isActive: true }).lean();
-      if (dbRule) service = { name: dbRule.name, tokenCost: dbRule.tokenCost, category: dbRule.category };
-    } catch (_) {}
-    if (!service) {
-      const fallback = DEFAULT_SERVICES.find(s => s.serviceId === serviceId);
-      if (fallback) service = { name: fallback.name, tokenCost: fallback.tokenCost, category: fallback.category };
+    const catalogItem = await TokenCatalog.findOne({ serviceId, isActive: true }).lean();
+    if (catalogItem) {
+      service = { name: catalogItem.name, tokenCost: catalogItem.tokenCost, category: catalogItem.category };
+    } else {
+      const rule = await ConversionRule.findOne({ serviceId, isActive: true }).lean();
+      if (rule) service = { name: rule.name, tokenCost: rule.tokenCost, category: rule.category };
     }
 
     if (!service) {

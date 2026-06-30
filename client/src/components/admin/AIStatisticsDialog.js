@@ -71,13 +71,13 @@ const AIStatisticsDialog = ({ open, onClose, statistics }) => {
                 <Grid item xs={12} sm={6} md={3}>
                   <Paper sx={{ p: 2, textAlign: 'center', height: '100%' }}>
                     <Typography variant="subtitle2" color="text.secondary">Average Confidence</Typography>
-                    <Typography variant="h4">{(statistics.averageConfidence * 100).toFixed(1)}%</Typography>
+                    <Typography variant="h4">{statistics.averageConfidence != null ? (statistics.averageConfidence * 100).toFixed(1) + '%' : 'N/A'}</Typography>
                   </Paper>
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
                   <Paper sx={{ p: 2, textAlign: 'center', height: '100%' }}>
                     <Typography variant="subtitle2" color="text.secondary">Approval Rate</Typography>
-                    <Typography variant="h4">{(statistics.approvalRate * 100).toFixed(1)}%</Typography>
+                    <Typography variant="h4">{statistics.approvalRate != null ? (statistics.approvalRate * 100).toFixed(1) + '%' : 'N/A'}</Typography>
                   </Paper>
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
@@ -98,7 +98,7 @@ const AIStatisticsDialog = ({ open, onClose, statistics }) => {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={statistics.reportTypeDistribution}
+                      data={statistics.reportTypeDistribution || []}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
@@ -107,7 +107,7 @@ const AIStatisticsDialog = ({ open, onClose, statistics }) => {
                       fill="#8884d8"
                       dataKey="value"
                     >
-                      {statistics.reportTypeDistribution.map((entry, index) => (
+                      {(statistics.reportTypeDistribution || []).map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -126,7 +126,7 @@ const AIStatisticsDialog = ({ open, onClose, statistics }) => {
               <Box sx={{ height: 300 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={statistics.statusDistribution}
+                    data={statistics.statusDistribution || []}
                     margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
@@ -148,7 +148,7 @@ const AIStatisticsDialog = ({ open, onClose, statistics }) => {
               <Box sx={{ height: 300 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
-                    data={statistics.confidenceTrends}
+                    data={statistics.confidenceTrends || []}
                     margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
@@ -188,7 +188,7 @@ const AIStatisticsDialog = ({ open, onClose, statistics }) => {
               <Box sx={{ height: 300 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={statistics.feedbackDistribution}
+                    data={statistics.feedbackDistribution || []}
                     margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                     layout="vertical"
                   >
@@ -209,7 +209,7 @@ const AIStatisticsDialog = ({ open, onClose, statistics }) => {
             <Paper sx={{ p: 2, height: '100%' }}>
               <Typography variant="h6" gutterBottom>Top AI Insights</Typography>
               <Box sx={{ height: 300, overflowY: 'auto' }}>
-                {statistics.topInsights.map((insight, index) => (
+                {(statistics.topInsights || []).map((insight, index) => (
                   <Box key={index} sx={{ mb: 2 }}>
                     <Typography variant="subtitle1">{insight.title}</Typography>
                     <Typography variant="body2" color="text.secondary">{insight.description}</Typography>

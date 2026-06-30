@@ -24,12 +24,9 @@ const adminReferralService = {
         };
       }
 
-      // Make API call using apiUtils
+      // Make API call using apiUtils — response is already { success, data: [...] }
       const response = await get('/admin/referrals');
-      return {
-        success: true,
-        data: response.data
-      };
+      return response;
     } catch (error) {
       console.error('Error fetching referrals:', error);
       throw error;

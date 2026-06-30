@@ -523,7 +523,7 @@ router.get('/referrals', protect, (req, res) => {
   res.status(200).json({ success: true, count: enriched.length, data: enriched });
 });
 
-router.post('/referrals', protect, authorize('doctor', 'clinic', 'hospital'), (req, res) => {
+router.post('/referrals', protect, authorize('doctor', 'clinic', 'hospital', 'provider'), (req, res) => {
   const { patientId, receivingProviderId, reason, urgency, notes, appointmentDate } = req.body;
   const patient = store.patients.findById(patientId);
   if (!patient) return res.status(404).json({ success: false, error: 'Patient not found' });
@@ -813,20 +813,20 @@ const syntheticTokenProviders = [
 ];
 
 const syntheticTokenCatalog = [
-  { id: 'catalog-1', serviceId: 'ai-analysis-basic',    name: 'Basic AI Analysis',            description: 'Run basic AI analysis on patient data',                    category: 'analytics',  tokenCost: 10, isActive: true, sortOrder: 1 },
-  { id: 'catalog-2', serviceId: 'ai-analysis-advanced', name: 'Advanced AI Analysis',          description: 'Advanced AI analysis with predictive modeling',            category: 'analytics',  tokenCost: 25, isActive: true, sortOrder: 2 },
-  { id: 'catalog-3', serviceId: 'priority-referral',    name: 'Priority Referral Processing',  description: 'Fast-track referral processing with priority handling',     category: 'operations', tokenCost: 5,  isActive: true, sortOrder: 3 },
-  { id: 'catalog-4', serviceId: 'pa-fast-track',        name: 'PA Fast-Track',                 description: 'Skip the queue and get priority PA review (10 tokens)',    category: 'priority',   tokenCost: 10, isActive: true, sortOrder: 4 },
-  { id: 'catalog-5', serviceId: 'extended-data-access', name: 'Extended Data Access',          description: 'Access to extended historical data and analytics',          category: 'research',   tokenCost: 50, isActive: true, sortOrder: 5 },
-  { id: 'catalog-6', serviceId: 'premium-support',      name: 'Premium Support',               description: 'Get priority technical support',                           category: 'support',    tokenCost: 15, isActive: true, sortOrder: 6 },
+  { _id: 'catalog-1', id: 'catalog-1', serviceId: 'ai-analysis-basic',    name: 'Basic AI Analysis',            description: 'Run basic AI analysis on patient data to identify patterns and risks.',   category: 'analytics',  tokenCost: 10, tier: 'basic',    features: ['Patient risk scoring', 'Trend detection', 'PDF export'],                                    iconName: 'Analytics',   isActive: true, sortOrder: 1 },
+  { _id: 'catalog-2', id: 'catalog-2', serviceId: 'ai-analysis-advanced', name: 'Advanced AI Analysis',          description: 'Advanced AI analysis with predictive modeling and deep insights.',        category: 'analytics',  tokenCost: 25, tier: 'premium',  features: ['Predictive modeling', 'Comorbidity mapping', 'Benchmark comparisons', 'Raw data export'], iconName: 'AutoAwesome', isActive: true, sortOrder: 2 },
+  { _id: 'catalog-3', id: 'catalog-3', serviceId: 'priority-referral',    name: 'Priority Referral Processing',  description: 'Fast-track referral processing with priority handling.',                  category: 'operations', tokenCost: 5,  tier: 'basic',    features: ['Same-day processing', 'Dedicated queue', 'Status notifications'],                           iconName: 'FastForward', isActive: true, sortOrder: 3 },
+  { _id: 'catalog-4', id: 'catalog-4', serviceId: 'pa-fast-track',        name: 'PA Fast-Track',                 description: 'Skip the queue and get priority PA review.',                              category: 'priority',   tokenCost: 10, tier: 'standard', features: ['Priority review', 'Expedited decision', 'Dedicated reviewer'],                               iconName: 'Speed',       isActive: true, sortOrder: 4 },
+  { _id: 'catalog-5', id: 'catalog-5', serviceId: 'extended-data-access', name: 'Extended Data Access',          description: 'Access to extended historical data and analytics.',                        category: 'research',   tokenCost: 50, tier: 'premium',  features: ['Full network data', 'Anonymized records', 'Research exports', 'API access'],                iconName: 'Storage',     isActive: true, sortOrder: 5 },
+  { _id: 'catalog-6', id: 'catalog-6', serviceId: 'premium-support',      name: 'Premium Support',               description: 'Get priority technical support with a dedicated support agent.',           category: 'support',    tokenCost: 15, tier: 'standard', features: ['Priority queue', '4-hour SLA', 'Dedicated agent', 'Phone support'],                          iconName: 'Support',     isActive: true, sortOrder: 6 },
 ];
 
 const syntheticTokenConversionRules = [
-  { id: 'rule-1', service: 'Basic AI Analysis',          serviceId: 'ai-analysis-basic',    tokenAmount: 10, description: '10 tokens for basic AI analysis of patient data',      category: 'analytics'  },
-  { id: 'rule-2', service: 'Advanced AI Analysis',       serviceId: 'ai-analysis-advanced', tokenAmount: 25, description: '25 tokens for advanced AI analysis with recommendations', category: 'analytics'  },
-  { id: 'rule-3', service: 'Priority Referral',          serviceId: 'priority-referral',    tokenAmount: 5,  description: '5 tokens for priority referral processing',             category: 'operations' },
-  { id: 'rule-4', service: 'PA Fast-Track',              serviceId: 'pa-fast-track',        tokenAmount: 10, description: '10 tokens for priority PA review (skip queue)',         category: 'priority'   },
-  { id: 'rule-5', service: 'Extended Data Access',       serviceId: 'extended-data-access', tokenAmount: 50, description: '50 tokens for extended network data access',            category: 'research'   },
+  { _id: 'rule-1', id: 'rule-1', service: 'Basic AI Analysis',          serviceId: 'ai-analysis-basic',    tokenAmount: 10, description: '10 tokens for basic AI analysis of patient data',         category: 'analytics',  isActive: true },
+  { _id: 'rule-2', id: 'rule-2', service: 'Advanced AI Analysis',       serviceId: 'ai-analysis-advanced', tokenAmount: 25, description: '25 tokens for advanced AI analysis with recommendations',  category: 'analytics',  isActive: true },
+  { _id: 'rule-3', id: 'rule-3', service: 'Priority Referral',          serviceId: 'priority-referral',    tokenAmount: 5,  description: '5 tokens for priority referral processing',                category: 'operations', isActive: true },
+  { _id: 'rule-4', id: 'rule-4', service: 'PA Fast-Track',              serviceId: 'pa-fast-track',        tokenAmount: 10, description: '10 tokens for priority PA review (skip queue)',            category: 'priority',   isActive: true },
+  { _id: 'rule-5', id: 'rule-5', service: 'Extended Data Access',       serviceId: 'extended-data-access', tokenAmount: 50, description: '50 tokens for extended network data access',               category: 'research',   isActive: true },
 ];
 
 const syntheticProviderTokenHistory = {

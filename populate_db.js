@@ -56,6 +56,7 @@ await db.collection('wallets').drop().catch(() => {});
 await db.collection('blockchainidentities').drop().catch(() => {});
 await db.collection('blockchaintransactions').drop().catch(() => {});
 await db.collection('conversionrules').drop().catch(() => {});
+await db.collection('tokencatalogs').drop().catch(() => {});
 await db.collection('tokenearnpolicies').drop().catch(() => {});
 await db.collection('tokenoperations').drop().catch(() => {});
 await db.collection('tokenstakes').drop().catch(() => {});
@@ -5641,6 +5642,19 @@ await db.collection('conversionrules').insertMany([
   { serviceId: 'premium-export',       name: 'Premium Analytics Export',       description: 'Export full analytics results with raw data and visualizations', category: 'analytics', tokenCost: 25, sortOrder: 7, isActive: true, createdAt: new Date(), updatedAt: new Date() },
 ]);
 console.log('conversionrules seeded: 7 entries');
+
+// ── TOKEN CATALOG (marketplace service catalog) ───────────────────────────────
+console.log('Seeding tokencatalogs...');
+await db.collection('tokencatalogs').insertMany([
+  { serviceId: 'ai-analysis-basic',    name: 'Basic AI Analysis',            description: 'Run basic AI analysis on your patient data to identify patterns and risks.',              category: 'analytics',  tokenCost: 10, tier: 'basic',     features: ['Patient risk scoring', 'Trend detection', 'PDF export'],                                          iconName: 'Analytics',  sortOrder: 1, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+  { serviceId: 'ai-analysis-advanced', name: 'Advanced AI Analysis',         description: 'Run advanced AI analysis with predictive modeling and deep insights.',                    category: 'analytics',  tokenCost: 25, tier: 'premium',   features: ['Predictive modeling', 'Comorbidity mapping', 'Benchmark comparisons', 'Raw data export'],      iconName: 'AutoAwesome', sortOrder: 2, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+  { serviceId: 'priority-referral',    name: 'Priority Referral Processing', description: 'Get priority handling for your referrals — jump the queue.',                            category: 'operations', tokenCost: 5,  tier: 'basic',     features: ['Same-day processing', 'Dedicated queue', 'Status notifications'],                                iconName: 'FastForward', sortOrder: 3, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+  { serviceId: 'pa-fast-track',        name: 'PA Fast-Track',                description: 'Skip the queue and get priority prior authorization review.',                            category: 'priority',   tokenCost: 10, tier: 'standard',  features: ['Priority review', 'Expedited decision', 'Dedicated reviewer'],                                  iconName: 'Speed',       sortOrder: 4, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+  { serviceId: 'extended-data-access', name: 'Extended Network Data Access', description: 'Access anonymized data from the entire ClinicTrust network for research.',              category: 'research',   tokenCost: 50, tier: 'premium',   features: ['Full network data', 'Anonymized records', 'Research exports', 'API access'],                     iconName: 'Storage',     sortOrder: 5, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+  { serviceId: 'premium-support',      name: 'Premium Support',              description: 'Get priority technical support with a dedicated support agent.',                         category: 'support',    tokenCost: 15, tier: 'standard',  features: ['Priority queue', '4-hour SLA', 'Dedicated agent', 'Phone support'],                             iconName: 'Support',     sortOrder: 6, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+  { serviceId: 'premium-export',       name: 'Premium Analytics Export',     description: 'Export full analytics results with raw data and interactive visualizations.',           category: 'analytics',  tokenCost: 25, tier: 'premium',   features: ['Raw data CSV', 'Interactive charts', 'Shareable links', 'Custom branding'],                     iconName: 'Download',    sortOrder: 7, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+]);
+console.log('tokencatalogs seeded: 7 entries');
 
 // ── TOKEN EARN POLICY (singleton) ─────────────────────────────────────────────
 console.log('Seeding tokenearnpolicies...');

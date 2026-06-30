@@ -16,6 +16,8 @@ import {
 export default function ReferralPatientInfo({ patient }) {
   const navigate = useNavigate();
 
+  if (!patient) return null;
+
   // Format date for display
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -66,28 +68,24 @@ export default function ReferralPatientInfo({ patient }) {
               {patient.name}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              ID: {patient.patientId} | {calculateAge(patient.dateOfBirth)} years | {patient.gender.charAt(0).toUpperCase() + patient.gender.slice(1)}
+              ID: {patient.patientId}{patient.dateOfBirth ? ` | ${calculateAge(patient.dateOfBirth)} years` : ''}{patient.gender ? ` | ${patient.gender.charAt(0).toUpperCase() + patient.gender.slice(1)}` : ''}
             </Typography>
           </Box>
         </Box>
         
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={6}>
-            <Typography variant="body2" color="text.secondary">
-              Date of Birth
-            </Typography>
-            <Typography variant="body1">
-              {formatDate(patient.dateOfBirth)}
-            </Typography>
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <Typography variant="body2" color="text.secondary">
-              Gender
-            </Typography>
-            <Typography variant="body1">
-              {patient.gender.charAt(0).toUpperCase() + patient.gender.slice(1)}
-            </Typography>
-          </Grid>
+          {patient.dateOfBirth && (
+            <Grid item xs={12} sm={6}>
+              <Typography variant="body2" color="text.secondary">Date of Birth</Typography>
+              <Typography variant="body1">{formatDate(patient.dateOfBirth)}</Typography>
+            </Grid>
+          )}
+          {patient.gender && (
+            <Grid item xs={12} sm={6}>
+              <Typography variant="body2" color="text.secondary">Gender</Typography>
+              <Typography variant="body1">{patient.gender.charAt(0).toUpperCase() + patient.gender.slice(1)}</Typography>
+            </Grid>
+          )}
           
           {patient.contactInfo && (
             <>

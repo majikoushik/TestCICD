@@ -70,8 +70,8 @@ export default function ReferralDetail() {
         
         // Fetch referral details using the service
         const response = await referralService.getReferralById(id);
-        console.log(response);
-        setReferral(response);
+        // apiUtils wraps response as { success, data } — unwrap it
+        setReferral(response?.data || response);
       } catch (err) {
         console.error('Error fetching referral details:', err);
         setError('Failed to load referral details. Please try again later.');
@@ -319,10 +319,10 @@ export default function ReferralDetail() {
               Referring Provider
             </Typography>
             <Typography variant="body1">
-              {referral.referringDoctor ? referral.referringDoctor?.name : 'No provider data'}
+              {referral.referringProvider?.name || 'No provider data'}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {referral.referringDoctor ? referral.referringDoctor.organization : ''}
+              {referral.referringProvider?.organization || ''}
             </Typography>
           </Grid>
           <Grid item xs={12} sm={4}>
@@ -330,10 +330,10 @@ export default function ReferralDetail() {
               Receiving Provider
             </Typography>
             <Typography variant="body1">
-              {referral.receivingDoctor ? referral.receivingDoctor?.name : 'No provider data'}
+              {referral.receivingProvider?.name || 'No provider data'}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {referral.receivingDoctor ? referral.receivingDoctor.organization : ''}
+              {referral.receivingProvider?.organization || ''}
             </Typography>
           </Grid>
           <Grid item xs={12} sm={4}>
@@ -391,7 +391,7 @@ export default function ReferralDetail() {
         {/* Attached Records Tab */}
         <TabPanel value={tabValue} index={2}>
           <ReferralAttachedRecords 
-            attachedRecords={referral.attachementRecords} 
+            attachedRecords={referral.attachedRecords}
             patientId={referral?.patient?.id}
           />
         </TabPanel>

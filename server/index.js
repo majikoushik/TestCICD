@@ -272,6 +272,10 @@ async function startServer() {
   if (dbConnected) {
     mountLiveRoutes();
 
+    // Seed default ConversionRule, TokenCatalog, and TokenEarnPolicy if collections are empty
+    const { seedDefaults } = require('./utils/seedDefaults');
+    seedDefaults().catch(err => logger.warn('seedDefaults failed (non-fatal)', { error: err.message }));
+
     // Seed genesis block if the chain is empty
     ensureGenesisBlock().catch(err => logger.warn('Genesis block seed failed (non-fatal)', { error: err.message }));
 

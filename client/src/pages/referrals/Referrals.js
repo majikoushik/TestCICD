@@ -871,41 +871,41 @@ function ReferralsTable({
           </TableHead>
           <TableBody>
             {referrals.map((referral) => {
-              const patinetName = referral.patient.name? referral.patient.name : referral.patient.firstName + " " + referral.patient.lastName;
-              const referringProviderName = "Dr. " + referral.referringDoctor.firstName + " " + referral.referringDoctor.lastName;
-              const receivingProviderName = "Dr. " + referral.receivingDoctor.firstName + " " + referral.receivingDoctor.lastName;
+              const referralId = referral._id || referral.id;
+              const patient = referral.patient || {};
+              const patientName = patient.name || [patient.firstName, patient.lastName].filter(Boolean).join(' ') || 'Unknown';
+              const refProvider = referral.referringProvider || {};
+              const recProvider = referral.receivingProvider || {};
+              const referringName = refProvider.firstName || refProvider.name ? `Dr. ${refProvider.firstName || ''} ${refProvider.lastName || refProvider.name || ''}`.trim() : '—';
+              const receivingName = recProvider.firstName || recProvider.name ? `Dr. ${recProvider.firstName || ''} ${recProvider.lastName || recProvider.name || ''}`.trim() : '—';
             return (
                 <TableRow
-                  key={referral.id}
+                  key={referralId}
                   hover
-                  onClick={() => handleReferralClick(referral.id)}
+                  onClick={() => handleReferralClick(referralId)}
                   sx={{ cursor: 'pointer' }}
                 >
                   <TableCell>
                     <Box>
                       <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                        {patinetName}
+                        {patientName}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {referral.patient.patientId}
+                        {patient.patientId}
                       </Typography>
                     </Box>
                   </TableCell>
                   <TableCell>{referral.reason}</TableCell>
                   <TableCell>
-                    <Typography variant="body2">
-                      {referringProviderName}
-                    </Typography>
+                    <Typography variant="body2">{referringName}</Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {referral.referringDoctor.specialty}
+                      {refProvider.specialty}
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2">
-                      {receivingProviderName}
-                    </Typography>
+                    <Typography variant="body2">{receivingName}</Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {referral.receivingDoctor.specialty}
+                      {recProvider.specialty}
                     </Typography>
                   </TableCell>
                   <TableCell>{getStatusChip(referral.status)}</TableCell>
@@ -914,7 +914,7 @@ function ReferralsTable({
                   <TableCell align="right">
                     <IconButton
                       size="small"
-                      onClick={(e) => handleMenuOpen(e, referral.id)}
+                      onClick={(e) => handleMenuOpen(e, referralId)}
                     >
                       <MoreVertIcon />
                     </IconButton>
