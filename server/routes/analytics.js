@@ -154,6 +154,7 @@ router.get('/predictive-alerts', protect, async (req, res) => {
         .filter(i => i.severity === 'high' || i.severity === 'critical')
         .map(i => ({
           id:          `${job._id}-${i.id || Math.random()}`,
+          sourceId:    job._id.toString(),
           title:       i.title || i.message || 'Alert',
           description: i.description || '',
           severity:    i.severity,

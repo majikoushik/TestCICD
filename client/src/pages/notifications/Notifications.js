@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Container,
   Typography,
@@ -15,6 +16,7 @@ import {
   Chip,
   Button,
   Alert,
+  Snackbar,
   Tabs,
   Tab
 } from '@mui/material';
@@ -28,6 +30,7 @@ import {
   Error as ErrorIcon
 } from '@mui/icons-material';
 import { format } from 'date-fns';
+import * as notificationService from '../../services/notificationService';
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -50,118 +53,44 @@ function TabPanel(props) {
 }
 
 export default function Notifications() {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [tabValue, setTabValue] = useState(0);
   const [filteredNotifications, setFilteredNotifications] = useState([]);
+  const [actionError, setActionError] = useState('');
+
+  // Normalize the server's Notification document (read/_id) into the shape this page renders
+  const normalize = (n) => ({
+    id: n._id || n.id,
+    type: n.type,
+    title: n.title,
+    message: n.message,
+    createdAt: n.createdAt,
+    isRead: Boolean(n.read),
+    priority: n.priority || 'medium',
+    actionUrl: n.link || null,
+  });
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await notificationService.getNotifications({ limit: 100 });
+      const rawList = response?.data || response?.notifications || [];
+      setNotifications(rawList.map(normalize));
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+      setError('Failed to load notifications. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        setLoading(true);
-        
-        // In a real app, this would be an API call to fetch notifications
-        // For this demo, we'll simulate the data
-        
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Simulate notification data
-        const mockNotifications = [
-          {
-            id: 'notif-1',
-            type: 'referral',
-            title: 'New referral received',
-            message: 'You have received a new referral from Dr. Johnson for Patient Smith',
-            createdAt: new Date(2023, 7, 15, 9, 30).toISOString(),
-            isRead: false,
-            priority: 'high',
-            actionUrl: '/referrals/ref-123'
-          },
-          {
-            id: 'notif-2',
-            type: 'analytics',
-            title: 'Analytics report completed',
-            message: 'Your requested analytics report for Q3 is now available',
-            createdAt: new Date(2023, 7, 14, 15, 45).toISOString(),
-            isRead: true,
-            priority: 'medium',
-            actionUrl: '/analytics/reports/q3-2023'
-          },
-          {
-            id: 'notif-3',
-            type: 'token',
-            title: '15 tokens received',
-            message: 'You have received 15 tokens for completing a patient referral',
-            createdAt: new Date(2023, 7, 14, 10, 15).toISOString(),
-            isRead: false,
-            priority: 'low',
-            actionUrl: '/tokens'
-          },
-          {
-            id: 'notif-4',
-            type: 'alert',
-            title: 'High-risk patient alert',
-            message: 'Patient Jones has been flagged as high-risk for readmission',
-            createdAt: new Date(2023, 7, 13, 8, 0).toISOString(),
-            isRead: false,
-            priority: 'critical',
-            actionUrl: '/patients/p-456'
-          },
-          {
-            id: 'notif-5',
-            type: 'system',
-            title: 'System maintenance scheduled',
-            message: 'The system will be down for maintenance on Sunday from 2-4 AM',
-            createdAt: new Date(2023, 7, 12, 14, 30).toISOString(),
-            isRead: true,
-            priority: 'medium',
-            actionUrl: null
-          },
-          {
-            id: 'notif-6',
-            type: 'referral',
-            title: 'Referral status updated',
-            message: 'Your referral for Patient Brown has been accepted',
-            createdAt: new Date(2023, 7, 11, 11, 20).toISOString(),
-            isRead: true,
-            priority: 'medium',
-            actionUrl: '/referrals/ref-789'
-          },
-          {
-            id: 'notif-7',
-            type: 'token',
-            title: 'Token bonus awarded',
-            message: 'You have received a 50 token bonus for your performance this month',
-            createdAt: new Date(2023, 7, 10, 9, 0).toISOString(),
-            isRead: false,
-            priority: 'medium',
-            actionUrl: '/tokens'
-          },
-          {
-            id: 'notif-8',
-            type: 'alert',
-            title: 'New AI insight available',
-            message: 'AI has detected a potential pattern in your patient data',
-            createdAt: new Date(2023, 7, 9, 16, 45).toISOString(),
-            isRead: true,
-            priority: 'high',
-            actionUrl: '/analytics/insights/ai-123'
-          }
-        ];
-        
-        setNotifications(mockNotifications);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching notifications:', error);
-        setError('Failed to load notifications. Please try again later.');
-        setLoading(false);
-      }
-    };
-    
     fetchNotifications();
-  }, []);
+  }, [fetchNotifications]);
 
   // Filter notifications based on tab value
   useEffect(() => {
@@ -191,22 +120,45 @@ export default function Notifications() {
     setTabValue(newValue);
   };
 
-  const handleMarkAsRead = (notificationId) => {
-    setNotifications(prev => 
-      prev.map(notif => 
-        notif.id === notificationId ? { ...notif, isRead: true } : notif
-      )
-    );
+  const handleMarkAsRead = async (notificationId) => {
+    try {
+      await notificationService.markAsRead(notificationId);
+      setNotifications(prev =>
+        prev.map(notif =>
+          notif.id === notificationId ? { ...notif, isRead: true } : notif
+        )
+      );
+    } catch (err) {
+      console.error('Error marking notification as read:', err);
+      setActionError('Failed to mark notification as read. Please try again.');
+    }
   };
 
-  const handleDeleteNotification = (notificationId) => {
-    setNotifications(prev => prev.filter(notif => notif.id !== notificationId));
+  const handleDeleteNotification = async (notificationId) => {
+    try {
+      await notificationService.deleteNotification(notificationId);
+      setNotifications(prev => prev.filter(notif => notif.id !== notificationId));
+    } catch (err) {
+      console.error('Error deleting notification:', err);
+      setActionError('Failed to delete notification. Please try again.');
+    }
   };
 
-  const handleMarkAllAsRead = () => {
-    setNotifications(prev => 
-      prev.map(notif => ({ ...notif, isRead: true }))
-    );
+  const handleMarkAllAsRead = async () => {
+    try {
+      await notificationService.markAllAsRead();
+      setNotifications(prev =>
+        prev.map(notif => ({ ...notif, isRead: true }))
+      );
+    } catch (err) {
+      console.error('Error marking all notifications as read:', err);
+      setActionError('Failed to mark all notifications as read. Please try again.');
+    }
+  };
+
+  const handleNotificationClick = (notification) => {
+    if (!notification.isRead) handleMarkAsRead(notification.id);
+    if (notification.actionUrl) navigate(notification.actionUrl);
   };
 
   const getNotificationIcon = (type, priority) => {
@@ -261,7 +213,17 @@ export default function Notifications() {
           {error}
         </Alert>
       )}
-      
+
+      <Snackbar
+        open={Boolean(actionError)}
+        autoHideDuration={5000}
+        onClose={() => setActionError('')}
+      >
+        <Alert severity="error" onClose={() => setActionError('')}>
+          {actionError}
+        </Alert>
+      </Snackbar>
+
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
           Notifications
@@ -291,43 +253,47 @@ export default function Notifications() {
         </Box>
         
         <TabPanel value={tabValue} index={0}>
-          <NotificationList 
+          <NotificationList
             notifications={filteredNotifications}
             handleMarkAsRead={handleMarkAsRead}
             handleDeleteNotification={handleDeleteNotification}
+            handleNotificationClick={handleNotificationClick}
             getNotificationIcon={getNotificationIcon}
             getPriorityChip={getPriorityChip}
             formatDate={formatDate}
           />
         </TabPanel>
-        
+
         <TabPanel value={tabValue} index={1}>
-          <NotificationList 
+          <NotificationList
             notifications={filteredNotifications}
             handleMarkAsRead={handleMarkAsRead}
             handleDeleteNotification={handleDeleteNotification}
+            handleNotificationClick={handleNotificationClick}
             getNotificationIcon={getNotificationIcon}
             getPriorityChip={getPriorityChip}
             formatDate={formatDate}
           />
         </TabPanel>
-        
+
         <TabPanel value={tabValue} index={2}>
-          <NotificationList 
+          <NotificationList
             notifications={filteredNotifications}
             handleMarkAsRead={handleMarkAsRead}
             handleDeleteNotification={handleDeleteNotification}
+            handleNotificationClick={handleNotificationClick}
             getNotificationIcon={getNotificationIcon}
             getPriorityChip={getPriorityChip}
             formatDate={formatDate}
           />
         </TabPanel>
-        
+
         <TabPanel value={tabValue} index={3}>
-          <NotificationList 
+          <NotificationList
             notifications={filteredNotifications}
             handleMarkAsRead={handleMarkAsRead}
             handleDeleteNotification={handleDeleteNotification}
+            handleNotificationClick={handleNotificationClick}
             getNotificationIcon={getNotificationIcon}
             getPriorityChip={getPriorityChip}
             formatDate={formatDate}
@@ -343,6 +309,7 @@ function NotificationList({
   notifications,
   handleMarkAsRead,
   handleDeleteNotification,
+  handleNotificationClick,
   getNotificationIcon,
   getPriorityChip,
   formatDate
@@ -352,10 +319,12 @@ function NotificationList({
       {notifications.length > 0 ? (
         notifications.map((notification, index) => (
           <React.Fragment key={notification.id}>
-            <ListItem 
+            <ListItem
               alignItems="flex-start"
-              sx={{ 
+              onClick={() => handleNotificationClick(notification)}
+              sx={{
                 bgcolor: notification.isRead ? 'inherit' : 'action.hover',
+                cursor: notification.actionUrl ? 'pointer' : 'default',
                 '&:hover': { bgcolor: 'action.selected' }
               }}
             >
@@ -394,18 +363,18 @@ function NotificationList({
               <ListItemSecondaryAction>
                 <Box sx={{ display: 'flex' }}>
                   {!notification.isRead && (
-                    <IconButton 
-                      edge="end" 
+                    <IconButton
+                      edge="end"
                       aria-label="mark as read"
-                      onClick={() => handleMarkAsRead(notification.id)}
+                      onClick={(e) => { e.stopPropagation(); handleMarkAsRead(notification.id); }}
                     >
                       <CheckCircleIcon />
                     </IconButton>
                   )}
-                  <IconButton 
-                    edge="end" 
-                    aria-label="delete" 
-                    onClick={() => handleDeleteNotification(notification.id)}
+                  <IconButton
+                    edge="end"
+                    aria-label="delete"
+                    onClick={(e) => { e.stopPropagation(); handleDeleteNotification(notification.id); }}
                   >
                     <DeleteIcon />
                   </IconButton>

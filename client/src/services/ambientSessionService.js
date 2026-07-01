@@ -53,6 +53,21 @@ export async function reviewSession(id, data) {
   }
 }
 
+// Uploads a recorded audio clip for server-side (Azure Speech) transcription.
+// Safe to call even when Azure Speech isn't configured server-side — the
+// endpoint always returns { success, stub, transcript } rather than erroring,
+// so callers should treat `stub: true` as "keep whatever transcript you already have".
+export async function transcribeAudio(audioBlob, filename = 'recording.webm') {
+  try {
+    const formData = new FormData();
+    formData.append('audio', audioBlob, filename);
+    // apiUtils.post detects FormData and lets the browser set the multipart boundary itself.
+    return await post(BASE_PATH + '/transcribe', formData);
+  } catch (error) {
+    throw error;
+  }
+}
+
 export async function reprocessSession(id) {
   try {
     return await post(BASE_PATH + '/' + id + '/reprocess');
@@ -118,6 +133,7 @@ const ambientSessionService = {
   createSession,
   updateSession,
   reviewSession,
+  transcribeAudio,
   reprocessSession,
   deleteSession,
   adminGetSessions,

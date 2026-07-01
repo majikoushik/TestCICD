@@ -9,6 +9,12 @@ const { ehiAudit } = require('../middleware/ehiAudit');
 const { oncDeny } = require('../config/oncExceptions');
 const logger = require('../utils/logger');
 
+// Patient._id is a plain string, normally set equal to patientId at creation
+// (see POST / below) — but seed scripts (populate_db.js) can seed them with
+// different internal _id / patientId values. The client always links via
+// patientId, so resolve on either field rather than assuming they match.
+const findPatientByAnyId = (id) => Patient.findOne({ $or: [{ _id: id }, { patientId: id }] });
+
 // @route   POST api/patients
 // @desc    Create a new patient record
 // @access  Private (doctors, clinics, hospitals)
@@ -94,6 +100,7 @@ router.get(
       const page  = parseInt(req.query.page)  || 0;
       const limit = parseInt(req.query.limit) || 10;
       const search = req.query.search || '';
+      const { gender, riskLevel, sortBy = 'name', sortOrder = 'asc' } = req.query;
 
       const PROVIDER_ROLES = ['doctor', 'clinic', 'hospital'];
 
@@ -124,23 +131,51 @@ router.get(
         };
       }
 
-      // ── Combine access filter with optional search ────────────────────────
-      let dbFilter = accessFilter;
+      // ── Combine access filter with optional search / gender / risk-level ──
+      const andClauses = [accessFilter];
+
       if (search) {
         const searchRegex = new RegExp(search, 'i');
-        const searchClause = {
+        andClauses.push({
           $or: [
             { name: searchRegex },
             { patientId: searchRegex },
             { 'contactInfo.email': searchRegex },
           ],
-        };
-        dbFilter = { $and: [accessFilter, searchClause] };
+        });
       }
+
+      if (gender && gender !== 'all') {
+        andClauses.push({ gender: new RegExp(`^${gender}$`, 'i') });
+      }
+
+      // Risk bands mirror the client's getRiskLevel(): high >=70, medium >=30, low <30
+      if (riskLevel && riskLevel !== 'all') {
+        const riskRange = {
+          high:   { $gte: 70 },
+          medium: { $gte: 30, $lt: 70 },
+          low:    { $lt: 30 },
+        }[riskLevel];
+        if (riskRange) andClauses.push({ riskScore: riskRange });
+      }
+
+      const dbFilter = andClauses.length > 1 ? { $and: andClauses } : andClauses[0];
+
+      // Whitelist sortable fields to prevent arbitrary field injection
+      const sortFieldMap = {
+        name: 'name',
+        dateOfBirth: 'dateOfBirth',
+        riskScore: 'riskScore',
+        updatedAt: 'updatedAt',
+        createdAt: 'createdAt',
+      };
+      const sortField = sortFieldMap[sortBy] || 'name';
+      const sortDirection = sortOrder === 'desc' ? -1 : 1;
 
       const [patients, totalPatients] = await Promise.all([
         Patient.find(dbFilter)
           .select('-consentRecords')
+          .sort({ [sortField]: sortDirection })
           .skip(page * limit)
           .limit(limit)
           .lean(),
@@ -198,11 +233,17 @@ router.get('/:id', protect, ehiAudit('Patient', 'READ'), async (req, res) => {
       }
     }
 
-    // Resolve primaryProvider ID to a display name
+    // Resolve primaryProvider ID to a display name + org/specialty
     let primaryProviderName = patient.primaryProvider;
+    let primaryProviderOrganization = '';
+    let primaryProviderSpecialty = '';
     if (patient.primaryProvider) {
-      const provider = await User.findById(patient.primaryProvider).select('name').lean();
-      if (provider) primaryProviderName = provider.name;
+      const provider = await User.findById(patient.primaryProvider).select('name organization specialty').lean();
+      if (provider) {
+        primaryProviderName = provider.name;
+        primaryProviderOrganization = provider.organization || '';
+        primaryProviderSpecialty = provider.specialty || '';
+      }
     }
 
     if (!isPrimaryProvider && !isAdmin && hasConsent && !hasReferralAccess) {
@@ -212,7 +253,10 @@ router.get('/:id', protect, ehiAudit('Patient', 'READ'), async (req, res) => {
 
       if (consentRecord && consentRecord.accessLevel !== 'full') {
         const allowedFields = consentRecord.dataElements || [];
-        const filteredPatient = { _id: patient._id, patientId: patient.patientId, name: patient.name, primaryProviderName };
+        const filteredPatient = {
+          _id: patient._id, patientId: patient.patientId, name: patient.name,
+          primaryProviderName, primaryProviderOrganization, primaryProviderSpecialty,
+        };
         allowedFields.forEach((field) => {
           if (patient[field]) filteredPatient[field] = patient[field];
         });
@@ -226,6 +270,8 @@ router.get('/:id', protect, ehiAudit('Patient', 'READ'), async (req, res) => {
 
     const patientData = patient.toObject();
     patientData.primaryProviderName = primaryProviderName;
+    patientData.primaryProviderOrganization = primaryProviderOrganization;
+    patientData.primaryProviderSpecialty = primaryProviderSpecialty;
 
     res.status(200).json({
       success: true,
@@ -243,7 +289,7 @@ router.get('/:id', protect, ehiAudit('Patient', 'READ'), async (req, res) => {
 // @access  Private (primary provider or with edit consent)
 router.put('/:id', protect, ehiAudit('Patient', 'UPDATE'), async (req, res) => {
   try {
-    let patient = await Patient.findById(req.params.id);
+    let patient = await findPatientByAnyId(req.params.id);
     if (!patient) {
       return res.status(404).json({ success: false, error: 'Patient not found' });
     }
@@ -264,7 +310,7 @@ router.put('/:id', protect, ehiAudit('Patient', 'UPDATE'), async (req, res) => {
     const { _id, __v, patientId, primaryProvider, primaryProviderName, createdAt, consentRecords, ...updateFields } = req.body;
 
     patient = await Patient.findByIdAndUpdate(
-      req.params.id,
+      patient._id,
       { $set: updateFields },
       { new: true, runValidators: true }
     );
@@ -283,7 +329,7 @@ router.post('/:id/consent', protect, ehiAudit('Patient', 'CONSENT_GRANT'), async
   try {
     const { providerId, accessLevel, dataElements, expiryDate } = req.body;
 
-    const patient = await Patient.findById(req.params.id);
+    const patient = await findPatientByAnyId(req.params.id);
     if (!patient) {
       return res.status(404).json({ success: false, error: 'Patient not found' });
     }
@@ -331,7 +377,7 @@ router.post('/:id/consent', protect, ehiAudit('Patient', 'CONSENT_GRANT'), async
 // @access  Private (with consent verification)
 router.get('/:id/medical-records', protect, ehiAudit('Patient', 'READ'), async (req, res) => {
   try {
-    const patient = await Patient.findById(req.params.id);
+    const patient = await findPatientByAnyId(req.params.id);
     if (!patient) {
       return res.status(404).json({ success: false, error: 'Patient not found' });
     }
@@ -410,7 +456,7 @@ router.get('/:id/medical-records', protect, ehiAudit('Patient', 'READ'), async (
 // @access  Private (primary provider only)
 router.get('/:id/consent-records', protect, ehiAudit('Patient', 'READ'), async (req, res) => {
   try {
-    const patient = await Patient.findById(req.params.id);
+    const patient = await findPatientByAnyId(req.params.id);
     if (!patient) {
       return res.status(404).json({ success: false, error: 'Patient not found' });
     }

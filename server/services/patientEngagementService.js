@@ -41,11 +41,28 @@ function getPatientNotificationModel() {
   return _PatientNotification;
 }
 
-// ─── Uncomment these requires once the packages are installed ─────────────────
-// const sgMail = require('@sendgrid/mail');
-// const twilio = require('twilio');
-// const { NotificationHubsClient } = require('@azure/notification-hubs');
-// ─────────────────────────────────────────────────────────────────────────────
+// Lazy-required so a missing/broken package only breaks the channel that
+// actually needs it, not the whole service (and so importing this file never
+// fails just because a provider's env vars — and therefore its package usage
+// path — aren't configured on this deployment).
+function getSendGrid() {
+  const sgMail = require('@sendgrid/mail');
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  return sgMail;
+}
+
+function getTwilioClient() {
+  const twilio = require('twilio');
+  return twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+}
+
+function getNotificationHubsClient() {
+  const { NotificationHubsClient } = require('@azure/notification-hubs');
+  return new NotificationHubsClient(
+    process.env.AZURE_NOTIFICATION_HUB_CONNECTION_STRING,
+    process.env.AZURE_NOTIFICATION_HUB_NAME
+  );
+}
 
 /**
  * processTemplate
@@ -86,7 +103,7 @@ function processTemplate(templateBody, variables) {
  */
 async function sendEmail(to, subject, htmlBody, textBody) {
   const apiKey = process.env.SENDGRID_API_KEY;
-  const _fromEmail = process.env.SENDGRID_FROM_EMAIL || 'noreply@example.com';
+  const fromEmail = process.env.SENDGRID_FROM_EMAIL || 'noreply@example.com';
 
   if (!apiKey) {
     logger.info('[patientEngagementService][EMAIL STUB]', { to, subject, htmlBody, textBody });
@@ -94,29 +111,22 @@ async function sendEmail(to, subject, htmlBody, textBody) {
   }
 
   try {
-    // ── Real SendGrid integration ─────────────────────────────────────────────
-    // sgMail.setApiKey(apiKey);
-    //
-    // const msg = {
-    //   to,
-    //   from: fromEmail,
-    //   subject,
-    //   html: htmlBody,
-    //   text: textBody,
-    // };
-    //
-    // const [response] = await sgMail.send(msg);
-    // const messageId = response.headers['x-message-id'] || null;
-    // return { success: true, messageId, provider: 'sendgrid' };
-    // ─────────────────────────────────────────────────────────────────────────
+    const sgMail = getSendGrid();
 
+    const [response] = await sgMail.send({
+      to,
+      from: fromEmail,
+      subject,
+      html: htmlBody,
+      text: textBody,
+    });
+
+    const messageId = response.headers['x-message-id'] || null;
+    return { success: true, messageId, provider: 'sendgrid' };
   } catch (err) {
     logger.error('[patientEngagementService][sendEmail] Error', { error: err.message, stack: err.stack });
     return { success: false, error: err.message, provider: 'sendgrid' };
   }
-
-  // Placeholder until SendGrid block above is uncommented
-  return { success: true, messageId: null, provider: 'sendgrid' };
 }
 
 /**
@@ -131,8 +141,7 @@ async function sendEmail(to, subject, htmlBody, textBody) {
  */
 async function sendSMS(to, body) {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const _authToken = process.env.TWILIO_AUTH_TOKEN;
-  const _fromPhone = process.env.TWILIO_PHONE_NUMBER;
+  const fromPhone = process.env.TWILIO_PHONE_NUMBER;
 
   if (!accountSid) {
     logger.info('[patientEngagementService][SMS STUB]', { to, body });
@@ -140,25 +149,13 @@ async function sendSMS(to, body) {
   }
 
   try {
-    // ── Real Twilio integration ───────────────────────────────────────────────
-    // const client = twilio(accountSid, authToken);
-    //
-    // const message = await client.messages.create({
-    //   body,
-    //   from: fromPhone,
-    //   to,
-    // });
-    //
-    // return { success: true, sid: message.sid, provider: 'twilio' };
-    // ─────────────────────────────────────────────────────────────────────────
-
+    const client = getTwilioClient();
+    const message = await client.messages.create({ body, from: fromPhone, to });
+    return { success: true, sid: message.sid, provider: 'twilio' };
   } catch (err) {
     logger.error('[patientEngagementService][sendSMS] Error', { error: err.message, stack: err.stack });
     return { success: false, error: err.message, provider: 'twilio' };
   }
-
-  // Placeholder until Twilio block above is uncommented
-  return { success: true, sid: null, provider: 'twilio' };
 }
 
 /**
@@ -175,7 +172,6 @@ async function sendSMS(to, body) {
  */
 async function sendPushNotification(deviceToken, title, body, data = {}) {
   const connectionString = process.env.AZURE_NOTIFICATION_HUB_CONNECTION_STRING;
-  const _hubName = process.env.AZURE_NOTIFICATION_HUB_NAME;
 
   if (!connectionString) {
     logger.info('[patientEngagementService][PUSH STUB]', { deviceToken, title, body, data });
@@ -183,32 +179,26 @@ async function sendPushNotification(deviceToken, title, body, data = {}) {
   }
 
   try {
-    // ── Real Azure Notification Hubs integration ──────────────────────────────
-    // const client = new NotificationHubsClient(connectionString, hubName);
-    //
-    // // Example: send a generic template notification targeting a specific tag
-    // const notification = {
-    //   body: JSON.stringify({
-    //     title,
-    //     body,
-    //     data,
-    //   }),
-    // };
-    //
-    // await client.sendNotification(notification, {
-    //   tagExpression: `deviceToken:${deviceToken}`,
-    // });
-    //
-    // return { success: true, provider: 'azure' };
-    // ─────────────────────────────────────────────────────────────────────────
+    const { createTemplateNotification } = require('@azure/notification-hubs');
+    const client = getNotificationHubsClient();
 
+    // Cross-platform template notification — the receiving device must be
+    // registered with a template installation exposing matching {{title}}/
+    // {{body}} placeholders (this app has no mobile client doing that yet,
+    // so this is wired for when one exists).
+    const notification = createTemplateNotification({
+      body: JSON.stringify({ title, body, data }),
+    });
+
+    const result = await client.sendNotification(notification, {
+      tagExpression: `deviceToken:${deviceToken}`,
+    });
+
+    return { success: true, trackingId: result.trackingId, provider: 'azure' };
   } catch (err) {
     logger.error('[patientEngagementService][sendPushNotification] Error', { error: err.message, stack: err.stack });
     return { success: false, error: err.message, provider: 'azure' };
   }
-
-  // Placeholder until Azure Notification Hubs block above is uncommented
-  return { success: true, provider: 'azure' };
 }
 
 /**

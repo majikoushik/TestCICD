@@ -251,8 +251,8 @@ export const acceptReferral = async (referralId, data = {}) => {
       return await mockResponse(mockReferral, 1000);
     }
     
-    // Real API call
-    return await put(`/referrals/${referralId}/accept`, data);
+    // Real API call — server only exposes a single status-transition endpoint
+    return await put(`/referrals/${referralId}/status`, { status: 'accepted', ...data });
   } catch (error) {
     console.error('Accept referral error:', error);
     throw error;
@@ -281,8 +281,8 @@ export const rejectReferral = async (referralId, data = {}) => {
       return await mockResponse(mockReferral, 1000);
     }
     
-    // Real API call
-    return await put(`/referrals/${referralId}/reject`, data);
+    // Real API call — server only exposes a single status-transition endpoint
+    return await put(`/referrals/${referralId}/status`, { status: 'rejected', ...data });
   } catch (error) {
     console.error('Reject referral error:', error);
     throw error;
@@ -312,8 +312,8 @@ export const completeReferral = async (referralId, data = {}) => {
       return await mockResponse(mockReferral, 1000);
     }
     
-    // Real API call
-    return await put(`/referrals/${referralId}/complete`, data);
+    // Real API call — server only exposes a single status-transition endpoint
+    return await put(`/referrals/${referralId}/status`, { status: 'completed', ...data });
   } catch (error) {
     console.error('Complete referral error:', error);
     throw error;
@@ -342,8 +342,8 @@ export const cancelReferral = async (referralId, data = {}) => {
       return await mockResponse(mockReferral, 1000);
     }
     
-    // Real API call
-    return await put(`/referrals/${referralId}/cancel`, data);
+    // Real API call — server only exposes a single status-transition endpoint
+    return await put(`/referrals/${referralId}/status`, { status: 'cancelled', ...data });
   } catch (error) {
     console.error('Cancel referral error:', error);
     throw error;

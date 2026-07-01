@@ -35,7 +35,7 @@ import {
 } from '@mui/icons-material'
 import TimeSlotPicker from '../../components/appointments/TimeSlotPicker'
 import PatientSearchAutocomplete from '../../components/common/PatientSearchAutocomplete'
-import { bookAppointment, getAvailableSlots } from '../../services/appointmentService'
+import { bookAppointment, rescheduleAppointment, getAppointment, getAvailableSlots } from '../../services/appointmentService'
 import { getPatientById } from '../../services/patientService'
 import { useAuth } from '../../contexts'
 
@@ -74,6 +74,9 @@ export default function BookAppointment() {
 
   const linkedReferralId = searchParams.get('referralId') || null
   const preselectedPatientId = searchParams.get('patientId') || null
+  const rescheduleId = searchParams.get('reschedule') || null
+  const [rescheduleSource, setRescheduleSource] = useState(null)
+  const [rescheduleLoadError, setRescheduleLoadError] = useState(null)
 
   const [formState, setFormState] = useState({
     appointmentType: 'follow_up',
@@ -114,6 +117,43 @@ export default function BookAppointment() {
       fetchSlots(currentUser.id)
     }
   }, [currentUser, fetchSlots])
+
+  // Rescheduling an existing appointment (?reschedule=<id>) — load its details
+  // so Step 0 (patient/complaint) is pre-filled and Step 2 calls the real
+  // reschedule endpoint instead of creating a brand-new appointment.
+  useEffect(() => {
+    if (!rescheduleId) return
+    getAppointment(rescheduleId)
+      .then(async (res) => {
+        const appt = res?.data?.data || res?.data || res
+        if (!appt) return
+        setRescheduleSource(appt)
+        setFormState((prev) => ({
+          ...prev,
+          appointmentType: appt.appointmentType || prev.appointmentType,
+          chiefComplaint: appt.chiefComplaint || prev.chiefComplaint,
+          reasonForVisit: appt.reasonForVisit || prev.reasonForVisit,
+          location: appt.location || prev.location,
+          notes: appt.notes || prev.notes,
+          patientName: appt.patientName || prev.patientName,
+          patientEmail: appt.patientEmail || prev.patientEmail,
+          patientPhone: appt.patientPhone || prev.patientPhone,
+        }))
+        // Load the full patient record too so the Step 0 patient card renders
+        // (validateStep only needs formState.patientName, but selectedPatient
+        // drives the read-only summary card and the "Select Patient" field).
+        if (appt.patientId) {
+          try {
+            const patientRes = await getPatientById(appt.patientId)
+            const p = patientRes?.data?.data || patientRes?.data || patientRes
+            if (p) setSelectedPatient(p)
+          } catch (_) { /* non-fatal — patientName is already prefilled */ }
+        }
+      })
+      .catch((err) => {
+        setRescheduleLoadError(err?.response?.data?.message || err?.message || 'Failed to load the appointment being rescheduled.')
+      })
+  }, [rescheduleId])
 
   // Pre-populate patient when coming from Patients page (?patientId=)
   useEffect(() => {
@@ -169,6 +209,23 @@ export default function BookAppointment() {
     setError(null)
     try {
       const { selectedDate, selectedSlot } = formState
+
+      if (rescheduleId) {
+        // Reschedule the existing appointment rather than creating a new one.
+        const res = await rescheduleAppointment(rescheduleId, {
+          newDate: selectedDate,
+          newStartTime: selectedSlot.startTime,
+          newEndTime: selectedSlot.endTime,
+          reason: formState.notes || 'Rescheduled by provider',
+        })
+        const payload = res?.data || res || {}
+        const appt = payload.data || payload
+        setAppointmentId(appt._id || appt.id || rescheduleId)
+        setSuccess(true)
+        setTimeout(() => navigate('/app/appointments'), 2500)
+        return
+      }
+
       const providerName = currentUser.name ||
         `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim()
 
@@ -199,7 +256,7 @@ export default function BookAppointment() {
       setSuccess(true)
       setTimeout(() => navigate('/app/appointments'), 2500)
     } catch (err) {
-      setError(err?.response?.data?.message || err?.message || 'Failed to book appointment.')
+      setError(err?.response?.data?.message || err?.message || (rescheduleId ? 'Failed to reschedule appointment.' : 'Failed to book appointment.'))
     } finally {
       setSubmitting(false)
     }
@@ -239,7 +296,7 @@ export default function BookAppointment() {
       <Container maxWidth="sm" sx={{ mt: 6 }}>
         <Alert severity="success" icon={<ConfirmIcon fontSize="inherit" />} sx={{ mb: 3 }}>
           <Typography variant="subtitle1" fontWeight={600}>
-            Appointment scheduled successfully!
+            {rescheduleId ? 'Appointment rescheduled successfully!' : 'Appointment scheduled successfully!'}
           </Typography>
           {appointmentId && (
             <Typography variant="body2">Appointment ID: {appointmentId}</Typography>
@@ -260,7 +317,7 @@ export default function BookAppointment() {
   return (
     <Container maxWidth="md" sx={{ mt: 4, mb: 6 }}>
       <Typography variant="h5" fontWeight={700} gutterBottom>
-        Schedule Patient Appointment
+        {rescheduleId ? 'Reschedule Appointment' : 'Schedule Patient Appointment'}
       </Typography>
 
       {/* Provider context banner */}
@@ -273,6 +330,18 @@ export default function BookAppointment() {
           {currentUser?.organization ? ` · ${currentUser.organization}` : ''}
         </Typography>
       </Paper>
+
+      {rescheduleLoadError && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setRescheduleLoadError(null)}>
+          {rescheduleLoadError}
+        </Alert>
+      )}
+
+      {rescheduleId && rescheduleSource && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Rescheduling appointment for <strong>{rescheduleSource.patientName}</strong> — pick a new date and time below. The original slot will be freed once confirmed.
+        </Alert>
+      )}
 
       {linkedReferralId && (
         <Alert severity="info" sx={{ mb: 2 }}>
@@ -449,7 +518,7 @@ export default function BookAppointment() {
         {/* ── Step 2: Confirm ── */}
         {activeStep === 2 && (
           <Box>
-            <Typography variant="h6" gutterBottom>Review &amp; Confirm Appointment</Typography>
+            <Typography variant="h6" gutterBottom>{rescheduleId ? 'Review & Confirm New Time' : 'Review & Confirm Appointment'}</Typography>
 
             <Card sx={{ mb: 3 }}>
               <CardContent>
@@ -542,7 +611,7 @@ export default function BookAppointment() {
               onClick={handleSubmit}
               disabled={submitting}
             >
-              {submitting ? 'Scheduling…' : 'Confirm & Schedule Appointment'}
+              {submitting ? (rescheduleId ? 'Rescheduling…' : 'Scheduling…') : (rescheduleId ? 'Confirm Reschedule' : 'Confirm & Schedule Appointment')}
             </Button>
           </Box>
         )}

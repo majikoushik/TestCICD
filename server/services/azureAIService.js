@@ -743,9 +743,19 @@ function getFallbackRiskAnalysis(patientData) {
 }
 
 // ── Auto-approval eligibility check ───────────────────────────────────────────
-function isEligibleForAutoApproval(paRequest, aiResult) {
+// Reads the admin-configurable threshold from AIConfig (key: priorAuth.autoApproveThreshold),
+// falling back to the hardcoded default when unset/unreachable — so the admin
+// AI Configuration screen actually controls this instead of silently doing nothing.
+async function isEligibleForAutoApproval(paRequest, aiResult) {
   if (!aiResult || aiResult.recommendation !== 'Approve') return false;
-  if (aiResult.confidenceScore < AUTO_APPROVE_CONFIDENCE_MIN) return false;
+
+  let confidenceMin = AUTO_APPROVE_CONFIDENCE_MIN;
+  try {
+    const AIConfig = require('../models/AIConfig');
+    confidenceMin = await AIConfig.get('priorAuth.autoApproveThreshold', AUTO_APPROVE_CONFIDENCE_MIN);
+  } catch (_) { /* AIConfig unavailable — use hardcoded default */ }
+
+  if (aiResult.confidenceScore < confidenceMin) return false;
   if (!AUTO_APPROVE_URGENCIES.includes(paRequest.urgency)) return false;
 
   const serviceLC = (paRequest.serviceType || '').toLowerCase();

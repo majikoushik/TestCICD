@@ -39,11 +39,14 @@ import {
   Divider,
   Grid,
   Skeleton,
+  TableSortLabel,
 } from '@mui/material';
 import {
   Search as SearchIcon,
   Add as AddIcon,
   Person as PersonIcon,
+  Man as ManIcon,
+  Woman as WomanIcon,
   Warning as WarningIcon,
   FilterList as FilterListIcon,
   MoreVert as MoreVertIcon,
@@ -136,6 +139,14 @@ function Patients() {
     }));
   }, [dispatch]);
 
+  const handleSort = useCallback((field) => {
+    const isAsc = reduxFilters.sortBy === field && reduxFilters.sortOrder === 'asc';
+    dispatch(setPatientsFilters({
+      sortBy: field,
+      sortOrder: isAsc ? 'desc' : 'asc'
+    }));
+  }, [dispatch, reduxFilters.sortBy, reduxFilters.sortOrder]);
+
   const handleAddPatient = useCallback(() => {
     navigate('/app/patients/add');
   }, [navigate]);
@@ -223,7 +234,7 @@ function Patients() {
       searchTerm: '',
       status: '',
       gender: '',
-      sortBy: 'lastName',
+      sortBy: 'name',
       sortOrder: 'asc'
     }));
     
@@ -261,6 +272,20 @@ function Patients() {
       console.error('Error calculating age:', error);
       return 'N/A';
     }
+  }, []);
+
+  const getGenderAvatar = useCallback((gender) => {
+    const normalized = (gender || '').toLowerCase();
+    if (normalized === 'male') return { icon: <ManIcon />, bgcolor: 'info.light' };
+    if (normalized === 'female') return { icon: <WomanIcon />, bgcolor: 'secondary.light' };
+    return { icon: <PersonIcon />, bgcolor: 'primary.light' };
+  }, []);
+
+  const formatLastUpdated = useCallback((dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'N/A';
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   }, []);
 
   const getRiskLevel = useCallback((score) => {
@@ -534,11 +559,44 @@ function Patients() {
             <TableHead>
             <TableRow>
                 <TableCell>Patient ID</TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell>Age / Gender</TableCell>
+                <TableCell sortDirection={reduxFilters.sortBy === 'name' ? reduxFilters.sortOrder : false}>
+                  <TableSortLabel
+                    active={reduxFilters.sortBy === 'name'}
+                    direction={reduxFilters.sortBy === 'name' ? reduxFilters.sortOrder : 'asc'}
+                    onClick={() => handleSort('name')}
+                  >
+                    Name
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell sortDirection={reduxFilters.sortBy === 'dateOfBirth' ? reduxFilters.sortOrder : false}>
+                  <TableSortLabel
+                    active={reduxFilters.sortBy === 'dateOfBirth'}
+                    direction={reduxFilters.sortBy === 'dateOfBirth' ? reduxFilters.sortOrder : 'asc'}
+                    onClick={() => handleSort('dateOfBirth')}
+                  >
+                    Age / Gender
+                  </TableSortLabel>
+                </TableCell>
                 <TableCell>Contact</TableCell>
-                <TableCell>Risk Level</TableCell>
-                {/* <TableCell>Last Visit</TableCell> */}
+                <TableCell>Conditions</TableCell>
+                <TableCell sortDirection={reduxFilters.sortBy === 'riskScore' ? reduxFilters.sortOrder : false}>
+                  <TableSortLabel
+                    active={reduxFilters.sortBy === 'riskScore'}
+                    direction={reduxFilters.sortBy === 'riskScore' ? reduxFilters.sortOrder : 'asc'}
+                    onClick={() => handleSort('riskScore')}
+                  >
+                    Risk Level
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell sortDirection={reduxFilters.sortBy === 'updatedAt' ? reduxFilters.sortOrder : false}>
+                  <TableSortLabel
+                    active={reduxFilters.sortBy === 'updatedAt'}
+                    direction={reduxFilters.sortBy === 'updatedAt' ? reduxFilters.sortOrder : 'desc'}
+                    onClick={() => handleSort('updatedAt')}
+                  >
+                    Last Updated
+                  </TableSortLabel>
+                </TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -555,7 +613,9 @@ function Patients() {
                     </TableCell>
                     <TableCell><Skeleton variant="text" width={80} /></TableCell>
                     <TableCell><Skeleton variant="text" width={140} /></TableCell>
+                    <TableCell><Skeleton variant="rounded" width={90} height={24} /></TableCell>
                     <TableCell><Skeleton variant="rounded" width={60} height={24} /></TableCell>
+                    <TableCell><Skeleton variant="text" width={90} /></TableCell>
                     <TableCell align="right"><Skeleton variant="circular" width={30} height={30} /></TableCell>
                   </TableRow>
                 ))
@@ -575,8 +635,8 @@ function Patients() {
                         <TableCell>{patient.patientId}</TableCell>
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Avatar sx={{ mr: 1, bgcolor: 'primary.light' }}>
-                              <PersonIcon />
+                            <Avatar sx={{ mr: 1, bgcolor: getGenderAvatar(patient.gender).bgcolor }}>
+                              {getGenderAvatar(patient.gender).icon}
                             </Avatar>
                             {name}
                           </Box>
@@ -589,12 +649,31 @@ function Patients() {
                           <Typography variant="body2" color="text.secondary">{patient.contactInfo?.phone}</Typography>
                         </TableCell>
                         <TableCell>
+                          {patient.medicalHistory && patient.medicalHistory.length > 0 ? (
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxWidth: 200 }}>
+                              <Chip label={patient.medicalHistory[0].condition} size="small" variant="outlined" />
+                              {patient.medicalHistory.length > 1 && (
+                                <Tooltip title={patient.medicalHistory.slice(1).map(c => c.condition).join(', ')}>
+                                  <Chip label={`+${patient.medicalHistory.length - 1}`} size="small" variant="outlined" />
+                                </Tooltip>
+                              )}
+                            </Box>
+                          ) : (
+                            <Typography variant="body2" color="text.secondary">None on file</Typography>
+                          )}
+                        </TableCell>
+                        <TableCell>
                           <Chip
                             label={riskInfo.level}
                             color={riskInfo.color}
                             size="small"
                             icon={riskInfo.level === 'High' ? <WarningIcon /> : undefined}
                           />
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {formatLastUpdated(patient.updatedAt)}
+                          </Typography>
                         </TableCell>
                         <TableCell align="right">
                           <IconButton
@@ -609,7 +688,7 @@ function Patients() {
                   })}
                   {filteredPatients.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
+                      <TableCell colSpan={8} align="center" sx={{ py: 3 }}>
                         No patients found
                       </TableCell>
                     </TableRow>

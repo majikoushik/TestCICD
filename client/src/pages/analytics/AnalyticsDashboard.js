@@ -15,6 +15,7 @@ import {
   Tab,
   Chip,
   Alert,
+  Snackbar,
   List,
   ListItem,
   ListItemText,
@@ -90,6 +91,7 @@ export default function AnalyticsDashboard() {
   const [insights, setInsights] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [actionSnackbar, setActionSnackbar] = useState('');
   const [timeRange, setTimeRange] = useState('month');
   
   // Chart data states
@@ -818,13 +820,17 @@ export default function AnalyticsDashboard() {
             </DialogContent>
             <DialogActions>
               <Button onClick={handleCloseAlertDetails}>Close</Button>
-              <Button 
-                variant="contained" 
+              <Button
+                variant="contained"
                 color="primary"
                 onClick={() => {
+                  const reportId = selectedAlert.sourceId;
                   handleCloseAlertDetails();
-                  // In a real app, this would navigate to a detailed view or action page
-                  console.log('Taking action on alert:', selectedAlert.id);
+                  if (reportId) {
+                    handleViewReport(reportId);
+                  } else {
+                    setActionSnackbar('This alert has no linked analytics report to open.');
+                  }
                 }}
               >
                 Take Action
@@ -833,6 +839,13 @@ export default function AnalyticsDashboard() {
           </>
         )}
       </Dialog>
+
+      <Snackbar
+        open={Boolean(actionSnackbar)}
+        autoHideDuration={4000}
+        onClose={() => setActionSnackbar('')}
+        message={actionSnackbar}
+      />
     </Container>
   );
 }

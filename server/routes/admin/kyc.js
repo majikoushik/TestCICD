@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const fs   = require('fs');
 const path = require('path');
 const User = require('../../models/User');
 const ProviderProfile = require('../../models/ProviderProfile');
 const Wallet = require('../../models/Wallet');
 const crypto = require('crypto');
+const fileStorage = require('../../utils/fileStorage');
 const {
   sendEmail,
   kycApprovedHtml, kycRejectedHtml, kycStatusUpdateHtml,
@@ -280,9 +280,9 @@ router.delete('/:id', async (req, res) => {
 
     const userId = profile.userId;
 
-    // Remove KYC document file if it exists
-    if (profile.kycDocumentPath && fs.existsSync(profile.kycDocumentPath)) {
-      try { fs.unlinkSync(profile.kycDocumentPath); } catch (_) {}
+    // Remove KYC document file if it exists (local disk, S3, or Azure Blob)
+    if (profile.kycDocumentPath) {
+      await fileStorage.deleteFile(profile.kycDocumentPath);
     }
 
     // Find wallet to get walletAddress for BlockchainIdentity cleanup
@@ -364,7 +364,7 @@ router.get('/:id/document', async (req, res) => {
     if (!profile || !profile.kycDocumentPath) {
       return res.status(404).json({ success: false, error: 'Document not found' });
     }
-    if (!fs.existsSync(profile.kycDocumentPath)) {
+    if (!(await fileStorage.fileExists(profile.kycDocumentPath))) {
       return res.status(404).json({ success: false, error: 'Document file not found on server' });
     }
 
@@ -377,7 +377,10 @@ router.get('/:id/document', async (req, res) => {
     res.setHeader('Content-Type', mimeType);
     res.setHeader('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename="${filename}"`);
     res.setHeader('Cache-Control', 'private, no-cache');
-    res.sendFile(profile.kycDocumentPath);
+
+    const stream = await fileStorage.getReadStream(profile.kycDocumentPath);
+    stream.on('error', () => { if (!res.headersSent) res.status(500).end(); });
+    stream.pipe(res);
   } catch (err) {
     res.status(500).json({ success: false, error: 'Server error' });
   }

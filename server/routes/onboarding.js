@@ -1,29 +1,17 @@
 const express = require('express');
 const router = express.Router();
-const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const fetch = require('node-fetch');
 const { protect } = require('../middleware/auth');
 const User = require('../models/User');
 const ProviderProfile = require('../models/ProviderProfile');
 const { sendEmail, kycStatusUpdateHtml, colleagueInviteHtml } = require('../services/emailService');
+const fileStorage = require('../utils/fileStorage');
 const logger = require('../utils/logger');
 
-// Multer setup — store KYC docs in server/uploads/kyc/
-const uploadDir = path.join(__dirname, '../uploads/kyc');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${req.user.id}-${Date.now()}${ext}`);
-  },
-});
-
-const upload = multer({
-  storage,
+// KYC docs — local disk by default, or S3 / Azure Blob when configured
+// (see server/utils/fileStorage.js). No code change needed to switch.
+const upload = fileStorage.createUpload('kyc', {
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: (req, file, cb) => {
     const allowed = ['.pdf', '.jpg', '.jpeg', '.png'];
@@ -292,7 +280,7 @@ router.post('/documents', protect, upload.single('document'), async (req, res) =
     };
 
     if (req.file) {
-      updateData.kycDocumentPath = req.file.path;
+      updateData.kycDocumentPath = fileStorage.getStoredReference(req.file);
       updateData.kycDocumentOriginalName = req.file.originalname;
     }
 

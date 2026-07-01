@@ -8,14 +8,22 @@ const logger = require('../utils/logger');
 // ---------------------------------------------------------------------------
 
 /**
- * Transcribe an audio buffer using Azure Cognitive Services Speech SDK.
- * Falls back to a stub response when the required env vars are absent.
+ * Transcribe an audio buffer using the Azure Speech-to-Text REST API
+ * (short-audio recognition endpoint). Falls back to a stub response when
+ * the required env vars are absent, so the caller can safely always call
+ * this and keep whatever transcript it already has (e.g. from the
+ * browser's Web Speech API) when Azure Speech isn't configured.
+ *
+ * Uses the plain REST endpoint (not the native Speech SDK) so there's no
+ * GStreamer/native-codec dependency to install on the server — Azure
+ * decodes common compressed formats (webm/opus, ogg/opus, wav, mp3) itself
+ * when the correct Content-Type is sent.
  *
  * @param {Buffer} audioBuffer  Raw audio data
- * @param {string} mimeType     MIME type of the audio (e.g. 'audio/wav')
+ * @param {string} mimeType     MIME type of the audio (e.g. 'audio/webm;codecs=opus')
  * @returns {Promise<{success: boolean, stub?: boolean, transcript?: string|null, error?: string}>}
  */
-async function transcribeAudio(_audioBuffer, _mimeType) {
+async function transcribeAudio(audioBuffer, mimeType) {
   const key    = process.env.AZURE_SPEECH_KEY;
   const region = process.env.AZURE_SPEECH_REGION;
 
@@ -24,30 +32,40 @@ async function transcribeAudio(_audioBuffer, _mimeType) {
     return { success: true, stub: true, transcript: null };
   }
 
-  try {
-    // Actual SDK usage (commented out – install microsoft-cognitiveservices-speech-sdk first):
-    // const sdk = require('microsoft-cognitiveservices-speech-sdk');
-    // const speechConfig = sdk.SpeechConfig.fromSubscription(key, region);
-    // speechConfig.speechRecognitionLanguage = 'en-US';
-    // const pushStream = sdk.AudioInputStream.createPushStream();
-    // pushStream.write(audioBuffer);
-    // pushStream.close();
-    // const audioConfig   = sdk.AudioConfig.fromStreamInput(pushStream);
-    // const recognizer    = new sdk.SpeechRecognizer(speechConfig, audioConfig);
-    // const result = await new Promise((resolve, reject) => {
-    //   recognizer.recognizeOnceAsync(resolve, reject);
-    // });
-    // recognizer.close();
-    // const transcript = result.text || '';
-    // return { success: true, transcript };
-
-  } catch (err) {
-    logger.error('[ambientIntelligenceService] transcribeAudio error', { error: err.message, stack: err.stack });
-    return { success: false, error: err.message };
+  if (!audioBuffer || !audioBuffer.length) {
+    return { success: false, error: 'No audio data provided' };
   }
 
-  // Placeholder until SDK above is wired up
-  return { success: true, transcript: '' };
+  try {
+    const url =
+      `https://${region}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1` +
+      '?language=en-US&format=detailed';
+
+    const response = await axios.post(url, audioBuffer, {
+      headers: {
+        'Ocp-Apim-Subscription-Key': key,
+        'Content-Type': mimeType || 'audio/wav; codecs=audio/pcm; samplerate=16000',
+        Accept: 'application/json',
+      },
+      maxBodyLength: 25 * 1024 * 1024,
+      maxContentLength: 25 * 1024 * 1024,
+    });
+
+    const data = response.data || {};
+    if (data.RecognitionStatus && data.RecognitionStatus !== 'Success') {
+      return { success: true, transcript: '', recognitionStatus: data.RecognitionStatus };
+    }
+
+    const transcript = data.DisplayText || (data.NBest && data.NBest[0] && data.NBest[0].Display) || '';
+    return { success: true, transcript };
+  } catch (err) {
+    logger.error('[ambientIntelligenceService] transcribeAudio error', {
+      error: err.message,
+      status: err.response?.status,
+      data: err.response?.data,
+    });
+    return { success: false, error: err.message };
+  }
 }
 
 // ---------------------------------------------------------------------------

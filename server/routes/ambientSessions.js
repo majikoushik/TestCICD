@@ -1,8 +1,44 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
 const AmbientSession = require('../models/AmbientSession');
 const ambientIntelligenceService = require('../services/ambientIntelligenceService');
 const logger = require('../utils/logger');
+
+// Audio is transcribed immediately and never persisted, so memory storage is fine.
+const audioUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 }, // 25MB — a few minutes of compressed audio
+});
+
+// POST /transcribe — server-side speech-to-text for a recorded encounter clip.
+// MUST come before /:id to avoid routing conflict.
+// Safe to call unconditionally: when AZURE_SPEECH_KEY/REGION aren't configured,
+// ambientIntelligenceService.transcribeAudio() returns a stub response instead
+// of erroring, so the client can always fall back to its own Web Speech API
+// transcript with no special-casing required.
+router.post('/transcribe', audioUpload.single('audio'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No audio file provided' });
+    }
+
+    const result = await ambientIntelligenceService.transcribeAudio(req.file.buffer, req.file.mimetype);
+
+    if (!result.success) {
+      return res.status(502).json({ success: false, error: result.error || 'Transcription failed' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      stub: Boolean(result.stub),
+      transcript: result.transcript || '',
+    });
+  } catch (err) {
+    logger.error('POST /transcribe error', logger.reqCtx(req, err));
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // GET /stats - Stats for the current provider's sessions
 // MUST come before /:id to avoid routing conflict

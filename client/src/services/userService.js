@@ -241,13 +241,13 @@ export const requestBlockchainVerification = async () => {
     // Check if mock API is enabled
     if (process.env.REACT_APP_MOCK_API === 'true') {
       // Mock response
-      const mockResponse = {
+      const mockResult = {
         success: true,
         message: 'Verification request submitted successfully',
         verificationStatus: 'pending',
         requestId: Math.random().toString(36).substring(2, 15)
       };
-      
+
       // Update user in storage
       const storedUser = authStorage.get('user');
       if (storedUser) {
@@ -256,22 +256,23 @@ export const requestBlockchainVerification = async () => {
           verificationStatus: 'pending'
         });
       }
-      
-      return await mockResponse(mockResponse, 2000);
+
+      return await mockResponse(mockResult, 2000);
     }
     
-    // Real API call
+    // Real API call — server responds with { success, data: { blockchainId, walletAddress, alreadyVerified } }
     const response = await post('/users/blockchain/verify');
-    
-    // Update user in storage
+
+    // Update user in storage so a page refresh still shows the new blockchain identity
     const storedUser = authStorage.get('user');
-    if (storedUser) {
+    if (storedUser && response?.data) {
       authStorage.set('user', {
         ...storedUser,
-        verificationStatus: response.verificationStatus
+        blockchainId: response.data.blockchainId,
+        walletAddress: response.data.walletAddress,
       });
     }
-    
+
     return response;
   } catch (error) {
     console.error('Blockchain verification request error:', error);

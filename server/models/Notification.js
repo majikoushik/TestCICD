@@ -24,6 +24,11 @@ const NotificationSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  priority: {
+    type: String,
+    enum: ['low', 'medium', 'high', 'critical'],
+    default: 'medium'
+  },
   relatedId: {
     type: String,
     ref: 'Referral',

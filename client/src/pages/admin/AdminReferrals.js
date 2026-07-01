@@ -16,7 +16,7 @@ import {
   CheckCircle as CheckCircleIcon
 } from '@mui/icons-material';
 import adminReferralService from '../../services/adminReferralService';
-import { put } from '../../utils/apiUtils';
+import { get, put } from '../../utils/apiUtils';
 import { formatDate } from '../../utils/dateFormatter';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
@@ -73,6 +73,19 @@ const AdminReferrals = () => {
       allowDirectSpecialist: false,
     });
     const [workflowSaving, setWorkflowSaving] = useState(false);
+
+    // Load previously-saved workflow settings, if any (falls back to the
+    // defaults above on first use / 404 — that's expected, not an error).
+    useEffect(() => {
+      get('/admin/settings/key/referralWorkflow')
+        .then((res) => {
+          const saved = res?.data?.value;
+          if (saved && typeof saved === 'object') {
+            setWorkflowSettings((prev) => ({ ...prev, ...saved }));
+          }
+        })
+        .catch(() => { /* no saved settings yet — keep defaults */ });
+    }, []);
     const [wfSnackbar, setWfSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
     const handleExportStatsPDF = async () => {
@@ -91,7 +104,10 @@ const AdminReferrals = () => {
     const handleSaveWorkflowSettings = async () => {
       setWorkflowSaving(true);
       try {
-        await put('/admin/settings/referralWorkflow', workflowSettings);
+        // The generic admin settings endpoint expects { value, category }, not
+        // the raw settings object at the body root — sending it unwrapped
+        // silently upserted a setting with no value.
+        await put('/admin/settings/referralWorkflow', { value: workflowSettings, category: 'referrals' });
         setWfSnackbar({ open: true, message: 'Workflow settings saved!', severity: 'success' });
       } catch {
         setWfSnackbar({ open: true, message: 'Saved locally. Server sync pending.', severity: 'info' });
@@ -170,7 +186,14 @@ const AdminReferrals = () => {
         if (filterStatus !== 'all') {
           filtered = filtered.filter(referral => referral.status === filterStatus);
         }
-        
+
+        // Apply "Has Dispute" filter (referral.hasDispute is attached server-side)
+        if (filterHasDispute === 'yes') {
+          filtered = filtered.filter(referral => referral.hasDispute);
+        } else if (filterHasDispute === 'no') {
+          filtered = filtered.filter(referral => !referral.hasDispute);
+        }
+
         setFilteredReferrals(filtered);
         setPage(0);
       }, [searchQuery, filterStatus, filterHasDispute, filterProvider, referrals]);
@@ -303,7 +326,15 @@ const AdminReferrals = () => {
                         <Chip label={billingStatus} color={getPaymentStatusColor(billingStatus)} size="small" />
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" color="text.secondary">None</Typography>
+                        {referral.hasDispute ? (
+                          <Chip
+                            label={referral.disputeStatus || 'Pending'}
+                            color={referral.disputeStatus === 'Resolved' ? 'success' : referral.disputeStatus === 'Rejected' ? 'default' : 'error'}
+                            size="small"
+                          />
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">None</Typography>
+                        )}
                       </TableCell>
                       <TableCell>
                         <IconButton size="small" color="primary" onClick={() => handleViewDetails(referral)}>

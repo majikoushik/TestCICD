@@ -120,10 +120,16 @@ export default function AmbientRecorder() {
   const [sessionsError, setSessionsError] = useState(null);
   const [viewSession, setViewSession] = useState(null);
 
+  // Server-side (Azure Speech) transcription state — best-effort, never blocks the flow
+  const [serverTranscribing, setServerTranscribing] = useState(false);
+
   // Refs
   const recognitionRef = useRef(null);
   const timerRef = useRef(null);
   const finalTranscriptRef = useRef('');
+  const mediaRecorderRef = useRef(null);
+  const mediaStreamRef = useRef(null);
+  const audioChunksRef = useRef([]);
 
   // Speech recognition setup
   useEffect(() => {
@@ -161,6 +167,10 @@ export default function AmbientRecorder() {
       if (recognitionRef.current) {
         try { recognitionRef.current.stop(); } catch (e) { /* ignore */ }
       }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        try { mediaRecorderRef.current.stop(); } catch (e) { /* ignore */ }
+      }
+      mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -212,6 +222,26 @@ export default function AmbientRecorder() {
       } catch (e) { /* already started */ }
     }
     setIsRecording(true);
+
+    // Best-effort: also capture raw audio so the server can run it through
+    // Azure Speech for a (usually more accurate) final transcript once
+    // recording stops. If the browser/mic isn't available, the Web Speech
+    // API transcript above is still the source of truth — nothing else
+    // in the flow depends on this succeeding.
+    if (navigator.mediaDevices && window.MediaRecorder) {
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then((stream) => {
+          mediaStreamRef.current = stream;
+          audioChunksRef.current = [];
+          const recorder = new MediaRecorder(stream);
+          recorder.ondataavailable = (e) => {
+            if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data);
+          };
+          mediaRecorderRef.current = recorder;
+          recorder.start();
+        })
+        .catch(() => { /* mic denied/unavailable — Web Speech transcript still works */ });
+    }
   };
 
   const stopRecording = () => {
@@ -220,6 +250,39 @@ export default function AmbientRecorder() {
     }
     setIsRecording(false);
     setInterimTranscript('');
+
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      const mimeType = recorder.mimeType || 'audio/webm';
+      recorder.onstop = async () => {
+        mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+        mediaStreamRef.current = null;
+        mediaRecorderRef.current = null;
+
+        const chunks = audioChunksRef.current;
+        audioChunksRef.current = [];
+        if (!chunks.length) return;
+
+        const blob = new Blob(chunks, { type: mimeType });
+        setServerTranscribing(true);
+        try {
+          const res = await ambientSessionService.transcribeAudio(blob, `recording.${mimeType.split('/')[1]?.split(';')[0] || 'webm'}`);
+          const data = res?.data || res;
+          // Only override when Azure Speech was actually configured and
+          // returned real text — otherwise keep the Web Speech transcript.
+          if (data && !data.stub && data.transcript) {
+            finalTranscriptRef.current = data.transcript;
+            setTranscript(data.transcript);
+          }
+        } catch (err) {
+          // Non-fatal — the browser transcript already covers this session.
+          console.error('Server-side transcription failed, keeping Web Speech transcript:', err);
+        } finally {
+          setServerTranscribing(false);
+        }
+      };
+      try { recorder.stop(); } catch (e) { /* already stopped */ }
+    }
   };
 
   const handleSubmitForAnalysis = async () => {
@@ -469,12 +532,12 @@ export default function AmbientRecorder() {
 
         <Button
           variant="contained"
-          startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : <SendIcon />}
-          disabled={transcript.length <= 10 || isRecording || submitting}
+          startIcon={(submitting || serverTranscribing) ? <CircularProgress size={18} color="inherit" /> : <SendIcon />}
+          disabled={transcript.length <= 10 || isRecording || submitting || serverTranscribing}
           onClick={handleSubmitForAnalysis}
           color="primary"
         >
-          {submitting ? 'Analyzing...' : 'Submit for AI Analysis'}
+          {submitting ? 'Analyzing...' : serverTranscribing ? 'Finalizing transcript...' : 'Submit for AI Analysis'}
         </Button>
 
         <Button variant="outlined" onClick={() => setActiveStep(0)}>

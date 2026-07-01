@@ -24,7 +24,7 @@
 - [Synthetic Data Mode](#synthetic-data-mode)
 - [Demo Accounts](#demo-accounts)
 - [Deploying to Azure](#deploying-to-azure)
-- [Environment Variables](#environment-variables)
+- [Infrastructure & Go-Live Configuration](#infrastructure--go-live-configuration)
 - [Data Models](#data-models)
 - [Security Design](#security-design)
 
@@ -36,7 +36,7 @@ ClinicTrust AI is an enterprise healthcare platform that solves critical problem
 
 | Problem | Solution |
 |---|---|
-| Fragmented, insecure patient records | Hyperledger Fabric blockchain for immutable, permissioned record sharing |
+| Fragmented, insecure patient records | Polygon (EVM) blockchain + tamper-evident MongoDB ledger for immutable record sharing |
 | Reactive, siloed clinical decision-making | TensorFlow.js-powered predictive analytics surfaced on real-time dashboards |
 | Lack of incentive for data contribution | Smart-contract-driven token economy rewarding clinicians and patients |
 | Regulatory non-compliance (21st Century Cures Act) | Full FHIR R4 API with Information Blocking safeguards |
@@ -73,17 +73,19 @@ This repository demonstrates a **cloud-native, microservices-aligned full-stack 
                     ┌─────────────────────────┼─────────────────────┐
                     │                         │                     │
           ┌─────────▼────────┐    ┌───────────▼───────┐  ┌──────────▼────────┐
-          │   MongoDB Atlas  │    │  Hyperledger      │  │  Azure AI Services │
-          │   (Managed DB)   │    │  Fabric Network   │  │                   │
-          │                  │    │  (Blockchain)     │  │  - Azure OpenAI    │
+          │   MongoDB Atlas  │    │  Polygon (EVM)    │  │  Azure AI Services │
+          │   (Managed DB)   │    │  + local wallet   │  │                   │
+          │                  │    │  service          │  │  - Azure OpenAI    │
           │  - Users         │    │                   │  │    (GPT-4 notes)   │
-          │  - Patients      │    │  - Smart Contracts│  │  - Azure Speech    │
-          │  - Referrals     │    │  - Transactions   │  │    (STT)           │
-          │  - Tokens        │    │  - Identity Mgmt  │  │                   │
-          │  - PriorAuth     │    │                   │  └───────────────────┘
-          │  - Engagement    │    └───────────────────┘
-          │  - AmbientAI     │
-          │  - MatchProfiles │
+          │  - Patients      │    │  - ClinicToken    │  │  - Azure Speech    │
+          │  - Referrals     │    │    ERC-20         │  │    (STT)           │
+          │  - Tokens        │    │  - HD wallets      │  │                   │
+          │  - PriorAuth     │    │  - Falls back to   │  └───────────────────┘
+          │  - Engagement    │    │    MongoDB ledger   │
+          │  - AmbientAI     │    │    when unconfigured│
+          │  - MatchProfiles │    └────────────────────┘
+          │  - Blockchain    │
+          │    Ledger        │
           └──────────────────┘
 ```
 
@@ -92,7 +94,7 @@ This repository demonstrates a **cloud-native, microservices-aligned full-stack 
 - **Dual API Surface (REST + GraphQL)**: REST for CRUD operations and mobile-friendly consumption; GraphQL for complex, nested data queries from the analytics dashboard — reducing over-fetching on data-heavy views.
 - **FHIR R4 Compliance Layer**: A dedicated `/api/fhir` router translates internal MongoDB documents into FHIR-standard JSON resources (Patient, Practitioner, ServiceRequest, Observation, AllergyIntolerance) to meet ONC 21st Century Cures Act requirements.
 - **Proxy Pattern**: React dev server proxies to `localhost:5000`, eliminating CORS configuration complexity in development and mirroring the production single-origin model on Azure.
-- **Blockchain as an Audit Layer**: Hyperledger Fabric is not used as the primary datastore — MongoDB handles operational data. Fabric records immutable transaction hashes, preserving query performance while guaranteeing tamper-evidence.
+- **Blockchain as an Audit Layer**: Polygon is not used as the primary datastore — MongoDB handles operational data. Every referral, consent, and token event is written to a hash-chained `BlockchainTransaction` ledger (each record stores the previous record's hash, like a block). When `POLYGON_RPC_URL` + `CLINICTOKEN_ADDRESS` + `PRIVATE_KEY` are configured, token mint/burn operations also execute on real Polygon (Amoy testnet or mainnet) via the deployed `ClinicToken` ERC-20 contract; otherwise everything stays in the MongoDB ledger, which is fully verifiable (`GET /api/admin/blockchain/integrity`) without any crypto infrastructure.
 - **Client-Side AI**: TensorFlow.js runs inference in the browser, removing a dedicated ML microservice and reducing latency for real-time prediction on the dashboard.
 - **Azure AI Stubs**: Ambient Clinical Intelligence and AI Matching services integrate with Azure Speech and Azure OpenAI via environment-variable-gated stubs. When Azure credentials are absent, realistic mock data is returned — so the full feature workflow is demonstrable without incurring cloud costs.
 - **Role-Based Access at the Middleware Layer**: Authorization is enforced via Express middleware (`protect` + `authorize`) rather than at the route level, keeping route files clean and authorization logic centralised.
@@ -110,9 +112,11 @@ This repository demonstrates a **cloud-native, microservices-aligned full-stack 
 | Framework | Express.js | ^4.18.2 | REST API and middleware pipeline |
 | Query Language | GraphQL / express-graphql | ^0.12.0 | Flexible data querying for analytics |
 | Database | MongoDB + Mongoose | ^7.0.3 | Document store for operational data |
-| Blockchain | Hyperledger Fabric + fabric-network | ^2.2.16 | Permissioned blockchain for audit records |
+| Blockchain | Polygon (EVM) via ethers.js | ^6.17.0 | On-chain ClinicToken (ERC-20) mint/burn + tamper-evident MongoDB ledger fallback |
+| Contract Tooling | Hardhat + OpenZeppelin | ^2.22.0 / ^5.0.0 | Solidity compilation, testnet/mainnet deployment, contract verification |
 | Authentication | JWT + bcryptjs | ^9.0.0 / ^2.4.3 | Stateless auth with secure password hashing |
 | AI Integration | Azure OpenAI + Azure Speech | REST / SDK | Clinical note generation and speech transcription |
+| Email | Nodemailer (Gmail SMTP) | ^9.0.1 | Transactional email — password reset, KYC status, referral notifications |
 | Logging | Winston + Morgan | ^3.8.2 / ^1.10.0 | Structured logging and HTTP request tracing |
 | Config | dotenv | ^16.3.1 | 12-factor app configuration |
 | Dev Tooling | nodemon + concurrently | ^2.0.22 / ^8.2.0 | Hot reload and parallel process management |
@@ -138,15 +142,19 @@ This repository demonstrates a **cloud-native, microservices-aligned full-stack 
 | Cloud Platform | Microsoft Azure App Service (Linux) |
 | Database Cloud | MongoDB Atlas |
 | AI Services | Azure OpenAI, Azure Cognitive Services (Speech) |
+| Blockchain | Polygon PoS (Amoy testnet or mainnet) — optional, ledger mode by default |
+| Email | Gmail SMTP (App Password) |
 | Node Target | v20.x (Azure) |
 | Deployment | ZIP deploy via Azure Deployment Center |
+
+> See [Infrastructure & Go-Live Configuration](#infrastructure--go-live-configuration) for the full list of external services this platform integrates with, which are required vs. optional, and step-by-step setup instructions for each.
 
 ---
 
 ## Key Features
 
 ### Blockchain-Verified Referrals
-Medical referrals are written to Hyperledger Fabric as immutable transactions. Each referral carries a blockchain transaction ID, providing a cryptographically verifiable audit trail that cannot be altered retroactively.
+Medical referrals are written to a hash-chained ledger as immutable transactions. Each referral carries a blockchain transaction ID, providing a cryptographically verifiable audit trail that cannot be altered retroactively. By default this ledger lives in MongoDB (`BlockchainTransaction` collection); when Polygon credentials are configured, token-related transactions additionally settle on-chain.
 
 ### AI-Powered Analytics Dashboard
 TensorFlow.js models run client-side to surface predictive insights: patient outcome probabilities, referral success rates, and resource utilisation trends — all rendered in real-time without a round-trip to an ML server.
@@ -881,9 +889,13 @@ AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4
 # Azure Speech Services — optional, falls back to Web Speech API transcript
 AZURE_SPEECH_KEY=your_azure_speech_key
 AZURE_SPEECH_REGION=eastus
+
+# Gmail SMTP — optional, falls back to console-logging emails instead of sending
+GMAIL_USER=your_gmail_address@gmail.com
+GMAIL_APP_PASSWORD=your_16_char_app_password
 ```
 
-> **No database? No problem.** If `MONGO_URI` is unreachable, the server automatically falls back to [Synthetic Data Mode](#synthetic-data-mode). Azure credentials are optional — all AI features degrade gracefully to mock data.
+> **No database? No problem.** If `MONGO_URI` is unreachable, the server automatically falls back to [Synthetic Data Mode](#synthetic-data-mode). Azure, blockchain, wallet, and email credentials are all optional for local development — every feature degrades gracefully to mock data / console logging / MongoDB-ledger mode. See **[Infrastructure & Go-Live Configuration](#infrastructure--go-live-configuration)** for the complete list of every external service this app can integrate with and how to configure each one for a real deployment.
 
 ---
 
@@ -940,8 +952,12 @@ npm run client
 | `npm run client` | `cd client && npm start` | Frontend only |
 | `npm run install-all` | `npm install && cd client && npm install` | Install all dependencies |
 | `npm run build` | `cd client && npm run build` | Build React for production |
-| `npm run blockchain:start` | `cd blockchain && ./startFabric.sh` | Start Hyperledger Fabric network |
-| `npm run blockchain:stop` | `cd blockchain && ./stopFabric.sh` | Stop Hyperledger Fabric network |
+| `npm run populate_db` | `node populate_db.js` | Drop and reseed all MongoDB collections with demo data |
+| `npm run contract:compile` | `npx hardhat compile` | Compile the `ClinicToken` Solidity contract |
+| `npm run contract:deploy:local` | `npx hardhat run contracts/scripts/deploy.js --network hardhat` | Deploy to an in-memory Hardhat network (testing only) |
+| `npm run contract:deploy:amoy` | `npx hardhat run contracts/scripts/deploy.js --network amoy` | Deploy `ClinicToken` to the Polygon Amoy testnet |
+
+> **Note:** `blockchain:start` / `blockchain:stop` scripts referencing Hyperledger Fabric (`./startFabric.sh`) appear in some older package.json snapshots but the `blockchain/` directory and Fabric scripts do not exist in this codebase — the platform's actual blockchain layer is Polygon + the MongoDB ledger described below. If you see these scripts in `package.json`, they're dead references and can be ignored/removed.
 
 ---
 
@@ -1097,7 +1113,12 @@ Produces `clinictrust-ai-azure.zip`.
 | `AZURE_OPENAI_DEPLOYMENT_NAME` | GPT-4 deployment name |
 | `AZURE_SPEECH_KEY` | Azure Speech key |
 | `AZURE_SPEECH_REGION` | Azure region (e.g. `eastus`) |
+| `GMAIL_USER` / `GMAIL_APP_PASSWORD` | Only if you want real transactional email sent (otherwise emails are logged, not sent) |
+| `POLYGON_RPC_URL` / `CLINICTOKEN_ADDRESS` / `PRIVATE_KEY` | Only if you want token mint/burn to settle on real Polygon (otherwise MongoDB-ledger mode is used) |
+| `WALLET_MASTER_MNEMONIC` / `WALLET_ENCRYPTION_KEY` | Only if you want deterministic, recoverable provider wallets |
 | `SCM_DO_BUILD_DURING_DEPLOYMENT` | `true` |
+
+> Full explanation of every setting — including what happens if you omit it — is in **[Infrastructure & Go-Live Configuration](#infrastructure--go-live-configuration)**.
 
 ---
 
@@ -1130,23 +1151,222 @@ Expected:
 
 ---
 
-## Environment Variables
+## Infrastructure & Go-Live Configuration
 
-| Variable | Required | Default | Description |
+Every environment variable in this app is read via `process.env` with a graceful fallback — the platform is fully runnable with **zero external infrastructure** (see [Synthetic Data Mode](#synthetic-data-mode)). This section documents every real infrastructure dependency, whether it's required, and exactly how to configure it for a production go-live.
+
+### Quick reference — what's required vs optional
+
+| # | Service | Required for go-live? | Fallback if not configured |
 |---|---|---|---|
-| `PORT` | No | `5000` | Server port |
-| `NODE_ENV` | No | `development` | Controls static file serving and log verbosity |
-| `MONGO_URI` | Yes (prod) | — | MongoDB Atlas connection string |
-| `JWT_SECRET` | Yes (prod) | — | JWT signing key |
-| `JWT_REFRESH_SECRET` | Yes (prod) | — | JWT refresh key |
-| `JWT_RESET_SECRET` | Yes (prod) | — | JWT password-reset key |
-| `JWT_EXPIRE` | No | `30d` | JWT expiration window |
-| `CORS_ORIGIN` | No | `http://localhost:3000` | Allowed CORS origin(s) |
-| `AZURE_OPENAI_ENDPOINT` | No | — | Azure OpenAI endpoint (Ambient AI) |
-| `AZURE_OPENAI_API_KEY` | No | — | Azure OpenAI key (Ambient AI) |
-| `AZURE_OPENAI_DEPLOYMENT_NAME` | No | — | Azure OpenAI GPT-4 deployment name |
-| `AZURE_SPEECH_KEY` | No | — | Azure Speech Services key (Ambient AI) |
-| `AZURE_SPEECH_REGION` | No | — | Azure Speech region (e.g. `eastus`) |
+| 1 | [MongoDB](#1-mongodb-primary-database-required) | **Yes** | Synthetic in-memory data (dev/demo only — resets on restart) |
+| 2 | [JWT secrets](#2-jwt-secrets-required) | **Yes** | Server refuses to start |
+| 3 | [Azure OpenAI](#3-azure-openai-clinical-ai-and-llm-optional) | No | Heuristic rule-based analysis + canned templates |
+| 4 | [Azure Speech](#4-azure-speech-services-speech-to-text-optional) | No | Browser Web Speech API transcript only (no error, no code change either way) |
+| 5 | [Gmail SMTP](#5-email-gmail-smtp-recommended) | Recommended | Emails are logged to console, never sent |
+| 6 | [Polygon blockchain](#6-polygon-blockchain-token-ledger-optional) | No | MongoDB-backed hash-chained ledger (fully verifiable, no crypto needed) |
+| 7 | [HD wallet / encryption key](#7-hd-wallet-generation-optional) | No | Random, non-deterministic wallet address per user |
+| 8 | [File storage](#8-file-storage-local-disk-s3-or-azure-blob-optional) | No | Local disk (`server/uploads/`) — works, but not safe for multi-instance production |
+| 9 | [SMS / Email / Push notifications](#9-sms-email-and-push-notifications-twilio-sendgrid-azure-notification-hubs-optional) | No | Console-log stub — real SDKs installed and wired, no code change needed either way |
+
+---
+
+### 1. MongoDB primary database (Required)
+
+Every piece of operational data (users, patients, referrals, tokens, KYC, prior auth, ambient sessions, blockchain ledger, etc.) lives in MongoDB.
+
+| Variable | Required | Description |
+|---|---|---|
+| `MONGO_URI` | **Yes** | Full MongoDB connection string, e.g. `mongodb+srv://<user>:<password>@<cluster>.mongodb.net/<dbname>?retryWrites=true&w=majority` |
+
+**How to configure:**
+1. Create a free/paid cluster at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas).
+2. Create a database user and copy the connection string.
+3. Whitelist your server's outbound IP (or `0.0.0.0/0` for quick testing — restrict this before go-live).
+4. Set `MONGO_URI` in `.env` (local) or your hosting platform's app settings (Azure App Service, etc.).
+5. Seed demo data with `npm run populate_db` (optional — drops and recreates all collections).
+
+**What happens if you skip it:** the server waits 8 seconds for a connection, then automatically starts in **Synthetic Data Mode** — a full in-memory implementation of every API route (`server/routes/syntheticRouter.js`). This is great for demos but **data does not persist across restarts** and is not suitable for production.
+
+---
+
+### 2. JWT secrets (Required)
+
+| Variable | Required | Description |
+|---|---|---|
+| `JWT_SECRET` | **Yes** | Signs access tokens |
+| `JWT_REFRESH_SECRET` | **Yes** | Signs refresh tokens |
+| `JWT_RESET_SECRET` | **Yes** | Signs password-reset tokens |
+| `JWT_EXPIRE` | No (default `30d`) | Access token lifetime |
+
+**How to configure:** generate three distinct random secrets — never reuse one across the three variables:
+```bash
+node -e "require('crypto').randomBytes(64).toString('hex')"
+```
+
+**What happens if you skip it:** the server checks `MONGO_URI`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `JWT_RESET_SECRET` at startup (`server/index.js`) and **exits immediately with a fatal error** if any are missing — this is the one category with no fallback.
+
+---
+
+### 3. Azure OpenAI clinical AI and LLM (Optional)
+
+Powers AI-generated content across three features: **Prior Authorization** (recommendation + appeal letter drafting), **Ambient Clinical Intelligence** (SOAP note generation from transcripts), and referral summaries.
+
+| Variable | Required | Description |
+|---|---|---|
+| `AZURE_OPENAI_ENDPOINT` | No | Your Azure OpenAI resource endpoint, e.g. `https://<resource-name>.openai.azure.com` |
+| `AZURE_OPENAI_KEY` (or `AZURE_OPENAI_API_KEY`) | No | API key from the Azure OpenAI resource — both names are accepted |
+| `AZURE_OPENAI_DEPLOYMENT` (or `AZURE_OPENAI_DEPLOYMENT_NAME`) | No (default `gpt-4o`) | Name of the model deployment you created in Azure OpenAI Studio |
+| `AZURE_OPENAI_API_VERSION` | No (default `2024-05-01-preview`) | API version string |
+
+**How to configure:**
+1. Create an **Azure OpenAI** resource in the Azure Portal (requires an approved Azure OpenAI access request on new subscriptions).
+2. In **Azure OpenAI Studio**, deploy a chat model (e.g. `gpt-4o`) and note the **deployment name**.
+3. Copy the resource **Endpoint** and **Key** from the resource's "Keys and Endpoint" blade.
+4. Set the four variables above.
+
+**What happens if you skip it:** `server/services/azureAIService.js` falls back to deterministic heuristic scoring (documentation length, diagnosis count, urgency) with lower confidence scores, and returns canned appeal-letter/clinical-insight templates. The full UI workflow still works end to end — output quality is just template-based instead of generative.
+
+---
+
+### 4. Azure Speech Services speech to text (Optional)
+
+Used by **Ambient Clinical Intelligence** for a higher-accuracy, server-side final transcript of the recorded encounter — layered on top of the browser's live Web Speech API captions, not a replacement for them.
+
+| Variable | Required | Description |
+|---|---|---|
+| `AZURE_SPEECH_KEY` | No | Key from your Azure Speech resource |
+| `AZURE_SPEECH_REGION` | No | Azure region the resource is deployed in, e.g. `eastus` |
+
+**How to configure:** create an **Azure AI Services (Speech)** resource in the Azure Portal, copy the key + region from "Keys and Endpoint", set both variables. No npm install and no code change required — the server calls the Azure Speech-to-Text REST API directly over HTTPS (not the native Speech SDK), so there's no GStreamer/native-codec dependency to install either.
+
+**How it works:** while recording, the browser captures both a live Web Speech API transcript (shown in real time) *and* a raw audio clip via `MediaRecorder`. When the provider stops recording, the client uploads that clip to `POST /api/ambient-sessions/transcribe`, which calls `ambientIntelligenceService.transcribeAudio()`. If Azure Speech is configured, the clip is sent to Azure's REST recognition endpoint and the resulting transcript **replaces** the Web Speech draft (usually more accurate, especially for medical terminology) before the provider submits for AI analysis.
+
+**What happens if you skip it:** `transcribeAudio()` immediately returns `{ stub: true, transcript: null }` without ever calling Azure, and the client keeps the Web Speech API transcript unchanged. No error, no extra latency beyond one fast round-trip, no different behavior visible to the user — the feature is fully functional either way.
+
+---
+
+### 5. Email Gmail SMTP (Recommended)
+
+Used for password reset links, KYC status emails, referral notifications, and appointment reminders (`server/services/emailService.js`).
+
+| Variable | Required | Description |
+|---|---|---|
+| `GMAIL_USER` | Recommended | The Gmail address to send from |
+| `GMAIL_APP_PASSWORD` | Recommended | A 16-character **App Password**, not your normal Gmail password |
+| `EMAIL_VERIFICATION_SECRET` | Recommended | Separate JWT secret used specifically for email-verification links |
+| `CLIENT_URL` | No (default `http://localhost:3000`) | Base URL used to build links inside emails |
+| `EMAIL_DOMAIN` | No (default `clinictrustai.com`) | Domain used to build the `noreply@` sender address |
+| `COMPANY_ADDRESS` | No | Physical address included in email footers for CAN-SPAM compliance |
+| `ADMIN_NOTIFICATION_EMAIL` | No | Address that receives internal admin alert emails |
+
+**How to configure:**
+1. Enable 2-Step Verification on the sending Gmail account.
+2. Generate an App Password at [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords).
+3. Set `GMAIL_USER` to the full Gmail address and `GMAIL_APP_PASSWORD` to the generated 16-character password (no spaces).
+
+**What happens if you skip it:** emails are logged to the console instead of being sent (`{ messageId: 'disabled-by-settings', skipped: true }`) — no error, but users never receive password resets, KYC updates, or referral emails. For a real go-live this should be configured, or swapped for a transactional email provider (SendGrid, Amazon SES, Azure Communication Services) by extending `emailService.js`.
+
+---
+
+### 6. Polygon blockchain token ledger (Optional)
+
+Backs the token economy (earn/transfer/redeem) and referral audit trail. By default, everything runs in **MongoDB ledger mode** — a hash-chained, tamper-evident `BlockchainTransaction` collection (each record embeds the previous record's hash, mirroring how a real blockchain links blocks). Setting the three variables below switches token mint/burn operations to real on-chain transactions on Polygon.
+
+| Variable | Required | Description |
+|---|---|---|
+| `POLYGON_RPC_URL` | No | JSON-RPC endpoint, e.g. Amoy testnet `https://rpc-amoy.polygon.technology` |
+| `CLINICTOKEN_ADDRESS` | No | Deployed `ClinicToken` ERC-20 contract address |
+| `PRIVATE_KEY` | No — **keep secret** | Private key of the platform's minting wallet (needs MATIC/POL for gas) |
+| `POLYGON_NETWORK` | No (default `amoy`) | Human-readable network name shown in the admin UI |
+| `POLYGONSCAN_API_KEY` | No | Used only at contract-deploy time, for PolygonScan source verification |
+
+**How to configure (testnet):**
+1. Get a free Amoy testnet RPC URL (the default public one works for light use, or use Alchemy/Infura for reliability).
+2. Get testnet MATIC from a Polygon Amoy faucet for your deployer wallet.
+3. Deploy the contract: `npm run contract:deploy:amoy` (uses `hardhat.config.js`, which reads a separate `DEPLOYER_PRIVATE_KEY` env var — not the same as the runtime `PRIVATE_KEY` above).
+4. Copy the deployed contract address into `CLINICTOKEN_ADDRESS`.
+5. Fund the *runtime* minting wallet (the address for `PRIVATE_KEY`) with a small amount of MATIC for gas.
+6. Set `POLYGON_RPC_URL`, `CLINICTOKEN_ADDRESS`, `PRIVATE_KEY`, `POLYGON_NETWORK=amoy`.
+
+**For mainnet go-live:** repeat with `npm run contract:deploy:local`/a mainnet Hardhat network config, real MATIC/POL for gas, and set `POLYGON_NETWORK=polygon`. Treat `PRIVATE_KEY` as a production secret (Azure Key Vault, not plain app settings, is recommended).
+
+**What happens if you skip it:** `server/blockchain/polygon.js`'s `isConfigured()` check returns false unless all three of `POLYGON_RPC_URL`, `CLINICTOKEN_ADDRESS`, and `PRIVATE_KEY` are set — every token operation then silently uses the MongoDB ledger instead. Nothing breaks; the admin ledger browser and integrity-check endpoints work identically in both modes.
+
+> **Note:** `package.json` may reference `npm run blockchain:start` / `blockchain:stop`, which call `startFabric.sh` / `stopFabric.sh` for a Hyperledger Fabric network. That directory and those scripts do not exist in this codebase (leftover from an earlier prototype) — ignore them. The `fabric-network` npm package is also an unused leftover dependency. The actual blockchain layer is Polygon + the MongoDB ledger described above.
+
+---
+
+### 7. HD wallet generation (Optional)
+
+Each provider gets a blockchain wallet address (shown on their Profile page and used for on-chain token transfers).
+
+| Variable | Required | Description |
+|---|---|---|
+| `WALLET_MASTER_MNEMONIC` | No | A BIP-39 mnemonic phrase; each user's wallet is deterministically derived from it |
+| `WALLET_ENCRYPTION_KEY` | No | A 32-character key used to AES-256-GCM encrypt derived private keys before they're stored |
+
+**How to configure:**
+```bash
+# Generate a mnemonic
+node -e "const { ethers } = require('ethers'); console.log(ethers.Wallet.createRandom().mnemonic.phrase)"
+# Generate an encryption key
+node -e "require('crypto').randomBytes(32).toString('hex')"
+```
+Store both as long-lived secrets — losing `WALLET_MASTER_MNEMONIC` means existing derived wallets can no longer be recomputed; losing `WALLET_ENCRYPTION_KEY` means stored private keys can no longer be decrypted.
+
+**What happens if you skip it:** each user gets a random (non-deterministic, non-recoverable) wallet address instead — fine for demos, not appropriate for a real token economy holding any value.
+
+---
+
+### 8. File storage local disk S3 or Azure Blob (Optional)
+
+KYC verification documents and profile avatars are handled by a storage abstraction (`server/utils/fileStorage.js`) that automatically picks **AWS S3**, **Azure Blob Storage**, or **local disk** based on which environment variables are present at process start — no code change needed to switch between them.
+
+**Precedence when more than one is configured:** S3 > Azure Blob > local disk.
+
+| Variable | Provider | Description |
+|---|---|---|
+| `AWS_ACCESS_KEY_ID` | AWS S3 | IAM access key with `s3:PutObject`/`GetObject`/`DeleteObject`/`HeadObject` on the target bucket |
+| `AWS_SECRET_ACCESS_KEY` | AWS S3 | Secret for the above key |
+| `AWS_S3_BUCKET` | AWS S3 | Bucket name (KYC docs and avatars both go here, under `kyc/` and `avatars/` prefixes) |
+| `AWS_REGION` | AWS S3 | No (default `us-east-1`) — bucket's region |
+| `AZURE_STORAGE_CONNECTION_STRING` | Azure Blob | Full connection string from the Storage Account's "Access keys" blade |
+| `AZURE_STORAGE_CONTAINER` | Azure Blob | Blob container name |
+
+**How to configure (S3):**
+1. Create an S3 bucket. For avatars to render as `<img>` tags, either enable public read on the `avatars/` prefix or put a CloudFront distribution in front of the bucket. KYC docs under `kyc/` should stay private — they're only ever served through the authenticated `GET /api/admin/kyc/:id/document` route, which streams the object server-side rather than exposing a public URL.
+2. Create an IAM user/role scoped to that bucket with `PutObject`, `GetObject`, `DeleteObject`, `HeadObject`.
+3. Set `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_S3_BUCKET`, `AWS_REGION`.
+
+**How to configure (Azure Blob):**
+1. Create a Storage Account and a container (private access level is fine — same reasoning as above).
+2. Copy a connection string from the account's "Access keys" blade.
+3. Set `AZURE_STORAGE_CONNECTION_STRING` and `AZURE_STORAGE_CONTAINER`.
+
+**What happens if you skip it:** `getStorageMode()` returns `'local'` and every upload behaves exactly as it always has — files are written to `server/uploads/kyc/` and `server/uploads/avatars/` and served via `express.static`. No error, no different code path taken by the caller — `onboarding.js`, `users.js`, and `admin/kyc.js` all call the same `fileStorage.*` functions regardless of mode.
+
+**Known limitation:** avatar replacement only auto-deletes the previous file in local-disk mode (cleaning up a cloud-stored old avatar would require parsing a public URL back into a bucket/key, which isn't implemented). This is a minor storage-cost issue, not a functional one — old avatars are simply left in place when S3/Azure Blob is active.
+
+---
+
+### 9. SMS email and push notifications Twilio SendGrid Azure Notification Hubs (Optional)
+
+`server/services/patientEngagementService.js` is a unified multi-channel notification interface (email / SMS / push) backed by real provider SDK calls: **Twilio** (SMS), **SendGrid** (email — an alternative to the Gmail SMTP option in section 5, useful for higher volume), and **Azure Notification Hubs** (push). The `twilio`, `@sendgrid/mail`, and `@azure/notification-hubs` packages are already installed and required by the code — no npm install or code change needed.
+
+| Variable | Provider | Description |
+|---|---|---|
+| `TWILIO_ACCOUNT_SID` | Twilio (SMS) | Account SID (starts with `AC…`) |
+| `TWILIO_AUTH_TOKEN` | Twilio (SMS) | Auth token |
+| `TWILIO_PHONE_NUMBER` | Twilio (SMS) | Sending number, E.164 format e.g. `+15551234567` |
+| `SENDGRID_API_KEY` | SendGrid (email) | API key (starts with `SG.`) |
+| `SENDGRID_FROM_EMAIL` | SendGrid (email) | Verified sender address |
+| `AZURE_NOTIFICATION_HUB_CONNECTION_STRING` | Azure Notification Hubs (push) | Full connection string from the Azure Portal |
+| `AZURE_NOTIFICATION_HUB_NAME` | Azure Notification Hubs (push) | Notification Hub resource name |
+
+**What happens if you skip it:** each function (`sendEmail`, `sendSMS`, `sendPushNotification`) checks its provider's key env var first; if it's absent, it logs a `[...STUB]` message and returns `{ success: true, stub: true }` immediately — the provider SDK is never even `require()`'d. No error, no partial state, no fake-success-while-configured trap. Set the variables above and it starts sending for real on the very next call; unset them and it's back to a harmless stub — no code change either way.
+
+**One caveat on push notifications specifically:** Azure Notification Hubs delivers to *registered device installations* (a mobile app that has registered itself with the hub and a matching notification template). This web app has no mobile client doing that registration today, so `sendPushNotification()` is correctly implemented and will call Azure for real, but there's nothing on the receiving end to actually display a push notification to yet — it's ready for when a mobile client exists.
 
 ---
 
@@ -1196,7 +1416,8 @@ Expected:
 | Admin separation | Dedicated `/api/admin/auth` route and `Admin` model — isolated from standard user auth |
 | Transport | HTTPS enforced by Azure App Service TLS termination |
 | Secrets management | Environment variables only — never committed to source control |
-| Blockchain integrity | Hyperledger Fabric provides cryptographic tamper-evidence for referral records |
+| Blockchain integrity | Hash-chained MongoDB ledger (`BlockchainTransaction`) provides cryptographic tamper-evidence for referral/token records; Polygon settlement adds public-chain verifiability when configured |
+| Wallet key storage | Private keys derived from `WALLET_MASTER_MNEMONIC` are AES-256-GCM encrypted at rest with `WALLET_ENCRYPTION_KEY` before being written to disk/DB |
 | FHIR access control | All FHIR endpoints require JWT; audit logs capture every EHI access event |
 | AI data handling | Ambient session transcripts and clinical notes are stored per-patient with provider-scoped access — providers can only access their own sessions |
 | Error handling | Centralised Express error middleware — stack traces never exposed to clients |

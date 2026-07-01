@@ -14,17 +14,15 @@ import { blockchainTransactionsMockData, blockchainTransactionDetailsMockData } 
  */
 export const getTransactionHistory = async () => {
   try {
-    // For development with mock data
-    if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_MOCK_API === 'true') {
-      // Simulate API call
+    // Mock mode only when explicitly enabled — matches every other service in the app
+    if (process.env.REACT_APP_MOCK_API === 'true') {
       await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Use mock transaction data from mockData.js
       return blockchainTransactionsMockData;
     }
-    
-    // Real API call using apiUtils
-    return await get('/blockchain/transactions');
+
+    // Real API call — server wraps the list in { success, data, pagination }
+    const response = await get('/blockchain/transactions', { limit: 100 });
+    return response?.data || [];
   } catch (error) {
     console.error('Error fetching blockchain transactions:', error);
     throw error;
@@ -39,23 +37,19 @@ export const getTransactionHistory = async () => {
  */
 export const getTransactionDetails = async (hash) => {
   try {
-    // For development with mock data
-    if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_MOCK_API === 'true') {
-      // Simulate API call
+    // Mock mode only when explicitly enabled — matches every other service in the app
+    if (process.env.REACT_APP_MOCK_API === 'true') {
       await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Use mock transaction details from mockData.js
       const transaction = blockchainTransactionDetailsMockData[hash];
-      
       if (!transaction) {
         throw new Error('Transaction not found');
       }
-      
       return transaction;
     }
-    
-    // Real API call using apiUtils
-    return await get(`/blockchain/transactions/${hash}`);
+
+    // Real API call — server wraps the record in { success, data }
+    const response = await get(`/blockchain/transactions/${hash}`);
+    return response?.data || response;
   } catch (error) {
     console.error(`Error fetching transaction details for ${hash}:`, error);
     throw error;

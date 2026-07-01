@@ -1,0 +1,24 @@
+{
+  "name": "clinictrust-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright end-to-end suite for ClinicTrust AI — provider + admin portals. See QA_TEST_SCENARIOS.md at repo root for the source scenarios this suite implements.",
+  "scripts": {
+    "test": "playwright test",
+    "test:p0": "playwright test --grep @P0",
+    "test:regression": "playwright test --grep @regression",
+    "test:provider": "playwright test tests/provider",
+    "test:admin": "playwright test tests/admin",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "report": "playwright show-report",
+    "codegen": "playwright codegen http://localhost:3000",
+    "seed": "node ../populate_db.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.48.0",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.3.1",
+    "mongodb": "^6.9.0"
+  }
+}

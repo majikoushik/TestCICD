@@ -31,6 +31,7 @@ const generateMockNotifications = () => {
       message: 'You have received a new patient referral request.',
       type: 'referral',
       read: false,
+      priority: 'high',
       relatedId: mockReferralIds[0],
       link: '/referrals/details/' + mockReferralIds[0],
       createdAt: new Date(Date.now() - Math.floor(Math.random() * 7 * 24 * 60 * 60 * 1000)) // Random time in the last week

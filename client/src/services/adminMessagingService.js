@@ -323,7 +323,7 @@ export const sendTargetedAlert = async (id) => {
       return await mockResponse({ data: updatedAlert });
     }
 
-    const response = await post(`/admin/alerts/targeted/${id}/send`, {});
+    const response = await post(`/admin/messages/alerts/${id}/send`, {});
     return response;
   } catch (error) {
     console.error('Error in sendTargetedAlert:', error);

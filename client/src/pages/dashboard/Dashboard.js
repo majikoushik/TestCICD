@@ -616,6 +616,7 @@ function Dashboard() {
                 <IconButton
                   onClick={handleRefresh}
                   disabled={refreshing}
+                  aria-label="Refresh dashboard"
                   sx={{ mt: 0.5 }}
                 >
                   {refreshing

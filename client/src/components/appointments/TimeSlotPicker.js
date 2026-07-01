@@ -42,6 +42,8 @@ function formatSlotPanelDate(dateStr) {
 function SlotItem({ slot, selected, unavailable, onSelect }) {
   return (
     <Box
+      data-testid={`time-slot-${slot.startTime}`}
+      data-available={!unavailable}
       onClick={() => !unavailable && onSelect && onSelect(slot)}
       sx={{
         px: 1.75,
@@ -212,6 +214,7 @@ export default function TimeSlotPicker({
               return (
                 <Box
                   key={dateEntry.date}
+                  data-testid={`date-option-${dateEntry.date}`}
                   onClick={() => onDateChange && onDateChange(dateEntry.date)}
                   sx={{
                     p: 1,

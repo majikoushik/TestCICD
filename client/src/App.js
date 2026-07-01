@@ -149,8 +149,9 @@ const AdminRoute = ({ children }) => {
     return <Navigate to="/admin/login" />;
   }
 
-  // Check if user has admin role
-  if (currentUser.role !== 'admin') {
+  // Check if user has admin role — must match the server's admin auth check
+  // (server/routes/adminAuth.js allows both 'admin' and 'superadmin')
+  if (!['admin', 'superadmin'].includes(currentUser.role)) {
     return <Navigate to="/admin/login" />;
   }
 

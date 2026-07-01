@@ -4,7 +4,7 @@
  * This service handles notification-related API calls
  */
 
-import { get, post, put, mockResponse } from '../utils/apiUtils';
+import { get, put, del, mockResponse } from '../utils/apiUtils';
 
 /**
  * Get the current user's notifications
@@ -244,8 +244,8 @@ export const markAllAsRead = async () => {
       return await mockResponse({ success: true }, 500);
     }
     
-    // Real API call
-    return await put('/notifications/mark-all-read');
+    // Real API call — server route is PUT /notifications/read-all
+    return await put('/notifications/read-all');
   } catch (error) {
     console.error('Mark all as read error:', error);
     throw error;
@@ -265,8 +265,8 @@ export const deleteNotification = async (notificationId) => {
       return await mockResponse({ success: true }, 300);
     }
     
-    // Real API call
-    return await post(`/notifications/${notificationId}/delete`);
+    // Real API call — server route is DELETE /notifications/:id
+    return await del(`/notifications/${notificationId}`);
   } catch (error) {
     console.error('Delete notification error:', error);
     throw error;

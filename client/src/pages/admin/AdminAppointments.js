@@ -112,7 +112,17 @@ function AppointmentDetailDialog({ appointment, open, onClose, onAction }) {
     setActionLoading(true);
     setActionError(null);
     try {
-      await put(`/admin/appointments/${appointment._id || appointment.appointmentId}/status`, { status: action });
+      const id = appointment._id || appointment.appointmentId;
+      // Note: intentionally /appointments/:id/... (not /admin/appointments/...) —
+      // those are the real endpoints, and both already grant admins bypass of
+      // the provider-ownership check (see server/routes/appointments.js).
+      // Cancellation has its own dedicated endpoint — /status only accepts
+      // confirmed/checked_in/in_progress/completed/no_show, not 'cancelled'.
+      if (action === 'cancelled') {
+        await put(`/appointments/${id}/cancel`, { cancellationReason: 'Cancelled by admin' });
+      } else {
+        await put(`/appointments/${id}/status`, { status: action });
+      }
       setConfirmAction(null);
       onAction && onAction();
       onClose();

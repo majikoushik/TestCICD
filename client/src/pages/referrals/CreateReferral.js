@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as referralService from '../../services/referralService';
+import { getPatientById } from '../../services/patientService';
 import { ModernLoadingIndicator } from '../../components/common';
 import PatientSearchAutocomplete from '../../components/common/PatientSearchAutocomplete';
 import AIProviderSuggestions from '../../components/referral/AIProviderSuggestions';
@@ -35,6 +36,8 @@ const steps = ['Select Patient', 'Provider Information', 'Referral Details'];
 
 export default function CreateReferral() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const preselectedPatientId = searchParams.get('patientId') || null;
   const [activeStep, setActiveStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -83,6 +86,22 @@ export default function CreateReferral() {
 
     fetchProviders();
   }, []);
+
+  // Pre-populate patient when coming from the Patients page (?patientId=) —
+  // the user already picked a patient there, so don't make them search again.
+  useEffect(() => {
+    if (!preselectedPatientId) return;
+    getPatientById(preselectedPatientId)
+      .then((res) => {
+        const patient = res?.data || res;
+        if (patient) {
+          setReferralData((prev) => ({ ...prev, patient }));
+        }
+      })
+      .catch((err) => {
+        console.error('Error pre-loading selected patient:', err);
+      });
+  }, [preselectedPatientId]);
 
   // Fetch patient records when patient is selected
   useEffect(() => {

@@ -3,27 +3,15 @@ const router = express.Router();
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const multer = require('multer');
 const { protect, authorize } = require('../middleware/auth');
 const User = require('../models/User');
 const ProviderProfile = require('../models/ProviderProfile');
+const fileStorage = require('../utils/fileStorage');
 const logger = require('../utils/logger');
 
-// ── Avatar multer setup ───────────────────────────────────────────────────────
-const avatarDir = path.join(__dirname, '../uploads/avatars');
-if (!fs.existsSync(avatarDir)) fs.mkdirSync(avatarDir, { recursive: true });
-
-const avatarStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, avatarDir),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
-    // userId-timestamp.ext — deterministic enough for one avatar per user
-    cb(null, `${req.user._id}-${Date.now()}${ext}`);
-  },
-});
-
-const avatarUpload = multer({
-  storage: avatarStorage,
+// ── Avatar upload — local disk by default, or S3 / Azure Blob when configured
+// (see server/utils/fileStorage.js). No code change needed to switch.
+const avatarUpload = fileStorage.createUpload('avatars', {
   limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB
   fileFilter: (req, file, cb) => {
     const allowed = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
@@ -97,23 +85,27 @@ router.post('/profile/image', protect, avatarUpload.single('image'), async (req,
       return res.status(400).json({ success: false, error: 'No image file provided' });
     }
 
-    // Delete the user's previous avatar from disk to avoid orphan files
-    const existing = await User.findById(req.user._id).select('profileImage');
-    if (existing?.profileImage && existing.profileImage.startsWith('/uploads/avatars/')) {
-      const oldPath = path.join(__dirname, '..', existing.profileImage);
-      fs.unlink(oldPath, () => {}); // fire-and-forget; ignore ENOENT
+    // Delete the user's previous avatar to avoid orphan files. Only handled
+    // for local disk today — cloud-stored avatars are left in place (minor
+    // storage cost, not a functional issue) since profileImage stores a
+    // plain URL rather than a storage reference we could parse back.
+    if (fileStorage.getStorageMode() === 'local') {
+      const existing = await User.findById(req.user._id).select('profileImage');
+      if (existing?.profileImage && existing.profileImage.startsWith('/uploads/avatars/')) {
+        const oldPath = path.join(__dirname, '..', existing.profileImage);
+        fs.unlink(oldPath, () => {}); // fire-and-forget; ignore ENOENT
+      }
     }
 
-    // Store a server-relative URL that the static middleware will serve
-    const imageUrl = `/uploads/avatars/${req.file.filename}`;
+    const imageUrl = fileStorage.getPublicUrl(req.file, 'avatars');
 
     await User.findByIdAndUpdate(req.user._id, { $set: { profileImage: imageUrl } });
 
-    logger.info('Avatar uploaded', { userId: req.user._id, file: req.file.filename });
+    logger.info('Avatar uploaded', { userId: req.user._id, storageMode: fileStorage.getStorageMode() });
     res.json({ success: true, data: { profileImage: imageUrl } });
   } catch (err) {
-    // Clean up uploaded file on error
-    if (req.file) fs.unlink(req.file.path, () => {});
+    // Clean up uploaded file on error (local disk only — req.file.path is only set in that mode)
+    if (req.file?.path) fs.unlink(req.file.path, () => {});
     logger.error('POST /users/profile/image error', { error: err.message });
     res.status(500).json({ success: false, error: err.message || 'Server error' });
   }

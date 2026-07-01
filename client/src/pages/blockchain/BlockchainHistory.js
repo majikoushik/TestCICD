@@ -144,6 +144,7 @@ const BlockchainHistory = () => {
 
   const formatAddress = (address) => {
     if (!address) return '';
+    if (address.length <= 12) return address;
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
   };
 

@@ -100,6 +100,12 @@ router.post('/', protect, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing required fields: patientId, patientName, serviceType, clinicalNotes' });
     }
 
+    // Mirror the client's minimum-length rule server-side — the client only
+    // enforces this in the UI, so a direct API call could otherwise bypass it.
+    if (clinicalNotes.trim().length < 20) {
+      return res.status(400).json({ success: false, error: 'Clinical notes must be at least 20 characters' });
+    }
+
     // Fast-track: optional token-gated priority processing (–10 tokens, skips queue)
     const requestFastTrack = req.body.fastTrack === true || req.body.fastTrack === 'true';
     let fastTrackCost = 0;
@@ -179,7 +185,7 @@ router.post('/', protect, async (req, res) => {
         doc.aiGuidelinesCited = aiResult.guidelinesCited || [];
         doc.aiAnalyzedAt = new Date();
 
-        if (isEligibleForAutoApproval(doc, aiResult)) {
+        if (await isEligibleForAutoApproval(doc, aiResult)) {
           doc.status = 'Approved';
           doc.autoApproved = true;
           doc.approvedDate = new Date();
@@ -306,6 +312,11 @@ router.post('/:id/renew', protect, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Only Expired PAs can be renewed' });
     }
 
+    const renewalClinicalNotes = req.body.clinicalNotes || original.clinicalNotes;
+    if (!renewalClinicalNotes || renewalClinicalNotes.trim().length < 20) {
+      return res.status(400).json({ success: false, error: 'Clinical notes must be at least 20 characters' });
+    }
+
     const renewal = new PriorAuthorization({
       referralId: original.referralId,
       patientId: original.patientId,
@@ -316,7 +327,7 @@ router.post('/:id/renew', protect, async (req, res) => {
       serviceType: original.serviceType,
       serviceCode: original.serviceCode,
       diagnosisCodes: original.diagnosisCodes,
-      clinicalNotes: req.body.clinicalNotes || original.clinicalNotes,
+      clinicalNotes: renewalClinicalNotes,
       urgency: req.body.urgency || original.urgency,
       insurancePlan: original.insurancePlan,
       memberId: original.memberId,
@@ -340,7 +351,7 @@ router.post('/:id/renew', protect, async (req, res) => {
         doc.aiSuggestedAction = aiResult.suggestedAction || '';
         doc.aiGuidelinesCited = aiResult.guidelinesCited || [];
         doc.aiAnalyzedAt = new Date();
-        if (isEligibleForAutoApproval(doc, aiResult)) {
+        if (await isEligibleForAutoApproval(doc, aiResult)) {
           doc.status = 'Approved';
           doc.autoApproved = true;
           doc.approvedDate = new Date();

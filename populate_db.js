@@ -39,6 +39,7 @@ await db.collection('contacts').drop().catch(() => {});
 await db.collection('ambientsessions').drop().catch(() => {});
 await db.collection('notificationtemplates').drop().catch(() => {});
 await db.collection('patientnotifications').drop().catch(() => {});
+await db.collection('notifications').drop().catch(() => {});
 await db.collection('notificationcampaigns').drop().catch(() => {});
 await db.collection('matchsessions').drop().catch(() => {});
 await db.collection('matchingconfigs').drop().catch(() => {});
@@ -4736,6 +4737,26 @@ await db.collection('patientnotifications').insertMany([
 console.log("Patient notifications created: " + (await db.collection('patientnotifications').countDocuments()));
 
 // ═══════════════════════════════════════════════════════════════════════════
+// IN-APP NOTIFICATIONS (provider-facing bell/inbox — Notification model)
+// ═══════════════════════════════════════════════════════════════════════════
+console.log("Creating notifications collection...");
+await db.collection('notifications').insertMany([
+  { userId: 'user-2', title: 'Referral Accepted', message: 'Dr. Michael Chen accepted your neurology referral for Thomas Brown.', type: 'referral', read: false, priority: 'high', relatedId: 'referral-2', link: '/app/referrals/referral-2', createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000) },
+  { userId: 'user-2', title: 'Referral Completed', message: 'Cardiology referral for James Wilson has been marked completed. You earned 5 tokens.', type: 'token', read: false, priority: 'medium', relatedId: 'referral-1', link: '/app/referrals/referral-1', createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) },
+  { userId: 'user-2', title: 'Tokens Earned', message: 'You earned 20 tokens for a completed data contribution report.', type: 'token', read: true, priority: 'low', link: '/app/tokens', createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) },
+  { userId: 'user-2', title: 'New Referral Sent', message: 'Your referral for Emily Rodriguez to Dr. Robert Williams was created successfully.', type: 'referral', read: true, priority: 'low', relatedId: 'referral-3', link: '/app/referrals/referral-3', createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) },
+  { userId: 'user-4', title: 'New Referral Received', message: 'Dr. Robert Williams sent you a neurology referral for Thomas Brown — routine priority.', type: 'referral', read: false, priority: 'high', relatedId: 'referral-2', link: '/app/referrals/referral-2', createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000) },
+  { userId: 'user-4', title: 'Referral Handling Reward', message: 'You earned 10 tokens for handling the completed cardiology referral for James Wilson.', type: 'token', read: false, priority: 'medium', relatedId: 'referral-1', link: '/app/tokens', createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) },
+  { userId: 'user-4', title: 'System Maintenance Scheduled', message: 'ClinicTrust AI will be down for scheduled maintenance Sunday from 2-4 AM EST.', type: 'system', read: true, priority: 'medium', createdAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000) },
+  { userId: 'user-4', title: 'AI Risk Assessment Complete', message: 'A new predictive risk assessment is available for Thomas Brown.', type: 'info', read: false, priority: 'critical', link: '/app/analytics', createdAt: new Date(Date.now() - 10 * 60 * 60 * 1000) },
+  { userId: 'user-5', title: 'Referral Accepted', message: 'Dr. Robert Williams accepted the general practice referral for Emily Rodriguez.', type: 'referral', read: false, priority: 'medium', relatedId: 'referral-3', link: '/app/referrals/referral-3', createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000) },
+  { userId: 'user-5', title: 'Low Token Balance', message: 'Your token balance has dropped below 100. Complete referrals or analytics reports to earn more.', type: 'warning', read: true, priority: 'low', link: '/app/tokens', createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000) },
+  { userId: 'user-3', title: 'Analytics Report Completed', message: 'Your Q2 Patient Outcome Analysis report has finished processing.', type: 'success', read: false, priority: 'medium', link: '/app/analytics', createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000) },
+  { userId: 'user-3', title: 'Tokens Earned', message: 'You earned 15 tokens for the Q2 Patient Outcome Analysis report.', type: 'token', read: true, priority: 'low', link: '/app/tokens', createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000) },
+]);
+console.log("Notifications created: " + (await db.collection('notifications').countDocuments()));
+
+// ═══════════════════════════════════════════════════════════════════════════
 // NOTIFICATION CAMPAIGNS
 // ═══════════════════════════════════════════════════════════════════════════
 console.log("Creating notificationcampaigns collection...");
@@ -5692,6 +5713,103 @@ await db.collection('blockchaintransactions').insertOne({
   updatedAt: new Date(),
 });
 console.log(`blockchain genesis block seeded: ${genesisTxId} (hash: ${genesisHash.slice(0, 16)}...)`);
+
+// ── REFERRAL / TOKEN LEDGER ENTRIES ───────────────────────────────────────────
+// Mirrors what server/blockchain/contracts.js writes at runtime (referral create,
+// referral status update, token reward) so the user-facing Blockchain History
+// page (GET /api/blockchain/transactions) has real chained data to show without
+// requiring a user to perform a live referral action first.
+console.log('Seeding referral/token blockchain ledger entries...');
+{
+  let chainTip = { hash: genesisHash, blockNumber: genesisBlockNumber };
+
+  const appendLedgerEntry = async (data) => {
+    const previousHash = chainTip.hash;
+    const blockNumber = chainTip.blockNumber + 1;
+    const hashInput = JSON.stringify({ ...data, previousHash, blockNumber });
+    const hash = crypto.createHash('sha256').update(hashInput).digest('hex');
+    const transactionId = `tx_${crypto.randomBytes(16).toString('hex')}`;
+    const timestamp = data.createdAt ? new Date(data.createdAt) : new Date();
+
+    await db.collection('blockchaintransactions').insertOne({
+      transactionId, type: data.type, data, hash, previousHash, blockNumber,
+      timestamp, createdAt: timestamp, updatedAt: timestamp,
+    });
+
+    chainTip = { hash, blockNumber };
+    return transactionId;
+  };
+
+  // referral-1: user-2 → user-4, completed (token rewards to both parties)
+  const ref1Tx = await appendLedgerEntry({
+    type: 'referral', patientId: 'patient-1', referringProviderId: 'user-2', receivingProviderId: 'user-4',
+    reason: 'Cardiac arrhythmia with neurological involvement — neurological risk evaluation requested',
+    urgency: 'urgent', status: 'pending', createdAt: new Date(2026, 0, 8).toISOString(),
+  });
+  await appendLedgerEntry({
+    type: 'referral_update', originalTransactionId: ref1Tx, status: 'accepted',
+    createdAt: new Date(2026, 0, 10).toISOString(),
+  });
+  await appendLedgerEntry({
+    type: 'referral_update', originalTransactionId: ref1Tx, status: 'completed',
+    createdAt: new Date(2026, 0, 25).toISOString(),
+  });
+  await appendLedgerEntry({
+    type: 'token', fromUserId: 'system', toUserId: 'user-2', amount: 5,
+    reason: 'Referral completion reward', metadata: { referralId: 'referral-1' },
+    createdAt: new Date(2026, 0, 25).toISOString(),
+  });
+  await appendLedgerEntry({
+    type: 'token', fromUserId: 'system', toUserId: 'user-4', amount: 10,
+    reason: 'Referral handling reward', metadata: { referralId: 'referral-1' },
+    createdAt: new Date(2026, 0, 25).toISOString(),
+  });
+
+  // referral-3: user-2 → user-4, completed
+  const ref3Tx = await appendLedgerEntry({
+    type: 'referral', patientId: 'patient-5', referringProviderId: 'user-2', receivingProviderId: 'user-4',
+    reason: 'Atrial fibrillation — neurological risk assessment for stroke prevention protocol',
+    urgency: 'urgent', status: 'pending', createdAt: new Date(2026, 0, 20).toISOString(),
+  });
+  await appendLedgerEntry({
+    type: 'referral_update', originalTransactionId: ref3Tx, status: 'accepted',
+    createdAt: new Date(2026, 0, 22).toISOString(),
+  });
+  await appendLedgerEntry({
+    type: 'referral_update', originalTransactionId: ref3Tx, status: 'completed',
+    createdAt: new Date(2026, 1, 8).toISOString(),
+  });
+  await appendLedgerEntry({
+    type: 'token', fromUserId: 'system', toUserId: 'user-2', amount: 5,
+    reason: 'Referral completion reward', metadata: { referralId: 'referral-3' },
+    createdAt: new Date(2026, 1, 8).toISOString(),
+  });
+  await appendLedgerEntry({
+    type: 'token', fromUserId: 'system', toUserId: 'user-4', amount: 10,
+    reason: 'Referral handling reward', metadata: { referralId: 'referral-3' },
+    createdAt: new Date(2026, 1, 8).toISOString(),
+  });
+
+  // referral-5: user-2 → user-4, accepted but not yet completed
+  const ref5Tx = await appendLedgerEntry({
+    type: 'referral', patientId: 'patient-2', referringProviderId: 'user-2', receivingProviderId: 'user-4',
+    reason: 'Recurrent headaches with asthma — neurological evaluation to rule out migraine with aura',
+    urgency: 'routine', status: 'pending', createdAt: new Date(2026, 1, 10).toISOString(),
+  });
+  await appendLedgerEntry({
+    type: 'referral_update', originalTransactionId: ref5Tx, status: 'accepted',
+    createdAt: new Date(2026, 1, 14).toISOString(),
+  });
+
+  // A direct peer-to-peer token transfer, independent of any referral
+  await appendLedgerEntry({
+    type: 'token', fromUserId: 'user-2', toUserId: 'user-5', amount: 10,
+    reason: 'Token transfer', metadata: {},
+    createdAt: new Date(2026, 1, 16).toISOString(),
+  });
+
+  console.log(`Blockchain ledger entries seeded: ${await db.collection('blockchaintransactions').countDocuments()} total (incl. genesis)`);
+}
 
   // AI Config defaults
   const aiConfigDefaults = [

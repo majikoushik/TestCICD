@@ -10,6 +10,17 @@ const logger = require('../utils/logger');
 
 const DTX_TOKEN_REWARD = 10;
 
+// Mirrors STATUS_TRANSITIONS in client/src/pages/dtx/DtxPrescriptions.js —
+// the client only enforces this in the UI, so a direct API call could
+// otherwise skip stages (e.g. prescribed -> completed).
+const DTX_STATUS_TRANSITIONS = {
+  prescribed: ['enrolled', 'dropped'],
+  enrolled: ['active', 'dropped'],
+  active: ['completed', 'dropped'],
+  completed: [],
+  dropped: [],
+};
+
 // GET /dtx/programs — browse active catalog
 router.get('/programs', protect, async (req, res) => {
   try {
@@ -107,6 +118,23 @@ router.put('/prescriptions/:id/status', protect, async (req, res) => {
     const { status, engagementScore, outcomeNotes, notes } = req.body;
     const prescription = await DtxPrescription.findOne({ _id: req.params.id, providerId: req.user.id });
     if (!prescription) return res.status(404).json({ success: false, error: 'Prescription not found' });
+
+    const allowedNext = DTX_STATUS_TRANSITIONS[prescription.status] || [];
+    if (!allowedNext.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: `Cannot transition from '${prescription.status}' to '${status}'`,
+      });
+    }
+
+    if (status === 'completed') {
+      if (engagementScore === null || engagementScore === undefined || engagementScore === '') {
+        return res.status(400).json({ success: false, error: 'Engagement score is required to complete a prescription' });
+      }
+      if (!outcomeNotes || !outcomeNotes.trim()) {
+        return res.status(400).json({ success: false, error: 'Outcome notes are required to complete a prescription' });
+      }
+    }
 
     const update = { status };
     if (engagementScore !== null && engagementScore !== undefined) update.engagementScore = engagementScore;

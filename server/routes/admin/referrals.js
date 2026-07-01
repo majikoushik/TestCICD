@@ -51,7 +51,36 @@ router.get('/', protect, authorize('admin', 'superadmin'), async (req, res) => {
       .populate('receivingProvider', 'firstName lastName name organization specialty')
       .sort({ createdAt: -1 });
 
-    res.json({ success: true, data: referrals });
+    // Attach dispute presence per referral (the "Has Dispute" filter/column need this —
+    // the list previously never queried ReferralDispute at all).
+    const disputes = await ReferralDispute.find({
+      referralId: { $in: referrals.map((r) => r._id.toString()) },
+    }).lean();
+    const disputeByReferralId = new Map();
+    disputes.forEach((d) => {
+      const existing = disputeByReferralId.get(d.referralId);
+      // Prefer showing a Pending dispute over a resolved/rejected one if multiple exist
+      if (!existing || (existing.status !== 'Pending' && d.status === 'Pending')) {
+        disputeByReferralId.set(d.referralId, d);
+      }
+    });
+
+    let referralsWithDisputeInfo = referrals.map((r) => {
+      const dispute = disputeByReferralId.get(r._id.toString());
+      return {
+        ...r.toObject(),
+        hasDispute: Boolean(dispute),
+        disputeStatus: dispute ? dispute.status : null,
+      };
+    });
+
+    if (req.query.hasDispute === 'yes') {
+      referralsWithDisputeInfo = referralsWithDisputeInfo.filter((r) => r.hasDispute);
+    } else if (req.query.hasDispute === 'no') {
+      referralsWithDisputeInfo = referralsWithDisputeInfo.filter((r) => !r.hasDispute);
+    }
+
+    res.json({ success: true, data: referralsWithDisputeInfo });
   } catch (err) {
     logger.error('Error fetching referrals', logger.reqCtx(req, err));
     res.status(500).json({ success: false, message: 'Server error', error: err.message });

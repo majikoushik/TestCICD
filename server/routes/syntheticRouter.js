@@ -263,6 +263,16 @@ router.get('/admin/auth/verify', (req, res) => {
 // Patient routes  /api/patients/*
 // ---------------------------------------------------------------------------
 
+// The client always links to a patient via its human-readable `patientId`
+// (e.g. "PT-100001") — that's what the real Mongo-backed route resolves on
+// (Patient._id is set equal to patientId at creation time there). The
+// synthetic seed data keeps a separate internal `_id`/`id` ("patient-1"), so
+// look up by patientId first and fall back to _id/id for callers that still
+// pass the internal id (e.g. referral.patient references).
+function findPatient(id) {
+  return store.patients.findOne({ patientId: id }) || store.patients.findById(id);
+}
+
 router.get('/patients', protect, authorize('doctor', 'clinic', 'hospital', 'lab', 'admin', 'superadmin'), (req, res) => {
   const page = parseInt(req.query.page) || 0;
   const limit = parseInt(req.query.limit) || 10;
@@ -322,7 +332,7 @@ router.post('/patients', protect, authorize('doctor', 'clinic', 'hospital'), (re
 });
 
 router.get('/patients/:id', protect, (req, res) => {
-  const patient = store.patients.findById(req.params.id);
+  const patient = findPatient(req.params.id);
   if (!patient) return res.status(404).json({ success: false, error: 'Patient not found' });
 
   const isPrimary = patient.primaryProvider === req.user.id;
@@ -330,11 +340,20 @@ router.get('/patients/:id', protect, (req, res) => {
   if (!isPrimary && !isAdmin) {
     return res.status(403).json({ success: false, error: 'Access denied to this patient record' });
   }
-  res.status(200).json({ success: true, data: patient, consentLevel: isPrimary ? 'primary' : 'full' });
+
+  const provider = patient.primaryProvider ? store.users.findById(patient.primaryProvider) : null;
+  const patientData = {
+    ...patient,
+    primaryProviderName: provider ? provider.name : patient.primaryProvider,
+    primaryProviderOrganization: provider?.organization || '',
+    primaryProviderSpecialty: provider?.specialty || '',
+  };
+
+  res.status(200).json({ success: true, data: patientData, consentLevel: isPrimary ? 'primary' : 'full' });
 });
 
 router.put('/patients/:id', protect, (req, res) => {
-  const patient = store.patients.findById(req.params.id);
+  const patient = findPatient(req.params.id);
   if (!patient) return res.status(404).json({ success: false, error: 'Patient not found' });
   const updated = { ...patient, ...req.body, _id: patient._id, updatedAt: new Date() };
   store.patients.save(updated);
@@ -342,7 +361,7 @@ router.put('/patients/:id', protect, (req, res) => {
 });
 
 router.post('/patients/:id/consent', protect, (req, res) => {
-  const patient = store.patients.findById(req.params.id);
+  const patient = findPatient(req.params.id);
   if (!patient) return res.status(404).json({ success: false, error: 'Patient not found' });
   const { providerId, accessLevel, dataElements, expiryDate } = req.body;
   const consent = {
@@ -359,7 +378,7 @@ router.post('/patients/:id/consent', protect, (req, res) => {
 });
 
 router.get('/patients/:id/medical-records', protect, (req, res) => {
-  const patient = store.patients.findById(req.params.id);
+  const patient = findPatient(req.params.id);
   if (!patient) return res.status(404).json({ success: false, error: 'Patient not found' });
   const page = parseInt(req.query.page) || 0;
   const limit = parseInt(req.query.limit) || 10;
@@ -397,7 +416,7 @@ function logSyntheticEhi(req, resourceType, action, responseStatus) {
 }
 
 router.get('/patients/:id/consent-records', protect, (req, res) => {
-  const patient = store.patients.findById(req.params.id);
+  const patient = findPatient(req.params.id);
   if (!patient) return res.status(404).json({ success: false, error: 'Patient not found' });
   const records = (patient.consentRecords || []).map((r) => ({
     ...r, patientId: patient._id,
@@ -408,7 +427,7 @@ router.get('/patients/:id/consent-records', protect, (req, res) => {
 
 // EHI export — full patient record + referrals (ONC Information Blocking compliance)
 router.get('/patients/:id/export', protect, (req, res) => {
-  const patient = store.patients.findById(req.params.id);
+  const patient = findPatient(req.params.id);
   if (!patient) return res.status(404).json({ success: false, error: 'Patient not found' });
 
   const isPrimary = patient.primaryProvider === req.user.id;
@@ -425,7 +444,7 @@ router.get('/patients/:id/export', protect, (req, res) => {
     });
   }
 
-  const referrals = store.referrals.find({ patient: req.params.id });
+  const referrals = store.referrals.find({ patient: patient._id });
 
   const exportBundle = {
     exportMetadata: {
@@ -2334,6 +2353,13 @@ router.delete('/admin/ambient-sessions/:id', protect, authorize('admin', 'supera
 });
 
 // ── Provider: Ambient Sessions ────────────────────────────────────────────────
+
+// Synthetic mode never talks to Azure — always report the stub shape the
+// client already knows how to fall back from (see /transcribe in the real
+// server/routes/ambientSessions.js for the live-DB implementation).
+router.post('/ambient-sessions/transcribe', protect, (req, res) => {
+  res.json({ success: true, stub: true, transcript: '' });
+});
 
 router.get('/ambient-sessions/stats', protect, (req, res) => {
   const provSessions = syntheticAmbientSessions.filter(s => s.providerId === req.user?.providerId || true); // in synthetic mode show all

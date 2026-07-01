@@ -31,6 +31,7 @@ const patientRoutes = require('./routes/patients');
 const referralRoutes = require('./routes/referrals');
 const analyticsRoutes = require('./routes/analytics');
 const tokenRoutes = require('./routes/tokens');
+const blockchainRoutes = require('./routes/blockchain');
 const notificationRoutes = require('./routes/notifications');
 const dashboardRoutes = require('./routes/dashboard');
 const adminRoutes = require('./routes/admin');
@@ -198,6 +199,7 @@ function mountLiveRoutes() {
   app.use('/api/referrals', referralRoutes);
   app.use('/api/analytics', analyticsRoutes);
   app.use('/api/tokens', tokenRoutes);
+  app.use('/api/blockchain', blockchainRoutes);
   app.use('/api/notifications', notificationRoutes);
   app.use('/api/dashboard', dashboardRoutes);
 

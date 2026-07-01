@@ -9,6 +9,7 @@ const Patient  = require('../models/Patient');
 const User     = require('../models/User');
 const Referral = require('../models/Referral');
 const { protect } = require('../middleware/auth');
+const { verifyConsent } = require('../blockchain/contracts');
 const {
   toFHIRPatient,
   toFHIRPractitioner,
@@ -53,6 +54,14 @@ router.get('/Patient', async (req, res) => {
     }
     if (req.query.identifier) query.patientId = req.query.identifier;
 
+    // Scope the search to patients this requester actually has a
+    // relationship to (own patients, or admin sees all) — referral-granted
+    // and consent-based access aren't checked here for performance, but are
+    // enforced on every single-patient resource route below.
+    if (!['admin', 'superadmin'].includes(req.user.role)) {
+      query.primaryProvider = req.user.id;
+    }
+
     const patients = await Patient.find(query).limit(100).lean();
     const resources = await Promise.all(patients.map(async (p) => {
       const provider = p.primaryProvider
@@ -73,6 +82,9 @@ router.get('/Patient/:id', async (req, res) => {
       $or: [{ patientId: req.params.id }, { _id: req.params.id.match(/^[0-9a-f]{24}$/i) ? req.params.id : null }],
     }).lean();
     if (!patient) return opOutcome(404, 'not-found', 'Patient not found', res);
+    if (!(await canAccessPatient(patient, req.user))) {
+      return opOutcome(403, 'forbidden', 'You are not authorized to access this patient record', res);
+    }
     const provider = patient.primaryProvider
       ? await User.findById(patient.primaryProvider).lean()
       : null;
@@ -102,12 +114,37 @@ const resolvePatient = async (idParam) => {
   ).lean();
 };
 
+// Every clinical resource below is scoped to a specific patient — apply the
+// same access rule the rest of the app uses for patient data (primary
+// provider, admin, referral-granted access, or blockchain consent), so FHIR
+// doesn't become a way to bypass those checks. Mirrors patients.js.
+const canAccessPatient = async (patient, user) => {
+  const isPrimaryProvider = patient.primaryProvider && String(patient.primaryProvider) === String(user.id);
+  const isAdmin = ['admin', 'superadmin'].includes(user.role);
+  if (isPrimaryProvider || isAdmin) return true;
+
+  const hasReferralAccess = await Referral.exists({
+    patient: patient._id,
+    receivingProvider: user.id,
+  });
+  if (hasReferralAccess) return true;
+
+  try {
+    return await verifyConsent(patient.patientId, user.id, 'demographics');
+  } catch (_) {
+    return false;
+  }
+};
+
 // ── GET /fhir/Condition?patient=:id ──────────────────────────────────────────
 router.get('/Condition', async (req, res) => {
   try {
     if (!req.query.patient) return opOutcome(400, 'required', 'patient parameter is required', res);
     const patient = await resolvePatient(req.query.patient);
     if (!patient) return opOutcome(404, 'not-found', 'Patient not found', res);
+    if (!(await canAccessPatient(patient, req.user))) {
+      return opOutcome(403, 'forbidden', 'You are not authorized to access this patient record', res);
+    }
     const patientId = patient.patientId || String(patient._id);
     const resources = (patient.medicalHistory || []).map((c, i) =>
       toFHIRCondition(c, patientId, i));
@@ -123,6 +160,9 @@ router.get('/MedicationRequest', async (req, res) => {
     if (!req.query.patient) return opOutcome(400, 'required', 'patient parameter is required', res);
     const patient = await resolvePatient(req.query.patient);
     if (!patient) return opOutcome(404, 'not-found', 'Patient not found', res);
+    if (!(await canAccessPatient(patient, req.user))) {
+      return opOutcome(403, 'forbidden', 'You are not authorized to access this patient record', res);
+    }
     const patientId = patient.patientId || String(patient._id);
     const resources = (patient.medications || []).map((m, i) =>
       toFHIRMedicationRequest(m, patientId, i));
@@ -138,6 +178,9 @@ router.get('/AllergyIntolerance', async (req, res) => {
     if (!req.query.patient) return opOutcome(400, 'required', 'patient parameter is required', res);
     const patient = await resolvePatient(req.query.patient);
     if (!patient) return opOutcome(404, 'not-found', 'Patient not found', res);
+    if (!(await canAccessPatient(patient, req.user))) {
+      return opOutcome(403, 'forbidden', 'You are not authorized to access this patient record', res);
+    }
     const patientId = patient.patientId || String(patient._id);
     const resources = (patient.allergies || []).map((a, i) =>
       toFHIRAllergyIntolerance(a, patientId, i));
@@ -153,6 +196,9 @@ router.get('/Coverage', async (req, res) => {
     if (!req.query.patient) return opOutcome(400, 'required', 'patient parameter is required', res);
     const patient = await resolvePatient(req.query.patient);
     if (!patient) return opOutcome(404, 'not-found', 'Patient not found', res);
+    if (!(await canAccessPatient(patient, req.user))) {
+      return opOutcome(403, 'forbidden', 'You are not authorized to access this patient record', res);
+    }
     const patientId = patient.patientId || String(patient._id);
     const resources = patient.insuranceInfo
       ? [toFHIRCoverage(patient.insuranceInfo, patientId)]
@@ -169,6 +215,9 @@ router.get('/ServiceRequest', async (req, res) => {
     if (!req.query.patient) return opOutcome(400, 'required', 'patient parameter is required', res);
     const patient = await resolvePatient(req.query.patient);
     if (!patient) return opOutcome(404, 'not-found', 'Patient not found', res);
+    if (!(await canAccessPatient(patient, req.user))) {
+      return opOutcome(403, 'forbidden', 'You are not authorized to access this patient record', res);
+    }
     const referrals = await Referral.find({ patient: patient._id }).lean();
     const resources  = referrals.map(toFHIRServiceRequest);
     res.type(FHIR_CT).json(toFHIRBundle('ServiceRequest', resources, getBaseUrl(req)));

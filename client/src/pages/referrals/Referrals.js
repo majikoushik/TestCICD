@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { 
-  fetchReferrals, 
-  setFilters as setReferralsFilters, 
-  setPagination, 
-  selectAllReferrals, 
-  selectReferralsLoading, 
-  selectReferralsError, 
-  selectReferralsFilters, 
+import {
+  fetchReferrals,
+  setFilters as setReferralsFilters,
+  setPagination,
+  updateReferralStatus,
+  clearStatusUpdateError,
+  selectAllReferrals,
+  selectReferralsLoading,
+  selectReferralsError,
+  selectReferralsFilters,
   selectReferralsPagination,
-  selectTotalReferrals 
+  selectTotalReferrals,
+  selectStatusUpdate
 } from '../../redux/slices/referralsSlice';
 import {
   Box,
@@ -36,7 +39,8 @@ import {
   Alert,
   Badge,
   Divider,
-  Grid
+  Grid,
+  Snackbar
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -84,6 +88,7 @@ export default function Referrals() {
   const error = useSelector(selectReferralsError);
   const { page: currentPage, pageSize: rowsPerPage } = useSelector(selectReferralsPagination);
   const reduxFilters = useSelector(selectReferralsFilters);
+  const statusUpdate = useSelector(selectStatusUpdate);
   const searchTerm = reduxFilters.searchTerm || '';
   const sortField = reduxFilters.sortBy || 'createdAt';
   const sortDirection = reduxFilters.sortOrder || 'desc';
@@ -100,6 +105,8 @@ export default function Referrals() {
   });
   // True until the very first fetch completes — prevents full-page flash on every refetch
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [actionSuccess, setActionSuccess] = useState('');
+  const selectedReferral = referrals.find((r) => (r._id || r.id) === selectedReferralId);
   const searchDebounceRef = useRef(null);
   const prevSearchRef = useRef(searchTerm);
 
@@ -246,11 +253,35 @@ export default function Referrals() {
     setSortMenuAnchorEl(null);
   }, []);
 
-  const handleUpdateStatus = (status) => {
-    // In a real app, this would call an API to update the referral status
-    // We don't need to set referrals locally since we're using Redux
-    // The referrals will be updated via API call
+  const handleUpdateStatus = async (status) => {
+    const referralId = selectedReferralId;
     handleMenuClose();
+    if (!referralId) return;
+
+    const statusLabels = {
+      accepted: 'accepted',
+      rejected: 'rejected',
+      completed: 'marked as completed',
+      cancelled: 'cancelled',
+    };
+
+    try {
+      await dispatch(updateReferralStatus({ referralId, status })).unwrap();
+      setActionSuccess(`Referral ${statusLabels[status] || 'updated'} successfully.`);
+      // Refresh counts/list from the server so any server-side side effects
+      // (token rewards, email notifications) are reflected consistently.
+      dispatch(fetchReferrals({
+        page: currentPage,
+        limit: rowsPerPage,
+        search: searchTerm,
+        sortBy: sortField,
+        sortOrder: sortDirection,
+        status: reduxFilters.status,
+        priority: reduxFilters.urgency,
+      }));
+    } catch (err) {
+      // Error surfaces via statusUpdate.error in the Redux store / Snackbar below
+    }
   };
 
   // Format date for display
@@ -304,7 +335,23 @@ export default function Referrals() {
           {error}
         </Alert>
       )}
-      
+
+      <Snackbar
+        open={Boolean(actionSuccess)}
+        autoHideDuration={4000}
+        onClose={() => setActionSuccess('')}
+        message={actionSuccess}
+      />
+      <Snackbar
+        open={Boolean(statusUpdate.error)}
+        autoHideDuration={5000}
+        onClose={() => dispatch(clearStatusUpdateError())}
+      >
+        <Alert severity="error" onClose={() => dispatch(clearStatusUpdateError())}>
+          {statusUpdate.error}
+        </Alert>
+      </Snackbar>
+
       <Typography variant="h4" component="h1" gutterBottom sx={{ mb: 3 }}>
         Referrals
       </Typography>
@@ -650,18 +697,30 @@ export default function Referrals() {
         open={Boolean(menuAnchorEl)}
         onClose={handleMenuClose}
       >
-        <MenuItem onClick={() => handleUpdateStatus('accepted')}>
-          <CheckCircleIcon fontSize="small" sx={{ mr: 1, color: 'success.main' }} />
-          Accept Referral
-        </MenuItem>
-        <MenuItem onClick={() => handleUpdateStatus('completed')}>
-          <DoneIcon fontSize="small" sx={{ mr: 1, color: 'success.main' }} />
-          Mark as Completed
-        </MenuItem>
-        <MenuItem onClick={() => handleUpdateStatus('rejected')}>
-          <CancelIcon fontSize="small" sx={{ mr: 1, color: 'error.main' }} />
-          Reject Referral
-        </MenuItem>
+        {selectedReferral?.status === 'pending' && (
+          <MenuItem onClick={() => handleUpdateStatus('accepted')}>
+            <CheckCircleIcon fontSize="small" sx={{ mr: 1, color: 'success.main' }} />
+            Accept Referral
+          </MenuItem>
+        )}
+        {selectedReferral?.status === 'pending' && (
+          <MenuItem onClick={() => handleUpdateStatus('rejected')}>
+            <CancelIcon fontSize="small" sx={{ mr: 1, color: 'error.main' }} />
+            Reject Referral
+          </MenuItem>
+        )}
+        {selectedReferral?.status === 'accepted' && (
+          <MenuItem onClick={() => handleUpdateStatus('completed')}>
+            <DoneIcon fontSize="small" sx={{ mr: 1, color: 'success.main' }} />
+            Mark as Completed
+          </MenuItem>
+        )}
+        {!['pending', 'accepted'].includes(selectedReferral?.status) && (
+          <MenuItem disabled>
+            No status actions available
+          </MenuItem>
+        )}
+        <Divider />
         <MenuItem onClick={() => navigate(`/app/referrals/${selectedReferralId}`)}>
           View Details
         </MenuItem>

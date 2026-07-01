@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { requestBlockchainVerification } from '../../services/userService';
 import { ModernLoadingIndicator } from '../../components/common';
 import {
   Box,
@@ -31,7 +32,7 @@ import {
 } from '@mui/icons-material';
 
 export default function Profile() {
-  const { currentUser, updateProfile } = useAuth();
+  const { currentUser, updateProfile, refreshUser } = useAuth();
   const [profileData, setProfileData] = useState({
     name: '',
     email: '',
@@ -54,49 +55,37 @@ export default function Profile() {
   const [success, setSuccess] = useState(false);
   const [showCopiedAlert, setShowCopiedAlert] = useState(false);
   const [verifyDialogOpen, setVerifyDialogOpen] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState('');
 
+  // Populate the form + blockchain identity panel from the already-loaded
+  // AuthContext user rather than fabricating data — currentUser is fetched
+  // once at app startup via authService.getCurrentUser().
   useEffect(() => {
-    const fetchProfileData = async () => {
-      try {
-        setLoading(true);
-        
-        // In a real app, this would be an API call to fetch profile data
-        // For this demo, we'll simulate the data
-        
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Simulate profile data
-        const mockProfileData = {
-          name: 'Dr. Sarah Johnson',
-          email: 'sarah.johnson@cityclinic.com',
-          organization: 'City Medical Center',
-          specialty: 'Family Medicine',
-          phone: '(555) 123-4567',
-          address: '123 Medical Plaza, Suite 456, Anytown, USA 12345',
-          bio: 'Board-certified family physician with over 10 years of experience in primary care. Special interest in preventive medicine and chronic disease management.'
-        };
-        
-        // Simulate blockchain data
-        const mockBlockchainData = {
-          blockchainId: 'bid_a1b2c3d4e5f6g7h8i9j0',
-          walletAddress: '0x1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t',
-          registrationDate: new Date(2023, 0, 15).toISOString(),
-          verificationStatus: 'verified'
-        };
-        
-        setProfileData(mockProfileData);
-        setBlockchainData(mockBlockchainData);
-      } catch (err) {
-        console.error('Error fetching profile data:', err);
-        setError('Failed to load profile data. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (!currentUser) {
+      setLoading(false);
+      return;
+    }
 
-    fetchProfileData();
-  }, []);
+    setProfileData({
+      name: currentUser.name || '',
+      email: currentUser.email || '',
+      organization: currentUser.organization || '',
+      specialty: currentUser.specialty || '',
+      phone: currentUser.phone || '',
+      address: currentUser.address || '',
+      bio: currentUser.bio || ''
+    });
+
+    setBlockchainData({
+      blockchainId: currentUser.blockchainId || '',
+      walletAddress: currentUser.walletAddress || '',
+      registrationDate: currentUser.createdAt || '',
+      verificationStatus: currentUser.blockchainId ? 'verified' : 'unverified'
+    });
+
+    setLoading(false);
+  }, [currentUser]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -130,16 +119,6 @@ export default function Profile() {
     setError('');
     
     try {
-      // In a real app, this would be an API call to update profile
-      // For this demo, we'll simulate the API call
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Simulate successful response
-      console.log('Profile updated:', profileData);
-      
-      // Update auth context
       await updateProfile(profileData);
       
       setSuccess(true);
@@ -168,11 +147,34 @@ export default function Profile() {
   };
 
   const handleVerifyDialogOpen = () => {
+    setVerifyError('');
     setVerifyDialogOpen(true);
   };
 
   const handleVerifyDialogClose = () => {
     setVerifyDialogOpen(false);
+  };
+
+  const handleStartVerification = async () => {
+    setVerifying(true);
+    setVerifyError('');
+    try {
+      const response = await requestBlockchainVerification();
+      const result = response?.data || response;
+      setBlockchainData(prev => ({
+        ...prev,
+        blockchainId: result?.blockchainId || prev.blockchainId,
+        walletAddress: result?.walletAddress || prev.walletAddress,
+        verificationStatus: 'verified'
+      }));
+      await refreshUser();
+      setVerifyDialogOpen(false);
+    } catch (err) {
+      console.error('Blockchain verification error:', err);
+      setVerifyError('Failed to start verification. Please try again.');
+    } finally {
+      setVerifying(false);
+    }
   };
 
   // Format date for display
@@ -471,11 +473,16 @@ export default function Profile() {
             Once verified, your blockchain identity will be recognized across the ClinicTrust network,
             enabling you to participate in secure data sharing and token transactions.
           </DialogContentText>
+          {verifyError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {verifyError}
+            </Alert>
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleVerifyDialogClose}>Cancel</Button>
-          <Button variant="contained" onClick={handleVerifyDialogClose}>
-            Start Verification
+          <Button onClick={handleVerifyDialogClose} disabled={verifying}>Cancel</Button>
+          <Button variant="contained" onClick={handleStartVerification} disabled={verifying}>
+            {verifying ? 'Verifying…' : 'Start Verification'}
           </Button>
         </DialogActions>
       </Dialog>
