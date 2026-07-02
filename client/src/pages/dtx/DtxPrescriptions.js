@@ -4,13 +4,27 @@ import {
   TableContainer, TableHead, TableRow, TablePagination, Alert, Button,
   Chip, Tabs, Tab, CircularProgress, Dialog, DialogTitle, DialogContent,
   DialogActions, TextField, Slider, FormControl, InputLabel, Select,
-  MenuItem, Grid, Divider,
+  MenuItem, Grid, Divider, Avatar, IconButton, InputAdornment,
 } from '@mui/material';
 import LocalPharmacyIcon from '@mui/icons-material/LocalPharmacy';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import CloseIcon from '@mui/icons-material/Close';
+import NotesIcon from '@mui/icons-material/Notes';
 import { getMyPrescriptions, updatePrescriptionStatus } from '../../services/dtxService';
+import EllipsisCell from '../../components/common/EllipsisCell';
+import EllipsisHeaderCell from '../../components/common/EllipsisHeaderCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+} from '../../components/common/adminTableStyles';
+
+// Percentages sum to 100% — with tableLayout: 'fixed' this guarantees the
+// table always fits the container's width on any screen size.
+const COLUMN_WIDTHS = {
+  patient: '16%', program: '18%', category: '12%', status: '10%',
+  prescribed: '12%', engagement: '10%', tokens: '10%', actions: '12%',
+};
 
 const STATUS_TABS = [
   { value: 'all', label: 'All' },
@@ -92,7 +106,15 @@ function UpdateStatusDialog({ prescription, open, onClose, onDone }) {
 
   return (
     <Dialog open={open} onClose={() => !saving && onClose()} maxWidth="sm" fullWidth>
-      <DialogTitle>Update Prescription Status</DialogTitle>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main' }}>
+          <LocalPharmacyIcon fontSize="small" />
+        </Avatar>
+        <Typography variant="h6" component="span" sx={{ flexGrow: 1 }}>Update Prescription Status</Typography>
+        <IconButton onClick={onClose} disabled={saving} size="small" aria-label="close">
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </DialogTitle>
       <DialogContent dividers>
         <Box mb={2}>
           <Typography variant="body2" color="text.secondary">
@@ -144,6 +166,13 @@ function UpdateStatusDialog({ prescription, open, onClose, onDone }) {
           value={outcomeNotes}
           onChange={(e) => setOutcomeNotes(e.target.value)}
           disabled={saving}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1 }}>
+                <NotesIcon fontSize="small" color="action" />
+              </InputAdornment>
+            ),
+          }}
         />
 
         {isCompleting && (
@@ -245,18 +274,18 @@ export default function DtxPrescriptions() {
       </Box>
 
       {/* Table */}
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
+      <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+        <Table size="small" sx={tableSx}>
           <TableHead>
-            <TableRow sx={{ bgcolor: 'action.hover' }}>
-              <TableCell><Typography variant="caption" fontWeight={700}>Patient</Typography></TableCell>
-              <TableCell><Typography variant="caption" fontWeight={700}>Program</Typography></TableCell>
-              <TableCell><Typography variant="caption" fontWeight={700}>Category</Typography></TableCell>
-              <TableCell><Typography variant="caption" fontWeight={700}>Status</Typography></TableCell>
-              <TableCell><Typography variant="caption" fontWeight={700}>Prescribed</Typography></TableCell>
-              <TableCell><Typography variant="caption" fontWeight={700}>Engagement</Typography></TableCell>
-              <TableCell><Typography variant="caption" fontWeight={700}>Tokens</Typography></TableCell>
-              <TableCell><Typography variant="caption" fontWeight={700}>Actions</Typography></TableCell>
+            <TableRow sx={tableHeadRowSx}>
+              <EllipsisHeaderCell label="Patient" sx={{ width: COLUMN_WIDTHS.patient }} />
+              <EllipsisHeaderCell label="Program" sx={{ width: COLUMN_WIDTHS.program }} />
+              <EllipsisHeaderCell label="Category" sx={{ width: COLUMN_WIDTHS.category }} />
+              <EllipsisHeaderCell label="Status" sx={{ width: COLUMN_WIDTHS.status }} />
+              <EllipsisHeaderCell label="Prescribed" sx={{ width: COLUMN_WIDTHS.prescribed }} />
+              <EllipsisHeaderCell label="Engagement" sx={{ width: COLUMN_WIDTHS.engagement }} />
+              <EllipsisHeaderCell label="Tokens" sx={{ width: COLUMN_WIDTHS.tokens }} />
+              <EllipsisHeaderCell label="Actions" sx={{ width: COLUMN_WIDTHS.actions }} />
             </TableRow>
           </TableHead>
           <TableBody>
@@ -277,45 +306,49 @@ export default function DtxPrescriptions() {
               prescriptions.map((rx) => {
                 const canUpdate = STATUS_TRANSITIONS[rx.status]?.length > 0;
                 return (
-                  <TableRow key={rx._id} hover>
-                    <TableCell>
-                      <Typography variant="body2" fontWeight={600}>{rx.patientName}</Typography>
-                      {rx.patientId && <Typography variant="caption" color="text.secondary">{rx.patientId}</Typography>}
+                  <TableRow key={rx._id} hover sx={tableBodyRowSx}>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.patient }}>
+                      <EllipsisCell value={rx.patientName} variant="body2" sx={{ fontWeight: 600 }} />
+                      {rx.patientId && <EllipsisCell value={rx.patientId} variant="caption" sx={{ color: 'text.secondary' }} />}
                     </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">{rx.programName}</Typography>
-                      <Typography variant="caption" color="text.secondary">{rx.programVendor}</Typography>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.program }}>
+                      <EllipsisCell value={rx.programName} />
+                      <EllipsisCell value={rx.programVendor} variant="caption" sx={{ color: 'text.secondary' }} />
                     </TableCell>
-                    <TableCell>
-                      <Typography variant="caption" color="text.secondary">
-                        {CATEGORY_LABELS[rx.programCategory] || rx.programCategory || '—'}
-                      </Typography>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.category }}>
+                      <EllipsisCell
+                        value={CATEGORY_LABELS[rx.programCategory] || rx.programCategory}
+                        variant="caption"
+                        sx={{ color: 'text.secondary' }}
+                      />
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.status }}>
                       <Chip
                         label={rx.status.charAt(0).toUpperCase() + rx.status.slice(1)}
                         color={STATUS_COLORS[rx.status] || 'default'}
                         size="small"
+                        sx={compactChipSx}
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.prescribed }}>
                       <Typography variant="body2">{formatDate(rx.prescribedAt)}</Typography>
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.engagement }}>
                       {rx.engagementScore != null ? (
                         <Chip
                           label={`${rx.engagementScore}%`}
                           size="small"
                           color={rx.engagementScore >= 70 ? 'success' : rx.engagementScore >= 40 ? 'warning' : 'error'}
+                          sx={compactChipSx}
                         />
                       ) : '—'}
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.tokens }}>
                       {rx.tokenRewardIssued ? (
-                        <Chip label={`+${rx.tokenRewardAmount}`} size="small" color="warning" icon={<EmojiEventsIcon sx={{ fontSize: '0.85rem !important' }} />} />
+                        <Chip label={`+${rx.tokenRewardAmount}`} size="small" color="warning" icon={<EmojiEventsIcon sx={{ fontSize: '0.85rem !important' }} />} sx={compactChipSx} />
                       ) : '—'}
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.actions }}>
                       {canUpdate && (
                         <Button size="small" variant="outlined" onClick={() => setUpdateTarget(rx)}>
                           Update

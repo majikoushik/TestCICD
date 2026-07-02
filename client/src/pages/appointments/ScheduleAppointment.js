@@ -16,12 +16,18 @@ import {
   FormHelperText,
   Divider,
   Chip,
+  InputAdornment,
 } from '@mui/material';
 import {
   Person as PersonIcon,
   Phone as PhoneIcon,
   Email as EmailIcon,
   Badge as BadgeIcon,
+  MedicalServices as ProviderIcon,
+  EventNote as AppointmentTypeIcon,
+  LocationOn as LocationIcon,
+  Schedule as DurationIcon,
+  Notes as NotesIcon,
 } from '@mui/icons-material';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -222,6 +228,8 @@ export default function ScheduleAppointment() {
 
             {/* Patient Search */}
             <Grid item xs={12}>
+              <Typography variant="overline" color="text.secondary">Patient</Typography>
+              <Divider sx={{ mb: 1.5 }} />
               <PatientSearchAutocomplete
                 required
                 value={patient}
@@ -279,6 +287,12 @@ export default function ScheduleAppointment() {
               </Grid>
             )}
 
+            {/* Appointment Details */}
+            <Grid item xs={12} sx={{ mt: 1 }}>
+              <Typography variant="overline" color="text.secondary">Appointment Details</Typography>
+              <Divider sx={{ mb: 1.5 }} />
+            </Grid>
+
             {/* Provider */}
             <Grid item xs={12} md={6}>
               <FormControl fullWidth error={!!formErrors.providerId}>
@@ -289,6 +303,11 @@ export default function ScheduleAppointment() {
                   value={formData.providerId}
                   onChange={handleInputChange}
                   label="Provider"
+                  startAdornment={
+                    <InputAdornment position="start">
+                      <ProviderIcon fontSize="small" color="action" />
+                    </InputAdornment>
+                  }
                 >
                   {providers.map((provider) => (
                     <MenuItem key={provider.id} value={provider.id}>
@@ -310,6 +329,11 @@ export default function ScheduleAppointment() {
                   value={formData.appointmentType}
                   onChange={handleInputChange}
                   label="Appointment Type"
+                  startAdornment={
+                    <InputAdornment position="start">
+                      <AppointmentTypeIcon fontSize="small" color="action" />
+                    </InputAdornment>
+                  }
                 >
                   {appointmentTypes.map((type) => (
                     <MenuItem key={type.id} value={type.id}>
@@ -331,12 +355,39 @@ export default function ScheduleAppointment() {
                   value={formData.location}
                   onChange={handleInputChange}
                   label="Location"
+                  startAdornment={
+                    <InputAdornment position="start">
+                      <LocationIcon fontSize="small" color="action" />
+                    </InputAdornment>
+                  }
                 >
                   <MenuItem value="in-person">In-Person</MenuItem>
                   <MenuItem value="telehealth">Telehealth</MenuItem>
                 </Select>
                 {formErrors.location && <FormHelperText>{formErrors.location}</FormHelperText>}
               </FormControl>
+            </Grid>
+
+            {/* Duration */}
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Duration (minutes)"
+                name="duration"
+                type="number"
+                value={formData.duration}
+                onChange={handleInputChange}
+                inputProps={{ min: 15, step: 5 }}
+                error={!!formErrors.duration}
+                helperText={formErrors.duration}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <DurationIcon fontSize="small" color="action" />
+                    </InputAdornment>
+                  ),
+                }}
+              />
             </Grid>
 
             {/* Date & Time */}
@@ -360,21 +411,6 @@ export default function ScheduleAppointment() {
               </LocalizationProvider>
             </Grid>
 
-            {/* Duration */}
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Duration (minutes)"
-                name="duration"
-                type="number"
-                value={formData.duration}
-                onChange={handleInputChange}
-                inputProps={{ min: 15, step: 5 }}
-                error={!!formErrors.duration}
-                helperText={formErrors.duration}
-              />
-            </Grid>
-
             {/* Notes */}
             <Grid item xs={12}>
               <TextField
@@ -387,6 +423,13 @@ export default function ScheduleAppointment() {
                 onChange={handleInputChange}
                 error={!!formErrors.notes}
                 helperText={formErrors.notes}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1.5 }}>
+                      <NotesIcon fontSize="small" color="action" />
+                    </InputAdornment>
+                  ),
+                }}
               />
             </Grid>
 

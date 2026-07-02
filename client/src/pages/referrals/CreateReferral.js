@@ -24,12 +24,21 @@ import {
   Step,
   StepLabel,
   Alert,
-  CircularProgress
+  CircularProgress,
+  InputAdornment,
+  Divider
 } from '@mui/material';
 import {
   Save as SaveIcon,
   ArrowBack as ArrowBackIcon,
-  ArrowForward as ArrowForwardIcon
+  ArrowForward as ArrowForwardIcon,
+  Person as PersonIcon,
+  LocalHospital as LocalHospitalIcon,
+  MedicalServices as MedicalServicesIcon,
+  Description as DescriptionIcon,
+  EditNote as EditNoteIcon,
+  CalendarToday as CalendarTodayIcon,
+  AttachFile as AttachFileIcon
 } from '@mui/icons-material';
 
 const steps = ['Select Patient', 'Provider Information', 'Referral Details'];
@@ -269,7 +278,8 @@ export default function CreateReferral() {
             
             {referralData.patient && (
               <Paper variant="outlined" sx={{ p: 2 }}>
-                <Typography variant="subtitle1" gutterBottom>
+                <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <PersonIcon fontSize="small" color="action" />
                   Patient Information
                 </Typography>
                 <Grid container spacing={2}>
@@ -325,6 +335,13 @@ export default function CreateReferral() {
               value={referralSpecialty}
               onChange={(e) => setReferralSpecialty(e.target.value)}
               placeholder="e.g. Cardiology, Neurology, Orthopedics..."
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <MedicalServicesIcon fontSize="small" color="action" />
+                  </InputAdornment>
+                ),
+              }}
               sx={{ mb: 2 }}
             />
             <AIProviderSuggestions
@@ -386,7 +403,8 @@ export default function CreateReferral() {
             
             {referralData.receivingProvider && (
               <Paper variant="outlined" sx={{ p: 2 }}>
-                <Typography variant="subtitle1" gutterBottom>
+                <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <LocalHospitalIcon fontSize="small" color="action" />
                   Provider Information
                 </Typography>
                 <Grid container spacing={2}>
@@ -425,6 +443,10 @@ export default function CreateReferral() {
             <Typography variant="h6" gutterBottom>
               Referral Details
             </Typography>
+            <Typography variant="overline" color="text.secondary">
+              Referral Information
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
             <Grid container spacing={3}>
               <Grid item xs={12}>
                 <TextField
@@ -434,6 +456,13 @@ export default function CreateReferral() {
                   name="reason"
                   value={referralData.reason}
                   onChange={handleInputChange}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <DescriptionIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -465,6 +494,13 @@ export default function CreateReferral() {
                     shrink: true,
                   }}
                   inputProps={{ min: new Date().toISOString().split('T')[0] }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <CalendarTodayIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -477,10 +513,22 @@ export default function CreateReferral() {
                   value={referralData.notes}
                   onChange={handleInputChange}
                   placeholder="Include any additional information relevant to this referral..."
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1.5 }}>
+                        <EditNoteIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12}>
-                <Typography variant="subtitle1" gutterBottom>
+                <Typography variant="overline" color="text.secondary">
+                  Supporting Documents
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+                <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <AttachFileIcon fontSize="small" color="action" />
                   Attach Patient Records
                 </Typography>
                 <Autocomplete
@@ -578,6 +626,7 @@ export default function CreateReferral() {
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
             <Button
               variant="outlined"
+              startIcon={<ArrowBackIcon />}
               onClick={handleBack}
               disabled={activeStep === 0 || isSubmitting}
             >

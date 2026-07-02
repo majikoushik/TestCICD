@@ -57,6 +57,11 @@ import {
   MonetizationOn as MonetizationOnIcon
 } from '@mui/icons-material';
 import { ModernLoadingIndicator } from '../../components/common';
+import EllipsisCell from '../../components/common/EllipsisCell';
+import EllipsisHeaderCell from '../../components/common/EllipsisHeaderCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+} from '../../components/common/adminTableStyles';
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -300,17 +305,17 @@ export default function Referrals() {
   const getStatusChip = (status) => {
     switch (status) {
       case 'pending':
-        return <Chip size="small" icon={<ScheduleIcon />} label="Pending" color="warning" />;
+        return <Chip size="small" icon={<ScheduleIcon />} label="Pending" color="warning" sx={compactChipSx} />;
       case 'accepted':
-        return <Chip size="small" icon={<CheckCircleIcon />} label="Accepted" color="info" />;
+        return <Chip size="small" icon={<CheckCircleIcon />} label="Accepted" color="info" sx={compactChipSx} />;
       case 'completed':
-        return <Chip size="small" icon={<DoneIcon />} label="Completed" color="success" />;
+        return <Chip size="small" icon={<DoneIcon />} label="Completed" color="success" sx={compactChipSx} />;
       case 'rejected':
-        return <Chip size="small" icon={<CancelIcon />} label="Rejected" color="error" />;
+        return <Chip size="small" icon={<CancelIcon />} label="Rejected" color="error" sx={compactChipSx} />;
       case 'cancelled':
-        return <Chip size="small" icon={<CancelIcon />} label="Cancelled" color="default" />;
+        return <Chip size="small" icon={<CancelIcon />} label="Cancelled" color="default" sx={compactChipSx} />;
       default:
-        return <Chip size="small" label={status} />;
+        return <Chip size="small" label={status} sx={compactChipSx} />;
     }
   };
 
@@ -318,13 +323,13 @@ export default function Referrals() {
   const getUrgencyChip = (urgency) => {
     switch (urgency) {
       case 'routine':
-        return <Chip size="small" label="Routine" color="default" variant="outlined" />;
+        return <Chip size="small" label="Routine" color="default" variant="outlined" sx={compactChipSx} />;
       case 'urgent':
-        return <Chip size="small" label="Urgent" color="warning" variant="outlined" />;
+        return <Chip size="small" label="Urgent" color="warning" variant="outlined" sx={compactChipSx} />;
       case 'emergency':
-        return <Chip size="small" label="Emergency" color="error" variant="outlined" />;
+        return <Chip size="small" label="Emergency" color="error" variant="outlined" sx={compactChipSx} />;
       default:
-        return <Chip size="small" label={urgency} variant="outlined" />;
+        return <Chip size="small" label={urgency} variant="outlined" sx={compactChipSx} />;
     }
   };
 
@@ -912,20 +917,28 @@ function ReferralsTable({
   getUrgencyChip,
   formatDate
 }) {
+  // Percentages sum to 100% — with tableLayout: 'fixed' this guarantees the
+  // table always fits the container's width on any screen size, no horizontal
+  // scrollbar and no column ever silently clipped off-screen.
+  const COLUMN_WIDTHS = {
+    patient: '18%', reason: '18%', from: '15%', to: '15%',
+    status: '11%', urgency: '11%', appointment: '12%', actions: '48px',
+  };
+
   return (
     <>
-      <TableContainer>
-        <Table sx={{ minWidth: 650 }}>
+      <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+        <Table size="small" sx={tableSx}>
           <TableHead>
-            <TableRow>
-              <TableCell>Patient</TableCell>
-              <TableCell>Reason</TableCell>
-              <TableCell>From</TableCell>
-              <TableCell>To</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Urgency</TableCell>
-              <TableCell>Appointment</TableCell>
-              <TableCell align="right">Actions</TableCell>
+            <TableRow sx={tableHeadRowSx}>
+              <EllipsisHeaderCell label="Patient" sx={{ width: COLUMN_WIDTHS.patient }} />
+              <EllipsisHeaderCell label="Reason" sx={{ width: COLUMN_WIDTHS.reason }} />
+              <EllipsisHeaderCell label="From" sx={{ width: COLUMN_WIDTHS.from }} />
+              <EllipsisHeaderCell label="To" sx={{ width: COLUMN_WIDTHS.to }} />
+              <EllipsisHeaderCell label="Status" sx={{ width: COLUMN_WIDTHS.status }} />
+              <EllipsisHeaderCell label="Urgency" sx={{ width: COLUMN_WIDTHS.urgency }} />
+              <EllipsisHeaderCell label="Appointment" sx={{ width: COLUMN_WIDTHS.appointment }} />
+              <EllipsisHeaderCell label="Actions" sx={{ width: COLUMN_WIDTHS.actions }} align="right" />
             </TableRow>
           </TableHead>
           <TableBody>
@@ -942,35 +955,33 @@ function ReferralsTable({
                   key={referralId}
                   hover
                   onClick={() => handleReferralClick(referralId)}
-                  sx={{ cursor: 'pointer' }}
+                  sx={{ ...tableBodyRowSx, cursor: 'pointer' }}
                 >
-                  <TableCell>
+                  <TableCell sx={{ width: COLUMN_WIDTHS.patient }}>
                     <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                        {patientName}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <EllipsisCell value={patientName} sx={{ fontWeight: 'medium' }} />
+                      <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
                         {patient.patientId}
                       </Typography>
                     </Box>
                   </TableCell>
-                  <TableCell>{referral.reason}</TableCell>
-                  <TableCell>
-                    <Typography variant="body2">{referringName}</Typography>
-                    <Typography variant="caption" color="text.secondary">
+                  <TableCell sx={{ width: COLUMN_WIDTHS.reason }}><EllipsisCell value={referral.reason} /></TableCell>
+                  <TableCell sx={{ width: COLUMN_WIDTHS.from }}>
+                    <EllipsisCell value={referringName} />
+                    <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
                       {refProvider.specialty}
                     </Typography>
                   </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">{receivingName}</Typography>
-                    <Typography variant="caption" color="text.secondary">
+                  <TableCell sx={{ width: COLUMN_WIDTHS.to }}>
+                    <EllipsisCell value={receivingName} />
+                    <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
                       {recProvider.specialty}
                     </Typography>
                   </TableCell>
-                  <TableCell>{getStatusChip(referral.status)}</TableCell>
-                  <TableCell>{getUrgencyChip(referral.urgency)}</TableCell>
-                  <TableCell>{formatDate(referral.appointmentDate)}</TableCell>
-                  <TableCell align="right">
+                  <TableCell sx={{ width: COLUMN_WIDTHS.status }}>{getStatusChip(referral.status)}</TableCell>
+                  <TableCell sx={{ width: COLUMN_WIDTHS.urgency }}>{getUrgencyChip(referral.urgency)}</TableCell>
+                  <TableCell sx={{ width: COLUMN_WIDTHS.appointment }}>{formatDate(referral.appointmentDate)}</TableCell>
+                  <TableCell align="right" sx={{ width: COLUMN_WIDTHS.actions }}>
                     <IconButton
                       size="small"
                       onClick={(e) => handleMenuOpen(e, referralId)}
@@ -990,7 +1001,7 @@ function ReferralsTable({
           </TableBody>
         </Table>
       </TableContainer>
-      
+
       <TablePagination
         rowsPerPageOptions={[5, 10, 25]}
         component="div"

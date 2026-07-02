@@ -17,6 +17,9 @@ import {
   Code as CodeIcon,
 } from '@mui/icons-material';
 import fhirService from '../../services/fhirService';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+} from '../../components/common/adminTableStyles';
 
 const COMPLIANCE_ITEMS = [
   { label: 'HL7 FHIR R4 (4.0.1) baseline',        status: true },
@@ -204,24 +207,25 @@ export default function AdminFHIR() {
                 <CircularProgress />
               </Box>
             ) : (
-              <TableContainer>
-                <Table size="small">
+              <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+                <Table size="small" sx={tableSx}>
                   <TableHead>
-                    <TableRow sx={{ bgcolor: 'grey.50' }}>
-                      <TableCell><strong>Resource Type</strong></TableCell>
-                      <TableCell><strong>Interactions</strong></TableCell>
-                      <TableCell><strong>Search Params</strong></TableCell>
-                      <TableCell><strong>US Core Profile</strong></TableCell>
+                    <TableRow sx={tableHeadRowSx}>
+                      <TableCell sx={{ width: '18%' }}>Resource Type</TableCell>
+                      <TableCell sx={{ width: '27%' }}>Interactions</TableCell>
+                      <TableCell sx={{ width: '37%' }}>Search Params</TableCell>
+                      <TableCell sx={{ width: '18%' }}>US Core Profile</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {resources.length > 0 ? resources.map((r) => (
-                      <TableRow key={r.type} hover>
-                        <TableCell>
+                      <TableRow key={r.type} hover sx={tableBodyRowSx}>
+                        <TableCell sx={{ width: '18%' }}>
                           <Chip
                             label={r.type}
                             size="small"
                             sx={{
+                              ...compactChipSx,
                               bgcolor: RESOURCE_COLORS[r.type] || '#455a64',
                               color: 'white',
                               fontWeight: 'bold',
@@ -229,25 +233,25 @@ export default function AdminFHIR() {
                             }}
                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ width: '27%' }}>
                           <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                             {(r.interaction || []).map((i) => (
-                              <Chip key={i.code} label={i.code} size="small" variant="outlined" sx={{ fontSize: '0.65rem', height: 20 }} />
+                              <Chip key={i.code} label={i.code} size="small" variant="outlined" sx={{ ...compactChipSx, fontSize: '0.65rem', height: 20 }} />
                             ))}
                           </Box>
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ width: '37%' }}>
                           <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                             {(r.searchParam || []).map((sp) => (
-                              <Chip key={sp.name} label={sp.name} size="small" color="default" variant="outlined" sx={{ fontSize: '0.65rem', height: 20, fontFamily: 'monospace' }} />
+                              <Chip key={sp.name} label={sp.name} size="small" color="default" variant="outlined" sx={{ ...compactChipSx, fontSize: '0.65rem', height: 20, fontFamily: 'monospace' }} />
                             ))}
                           </Box>
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ width: '18%' }}>
                           {r.profile ? (
-                            <Chip label="Yes" color="success" size="small" sx={{ fontSize: '0.65rem', height: 20 }} />
+                            <Chip label="Yes" color="success" size="small" sx={{ ...compactChipSx, fontSize: '0.65rem', height: 20 }} />
                           ) : (
-                            <Chip label="No" variant="outlined" size="small" sx={{ fontSize: '0.65rem', height: 20 }} />
+                            <Chip label="No" variant="outlined" size="small" sx={{ ...compactChipSx, fontSize: '0.65rem', height: 20 }} />
                           )}
                         </TableCell>
                       </TableRow>
@@ -262,12 +266,13 @@ export default function AdminFHIR() {
                         { type: 'Coverage', interactions: ['search-type'], profile: false, params: ['patient'] },
                         { type: 'ServiceRequest', interactions: ['search-type'], profile: false, params: ['patient'] },
                       ].map((r) => (
-                        <TableRow key={r.type} hover>
-                          <TableCell>
+                        <TableRow key={r.type} hover sx={tableBodyRowSx}>
+                          <TableCell sx={{ width: '18%' }}>
                             <Chip
                               label={r.type}
                               size="small"
                               sx={{
+                                ...compactChipSx,
                                 bgcolor: RESOURCE_COLORS[r.type] || '#455a64',
                                 color: 'white',
                                 fontWeight: 'bold',
@@ -275,22 +280,22 @@ export default function AdminFHIR() {
                               }}
                             />
                           </TableCell>
-                          <TableCell>
+                          <TableCell sx={{ width: '27%' }}>
                             <Box sx={{ display: 'flex', gap: 0.5 }}>
                               {r.interactions.map((i) => (
-                                <Chip key={i} label={i} size="small" variant="outlined" sx={{ fontSize: '0.65rem', height: 20 }} />
+                                <Chip key={i} label={i} size="small" variant="outlined" sx={{ ...compactChipSx, fontSize: '0.65rem', height: 20 }} />
                               ))}
                             </Box>
                           </TableCell>
-                          <TableCell>
+                          <TableCell sx={{ width: '37%' }}>
                             <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                               {r.params.map((p) => (
-                                <Chip key={p} label={p} size="small" variant="outlined" sx={{ fontSize: '0.65rem', height: 20, fontFamily: 'monospace' }} />
+                                <Chip key={p} label={p} size="small" variant="outlined" sx={{ ...compactChipSx, fontSize: '0.65rem', height: 20, fontFamily: 'monospace' }} />
                               ))}
                             </Box>
                           </TableCell>
-                          <TableCell>
-                            <Chip label={r.profile ? 'Yes' : 'No'} color={r.profile ? 'success' : 'default'} size="small" sx={{ fontSize: '0.65rem', height: 20 }} />
+                          <TableCell sx={{ width: '18%' }}>
+                            <Chip label={r.profile ? 'Yes' : 'No'} color={r.profile ? 'success' : 'default'} size="small" sx={{ ...compactChipSx, fontSize: '0.65rem', height: 20 }} />
                           </TableCell>
                         </TableRow>
                       ))

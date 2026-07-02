@@ -8,13 +8,19 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  TextField
+  TextField,
+  InputAdornment,
+  Avatar,
+  IconButton,
+  Typography
 } from '@mui/material';
 import {
   KeyboardArrowDown as KeyboardArrowDownIcon,
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
-  Done as DoneIcon
+  Done as DoneIcon,
+  Close as CloseIcon,
+  Notes as NotesIcon
 } from '@mui/icons-material';
 
 export default function ReferralStatusUpdate({ currentStatus, onStatusUpdate }) {
@@ -74,6 +80,22 @@ export default function ReferralStatusUpdate({ currentStatus, onStatusUpdate }) 
 
   const availableTransitions = getAvailableStatusTransitions();
 
+  // Map the selected status to a header avatar color/icon for the confirm dialog
+  const getStatusDialogAvatar = () => {
+    switch (selectedStatus) {
+      case 'accepted':
+        return { color: 'info.main', icon: <CheckCircleIcon fontSize="small" /> };
+      case 'completed':
+        return { color: 'success.main', icon: <DoneIcon fontSize="small" /> };
+      case 'rejected':
+      case 'cancelled':
+        return { color: 'error.main', icon: <CancelIcon fontSize="small" /> };
+      default:
+        return { color: 'primary.main', icon: <CheckCircleIcon fontSize="small" /> };
+    }
+  };
+  const statusDialogAvatar = getStatusDialogAvatar();
+
   // If no transitions available, disable the button
   if (availableTransitions.length === 0) {
     return (
@@ -113,13 +135,21 @@ export default function ReferralStatusUpdate({ currentStatus, onStatusUpdate }) 
       </Menu>
 
       <Dialog open={dialogOpen} onClose={handleDialogClose}>
-        <DialogTitle>
-          {selectedStatus === 'accepted' && 'Accept Referral'}
-          {selectedStatus === 'rejected' && 'Reject Referral'}
-          {selectedStatus === 'completed' && 'Complete Referral'}
-          {selectedStatus === 'cancelled' && 'Cancel Referral'}
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Avatar sx={{ width: 40, height: 40, bgcolor: statusDialogAvatar.color }}>
+            {statusDialogAvatar.icon}
+          </Avatar>
+          <Typography variant="h6" component="span" sx={{ flexGrow: 1 }}>
+            {selectedStatus === 'accepted' && 'Accept Referral'}
+            {selectedStatus === 'rejected' && 'Reject Referral'}
+            {selectedStatus === 'completed' && 'Complete Referral'}
+            {selectedStatus === 'cancelled' && 'Cancel Referral'}
+          </Typography>
+          <IconButton aria-label="close" onClick={handleDialogClose} size="small">
+            <CloseIcon fontSize="small" />
+          </IconButton>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent dividers>
           <DialogContentText>
             {selectedStatus === 'accepted' && 'Are you sure you want to accept this referral?'}
             {selectedStatus === 'rejected' && 'Are you sure you want to reject this referral?'}
@@ -137,13 +167,21 @@ export default function ReferralStatusUpdate({ currentStatus, onStatusUpdate }) 
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             sx={{ mt: 2 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1.5 }}>
+                  <NotesIcon fontSize="small" color="action" />
+                </InputAdornment>
+              ),
+            }}
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDialogClose}>Cancel</Button>
-          <Button 
-            onClick={handleStatusConfirm} 
+          <Button
+            onClick={handleStatusConfirm}
             variant="contained"
+            startIcon={statusDialogAvatar.icon}
             color={
               selectedStatus === 'accepted' ? 'primary' :
               selectedStatus === 'completed' ? 'success' :

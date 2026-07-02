@@ -3,9 +3,11 @@ const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
 const AdminSetting = require('../models/Admin');
 const User = require('../models/User');
+const ProviderProfile = require('../models/ProviderProfile');
 const AuditLog = require('../models/AuditLog');
 const LoginHistory = require('../models/LoginHistory');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const logger = require('../utils/logger');
 
 /**
@@ -207,17 +209,25 @@ router.post('/users', protect, authorize('admin', 'superadmin'), async (req, res
     
     // Generate a random password if not provided
     const userPassword = password || Math.random().toString(36).slice(-8);
-    
+
     // Hash the password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(userPassword, salt);
-    
-    // Create the new user
+
+    // Create the new user — _id, firstName, lastName, and organization are all
+    // required by the User schema but aren't collected by the Add New User
+    // dialog, so derive/default them the same way self-registration does
+    // (see POST /api/auth/register).
+    const nameParts = name.trim().split(/\s+/);
     const newUser = new User({
+      _id: `user-${crypto.randomBytes(12).toString('hex')}`,
       name,
+      firstName: nameParts[0],
+      lastName: nameParts.slice(1).join(' ') || nameParts[0],
+      organization: 'Not specified',
       email,
       password: hashedPassword,
-      role: role || 'user',
+      role,
       isActive: isActive !== undefined ? isActive : true,
       requirePasswordChange: true
     });
@@ -294,21 +304,30 @@ router.get('/users/:id', protect, authorize('admin', 'superadmin'), async (req, 
  */
 router.put('/users/:id', protect, authorize('admin'), async (req, res) => {
   try {
-    const { role, isActive } = req.body;
+    const { role, isActive, email } = req.body;
     const User = require('../models/User');
-    
+
     const user = await User.findById(req.params.id);
-    
+
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
-    
+
+    if (email && email.toLowerCase().trim() !== user.email) {
+      const normalizedEmail = email.toLowerCase().trim();
+      const existing = await User.findOne({ email: normalizedEmail });
+      if (existing && String(existing._id) !== String(user._id)) {
+        return res.status(400).json({ success: false, error: 'A user with this email already exists' });
+      }
+      user.email = normalizedEmail;
+    }
+
     // Update fields
     if (role) user.role = role;
     if (isActive !== undefined) user.isActive = isActive;
-    
+
     await user.save();
-    
+
     res.json({ success: true, data: user });
   } catch (error) {
     logger.error(`Error updating user ${req.params.id}`, logger.reqCtx(req, error));
@@ -491,11 +510,20 @@ router.get('/providers', protect, authorize('admin', 'superadmin'), async (req, 
       onboardingStatus: 'verified',
     }).select('-password').sort({ createdAt: -1 });
 
+    // Gender is captured on ProviderProfile during onboarding, not on User —
+    // look it up in one query and merge it in for the grid/detail view.
+    const profiles = await ProviderProfile.find(
+      { userId: { $in: providers.map(p => String(p._id)) } },
+      'userId gender'
+    ).lean();
+    const genderByUserId = new Map(profiles.map(p => [p.userId, p.gender]));
+
     // Normalize fields that may be absent on seeded/legacy documents
     const data = providers.map(p => {
       const obj = p.toObject();
       if (!obj.accountStatus) obj.accountStatus = 'pending';
       if (!obj.onboardingStatus) obj.onboardingStatus = 'pending_email';
+      obj.gender = genderByUserId.get(String(p._id)) || '';
       return obj;
     });
 
@@ -758,29 +786,44 @@ router.put('/users/:id/role', protect, authorize('admin', 'superadmin'), async (
  */
 router.put('/users/:id/reset-password', protect, authorize('admin', 'superadmin'), async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('+password');
-    
+    const user = await User.findById(req.params.id);
+
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
-    
-    // Generate a random password
-    const tempPassword = Math.random().toString(36).slice(-8);
-    
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(tempPassword, salt);
-    
-    // Reset login attempts and unlock account
+
+    // Reset login attempts and unlock account — an admin-initiated reset
+    // shouldn't leave the account locked while the user waits on the email.
     user.loginAttempts = 0;
     user.lockedUntil = null;
-    
     await user.save();
-    
-    res.json({ 
-      success: true, 
-      message: 'Password reset successfully', 
-      tempPassword: tempPassword // In production, this would be sent via email
+
+    // Send the same reset-link email as the self-service "Forgot Password"
+    // flow, rather than generating a password here — the user sets their own
+    // new password by following the link, then signs in normally.
+    const jwt = require('jsonwebtoken');
+    const { sendEmail, passwordResetEmailHtml, passwordResetEmailText } = require('../services/emailService');
+    const resetToken = jwt.sign({ id: user._id }, process.env.JWT_RESET_SECRET, { expiresIn: '1h' });
+    const name = user.firstName || user.name || 'there';
+    let emailSent = true;
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: `Reset your ${process.env.BRAND_NAME || 'ClinicTrust AI'} password`,
+        html: passwordResetEmailHtml(name, resetToken),
+        text: passwordResetEmailText(name, resetToken),
+        category: 'password-reset',
+      });
+    } catch (emailErr) {
+      emailSent = false;
+      logger.error('Admin-initiated password reset email failed', logger.reqCtx(req, emailErr));
+    }
+
+    res.json({
+      success: true,
+      message: emailSent
+        ? `Password reset email sent to ${user.email}`
+        : `Account unlocked, but the reset email could not be delivered to ${user.email} — check server logs.`,
     });
   } catch (error) {
     logger.error('Error resetting password', logger.reqCtx(req, error));

@@ -16,6 +16,16 @@ import {
 } from '@mui/icons-material';
 import messagingService from '../../../services/messagingService';
 import { formatRelativeTime } from '../../../utils/dateFormatter';
+import EllipsisCell from '../../../components/common/EllipsisCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+} from '../../../components/common/adminTableStyles';
+
+// Percentages sum to 100% (excluding the fixed-width expand-toggle column).
+const COLUMN_WIDTHS = {
+  toggle: '48px', patient: '28%', participants: '27%',
+  messages: '10%', lastActivity: '17%', status: '18%',
+};
 
 const AVATAR_COLORS = ['#1976d2', '#388e3c', '#7b1fa2', '#f57c00', '#0288d1'];
 const avatarColor = (name = '') => AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
@@ -42,32 +52,33 @@ function ThreadRow({ thread }) {
 
   return (
     <>
-      <TableRow hover sx={{ cursor: 'pointer' }} onClick={toggle}>
-        <TableCell>
+      <TableRow hover sx={{ ...tableBodyRowSx, cursor: 'pointer' }} onClick={toggle}>
+        <TableCell sx={{ width: COLUMN_WIDTHS.toggle }}>
           <IconButton size="small">{open ? <CollapseIcon /> : <ExpandIcon />}</IconButton>
         </TableCell>
-        <TableCell>
-          <Typography variant="body2" fontWeight={500}>{referral.patientName || referral.patient?.name || '—'}</Typography>
-          <Typography variant="caption" color="text.secondary" noWrap>{referral.reason || 'Referral'}</Typography>
+        <TableCell sx={{ width: COLUMN_WIDTHS.patient }}>
+          <Typography variant="body2" fontWeight={500} noWrap>{referral.patientName || referral.patient?.name || '—'}</Typography>
+          <EllipsisCell value={referral.reason || 'Referral'} variant="caption" sx={{ color: 'text.secondary' }} />
         </TableCell>
-        <TableCell>
+        <TableCell sx={{ width: COLUMN_WIDTHS.participants, whiteSpace: 'normal' }}>
           <Box display="flex" flexWrap="wrap" gap={0.5}>
             {participants.map((p) => (
-              <Chip key={p} label={p} size="small" avatar={<Avatar sx={{ bgcolor: avatarColor(p) }}>{initials(p)}</Avatar>} />
+              <Chip key={p} label={p} size="small" avatar={<Avatar sx={{ bgcolor: avatarColor(p) }}>{initials(p)}</Avatar>} sx={compactChipSx} />
             ))}
           </Box>
         </TableCell>
-        <TableCell align="center">
-          <Chip label={totalMessages} size="small" color="primary" variant="outlined" />
+        <TableCell align="center" sx={{ width: COLUMN_WIDTHS.messages }}>
+          <Chip label={totalMessages} size="small" color="primary" variant="outlined" sx={compactChipSx} />
         </TableCell>
-        <TableCell>
+        <TableCell sx={{ width: COLUMN_WIDTHS.lastActivity }}>
           <Typography variant="caption" color="text.secondary">{formatRelativeTime(lm?.createdAt)}</Typography>
         </TableCell>
-        <TableCell>
+        <TableCell sx={{ width: COLUMN_WIDTHS.status }}>
           <Chip
             label={referral.status || 'active'}
             size="small"
             color={referral.status === 'completed' ? 'success' : referral.status === 'rejected' ? 'error' : 'info'}
+            sx={compactChipSx}
           />
         </TableCell>
       </TableRow>
@@ -191,16 +202,16 @@ const ProviderThreads = () => {
           <Typography color="text.secondary">No provider threads found.</Typography>
         </Box>
       ) : (
-        <TableContainer component={Paper} variant="outlined">
-          <Table size="small">
+        <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+          <Table size="small" sx={tableSx}>
             <TableHead>
-              <TableRow sx={{ bgcolor: 'grey.50' }}>
-                <TableCell width={40} />
-                <TableCell><strong>Patient / Referral</strong></TableCell>
-                <TableCell><strong>Participants</strong></TableCell>
-                <TableCell align="center"><strong>Messages</strong></TableCell>
-                <TableCell><strong>Last Activity</strong></TableCell>
-                <TableCell><strong>Status</strong></TableCell>
+              <TableRow sx={tableHeadRowSx}>
+                <TableCell sx={{ width: COLUMN_WIDTHS.toggle }} />
+                <TableCell sx={{ width: COLUMN_WIDTHS.patient }}>Patient / Referral</TableCell>
+                <TableCell sx={{ width: COLUMN_WIDTHS.participants }}>Participants</TableCell>
+                <TableCell align="center" sx={{ width: COLUMN_WIDTHS.messages }}>Messages</TableCell>
+                <TableCell sx={{ width: COLUMN_WIDTHS.lastActivity }}>Last Activity</TableCell>
+                <TableCell sx={{ width: COLUMN_WIDTHS.status }}>Status</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>

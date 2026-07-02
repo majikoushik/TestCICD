@@ -4,11 +4,12 @@ import { styled } from '@mui/material/styles';
 import {
   Box,
   Drawer,
-  AppBar,
-  Toolbar,
   Typography,
   Divider,
   IconButton,
+  InputBase,
+  Tooltip,
+  Fab,
   List,
   ListItem,
   ListItemButton,
@@ -23,6 +24,8 @@ import {
 } from '@mui/material';
 import {
   Menu as MenuIcon,
+  Close as CloseIcon,
+  Search as SearchIcon,
   Dashboard as DashboardIcon,
   People as PeopleIcon,
   SwapHoriz as ReferralsIcon,
@@ -30,7 +33,6 @@ import {
   Token as TokenIcon,
   Settings as SettingsIcon,
   Notifications as NotificationsIcon,
-  AccountCircle as AccountIcon,
   ChevronLeft as ChevronLeftIcon,
   AdminPanelSettings as AdminIcon,
   Storage as BlockchainIcon,
@@ -40,59 +42,100 @@ import {
   Storefront as StorefrontIcon,
   LocalPharmacy as RxIcon,
   Forum as ForumIcon,
+  Shield as ShieldIcon,
+  Person as PersonIcon,
 } from '@mui/icons-material';
 import { useAuth, useToken, useNotification } from '../contexts';
 import referralService from '../services/referralService';
 import { ThemeToggle } from '../components/common';
 import { useNavigate, Link as RouterLink, useLocation } from 'react-router-dom';
 
-const drawerWidth = 240;
+const DRAWER_WIDTH = 264;
+const DRAWER_WIDTH_COLLAPSED = 80;
 
-const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })(
-  ({ theme, open }) => ({
-    flexGrow: 1,
-    padding: theme.spacing(3),
-    transition: theme.transitions.create('margin', {
-      easing: theme.transitions.easing.sharp,
-      duration: theme.transitions.duration.leavingScreen,
-    }),
-    marginLeft: `-${drawerWidth}px`,
-    ...(open && {
-      transition: theme.transitions.create('margin', {
-        easing: theme.transitions.easing.easeOut,
-        duration: theme.transitions.duration.enteringScreen,
-      }),
-      marginLeft: 0,
-    }),
-  }),
-);
+// Same grouped-sidebar treatment as AdminLayout.js — labeled sections, search
+// filter, collapsible icon rail. Unlike the admin console, this portal has no
+// top AppBar at all now: theme toggle, notifications and the profile menu all
+// live in the drawer header/footer instead.
+const getNavGroups = (userRole, counts, tokenBalance) => {
+  const groups = [
+    {
+      label: 'Overview',
+      items: [
+        { text: 'Dashboard', icon: <DashboardIcon />, path: '/app/dashboard' },
+      ],
+    },
+    {
+      label: 'Patients & Referrals',
+      items: [
+        { text: 'Patients', icon: <PeopleIcon />, path: '/app/patients' },
+        { text: 'Referrals', icon: <ReferralsIcon />, path: '/app/referrals', badge: { content: counts.total, color: 'secondary' } },
+        { text: 'My Schedule', icon: <CalendarIcon />, path: '/app/schedule' },
+      ],
+    },
+    {
+      label: 'Clinical Tools',
+      items: [
+        { text: 'Prior Auth', icon: <AssignmentIcon />, path: '/app/prior-auth' },
+        { text: 'Ambient AI', icon: <MicIcon />, path: '/app/ambient' },
+      ],
+    },
+    {
+      label: 'Care Programs',
+      items: [
+        { text: 'DTx Marketplace', icon: <StorefrontIcon />, path: '/app/dtx/marketplace' },
+        { text: 'DTx Prescriptions', icon: <RxIcon />, path: '/app/dtx/prescriptions' },
+      ],
+    },
+    {
+      label: 'Communication',
+      items: [
+        { text: 'Secure Messaging', icon: <ForumIcon />, path: '/app/messaging' },
+      ],
+    },
+    {
+      label: 'Financial',
+      items: [
+        { text: 'Tokens', icon: <TokenIcon />, path: '/app/tokens', badge: { content: tokenBalance, color: 'secondary' } },
+        { text: 'Blockchain', icon: <BlockchainIcon />, path: '/app/blockchain/history' },
+      ],
+    },
+    {
+      label: 'Insights',
+      items: [
+        { text: 'Analytics', icon: <AnalyticsIcon />, path: '/app/analytics' },
+      ],
+    },
+    {
+      label: 'Settings',
+      items: [
+        { text: 'Settings', icon: <SettingsIcon />, path: '/app/settings' },
+      ],
+    },
+  ];
 
-const AppBarStyled = styled(AppBar, {
-  shouldForwardProp: (prop) => prop !== 'open',
-})(({ theme, open }) => ({
-  transition: theme.transitions.create(['margin', 'width'], {
-    easing: theme.transitions.easing.sharp,
-    duration: theme.transitions.duration.leavingScreen,
-  }),
-  ...(open && {
-    width: `calc(100% - ${drawerWidth}px)`,
-    marginLeft: `${drawerWidth}px`,
-    transition: theme.transitions.create(['margin', 'width'], {
-      easing: theme.transitions.easing.easeOut,
-      duration: theme.transitions.duration.enteringScreen,
-    }),
-  }),
+  if (userRole === 'admin') {
+    groups.push({
+      label: 'Administration',
+      items: [
+        { text: 'Admin Panel', icon: <AdminIcon color="error" />, path: '/app/admin' },
+      ],
+    });
+  }
+
+  return groups;
+};
+
+// The desktop drawer is variant="permanent", which keeps it in normal flex
+// flow (unlike "temporary", which renders position:fixed) — so Main already
+// sits right after it with no manual offset needed. There's no top AppBar to
+// compensate for either: all its former controls now live in the drawer, so
+// the page content gets the full viewport height.
+const Main = styled('main')(({ theme }) => ({
+  flexGrow: 1,
+  minWidth: 0,
+  padding: theme.spacing(3),
 }));
-
-const DrawerHeader = styled('div')(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  padding: theme.spacing(0, 1),
-  ...theme.mixins.toolbar,
-  justifyContent: 'flex-end',
-}));
-
-// Menu items will be defined inside the MainLayout component
 
 export default function MainLayout() {
   const { currentUser, logout } = useAuth();
@@ -102,8 +145,10 @@ export default function MainLayout() {
   const location = useLocation();
   const muiTheme = useTheme();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'));
-  
-  const [open, setOpen] = useState(!isMobile);
+
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [navFilter, setNavFilter] = useState('');
   const [anchorEl, setAnchorEl] = useState(null);
   const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
   const [referralCounts, setReferralCounts] = useState({
@@ -115,40 +160,26 @@ export default function MainLayout() {
     total: 0
   });
 
-  const handleDrawerOpen = () => {
-    setOpen(true);
+  const isRailMode = collapsed && !isMobile;
+  const sidebarWidth = isMobile ? 0 : (collapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH);
+
+  const handleMenuButtonClick = () => {
+    if (isMobile) {
+      setMobileOpen((v) => !v);
+    } else {
+      setCollapsed((v) => !v);
+    }
   };
 
-  const handleDrawerClose = () => {
-    setOpen(false);
-  };
-  
-  // Define menu items inside the component to access balance
-  const getMenuItems = (userRole, counts) => {
-    const items = [
-      { text: 'Dashboard', icon: <DashboardIcon />, path: '/app/dashboard' },
-      { text: 'Patients', icon: <PeopleIcon />, path: '/app/patients' },
-      { text: 'Referrals', icon: <ReferralsIcon />, path: '/app/referrals', badgeContent: counts.total, badgeColor: 'secondary' },
-      { text: 'Analytics', icon: <AnalyticsIcon />, path: '/app/analytics' },
-      { text: 'Tokens', icon: <TokenIcon />, path: '/app/tokens', badgeContent: balance, badgeColor: 'secondary' },
-      { text: 'Blockchain', icon: <BlockchainIcon />, path: '/app/blockchain/history' },
-      { text: 'Prior Auth', icon: <AssignmentIcon />, path: '/app/prior-auth' },
-      { text: 'Ambient AI', icon: <MicIcon />, path: '/app/ambient' },
-      { text: 'My Schedule', icon: <CalendarIcon />, path: '/app/schedule' },
-      { text: 'DTx Marketplace', icon: <StorefrontIcon />, path: '/app/dtx/marketplace' },
-      { text: 'DTx Prescriptions', icon: <RxIcon />, path: '/app/dtx/prescriptions' },
-      { text: 'Secure Messaging', icon: <ForumIcon />, path: '/app/messaging' },
-      { text: 'Settings', icon: <SettingsIcon />, path: '/app/settings' }
-    ];
-    
-    // Add admin link for users with admin role
-    if (userRole === 'admin') {
-      items.push({ text: 'Admin Panel', icon: <AdminIcon color="error" />, path: '/app/admin' });
-    }
-    
-    return items;
-  };
-  
+  const navGroups = getNavGroups(currentUser?.role, referralCounts, balance);
+  const filteredGroups = (() => {
+    const q = navFilter.trim().toLowerCase();
+    if (!q) return navGroups;
+    return navGroups
+      .map((group) => ({ ...group, items: group.items.filter((item) => item.text.toLowerCase().includes(q)) }))
+      .filter((group) => group.items.length > 0);
+  })();
+
   useEffect(() => {
     if (currentUser && !['admin','superadmin'].includes(currentUser.role) && currentUser.onboardingStatus !== 'verified') {
       navigate('/onboarding');
@@ -172,12 +203,12 @@ export default function MainLayout() {
         console.error('Error fetching referral counts:', error);
       }
     };
-    
+
     fetchReferralCounts();
-    
+
     // Refresh counts every 5 minutes
     const intervalId = setInterval(fetchReferralCounts, 5 * 60 * 1000);
-    
+
     return () => clearInterval(intervalId);
   }, []);
 
@@ -207,195 +238,273 @@ export default function MainLayout() {
     }
   };
 
-  return (
-    <Box sx={{ display: 'flex' }}>
-      <AppBarStyled position="fixed" open={open} color="default">
-        <Toolbar>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            onClick={handleDrawerOpen}
-            edge="start"
-            sx={{ mr: 2, ...(open && { display: 'none' }) }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            ClinicTrust AI
-          </Typography>
-          
-          {/* Theme Toggle */}
-          <ThemeToggle variant="icon" size="medium" />
-          
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <IconButton
-              size="large"
-              color="inherit"
-              component={RouterLink}
-              to="/app/tokens"
-            >
-              <Badge 
-                badgeContent={149} 
-                color="secondary"
-                overlap="circular"
-                max={999}
-                showZero={false}
-              >
-                <TokenIcon />
-              </Badge>
+  const isItemActive = (path) =>
+    location.pathname === path || (path !== '/app/dashboard' && location.pathname.startsWith(path));
+
+  const drawerContent = (
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* Brand header — in rail mode this becomes a single centered burger
+          button that re-expands the menu. */}
+      {isRailMode ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 2, minHeight: 64, flexShrink: 0 }}>
+          <Tooltip title="Expand menu" placement="right">
+            <IconButton onClick={() => setCollapsed(false)} sx={{ bgcolor: 'action.hover' }}>
+              <MenuIcon fontSize="small" />
             </IconButton>
-            <IconButton
-              size="large"
-              color="inherit"
-              onClick={handleNotificationsOpen}
-            >
-              <Badge badgeContent={4} color="error" showZero={false}>
-                <NotificationsIcon />
-              </Badge>
-            </IconButton>
+          </Tooltip>
+        </Box>
+      ) : (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2.5, py: 2, minHeight: 64, flexShrink: 0 }}>
+          <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36, flexShrink: 0 }}>
+            <ShieldIcon fontSize="small" />
+          </Avatar>
+          <Box sx={{ overflow: 'hidden', flex: 1 }}>
+            <Typography variant="subtitle1" fontWeight={700} noWrap lineHeight={1.2}>
+              ClinicTrust AI
+            </Typography>
+            <Typography variant="caption" color="text.secondary" noWrap>
+              Provider Portal
+            </Typography>
           </Box>
-          
-          <IconButton
-            size="large"
-            color="inherit"
-            onClick={handleProfileMenuOpen}
-          >
-            {currentUser && currentUser.firstName ? (
-              <Avatar
-                sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}
-                src={currentUser.profileImage || undefined}
+          {isMobile ? (
+            <Tooltip title="Close menu">
+              <IconButton size="small" onClick={() => setMobileOpen(false)}>
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          ) : (
+            <Tooltip title="Collapse menu">
+              <IconButton size="small" onClick={() => setCollapsed(true)}>
+                <ChevronLeftIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Box>
+      )}
+
+      <Divider />
+
+      {/* Search / filter */}
+      {!isRailMode && (
+        <Box sx={{ px: 2, py: 1.5, flexShrink: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'action.hover', borderRadius: 2, px: 1.5, py: 0.75 }}>
+            <SearchIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+            <InputBase
+              placeholder="Search menu…"
+              value={navFilter}
+              onChange={(e) => setNavFilter(e.target.value)}
+              sx={{ fontSize: 14, flex: 1 }}
+              inputProps={{ 'aria-label': 'Search menu' }}
+            />
+          </Box>
+        </Box>
+      )}
+
+      {/* Scrollable nav — minHeight:0 is required so this flex item actually
+          shrinks and scrolls internally instead of growing past the drawer's
+          height and forcing the whole drawer to scroll too (double scrollbar). */}
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          px: 1,
+          pb: 1,
+          '&::-webkit-scrollbar': { width: 6 },
+          '&::-webkit-scrollbar-thumb': { backgroundColor: 'rgba(0,0,0,0.18)', borderRadius: 3 },
+        }}
+      >
+        {filteredGroups.length === 0 && (
+          <Typography variant="body2" color="text.secondary" sx={{ px: 2, py: 3, textAlign: 'center' }}>
+            No matching pages
+          </Typography>
+        )}
+        {filteredGroups.map((group) => (
+          <Box key={group.label} sx={{ mt: 1.5, '&:first-of-type': { mt: 0.5 } }}>
+            {!isRailMode && (
+              <Typography
+                variant="overline"
+                sx={{ display: 'block', px: 1.5, color: 'text.secondary', fontWeight: 700, fontSize: '0.68rem', letterSpacing: 0.6 }}
               >
+                {group.label}
+              </Typography>
+            )}
+            <List dense disablePadding sx={{ mt: 0.5 }}>
+              {group.items.map((item) => {
+                const active = isItemActive(item.path);
+                const iconNode = item.badge ? (
+                  <Badge badgeContent={item.badge.content} color={item.badge.color} max={999}>
+                    {item.icon}
+                  </Badge>
+                ) : item.icon;
+
+                const button = (
+                  <ListItemButton
+                    component={RouterLink}
+                    to={item.path}
+                    selected={active}
+                    onClick={() => { if (isMobile) setMobileOpen(false); }}
+                    sx={{
+                      borderRadius: 2,
+                      mx: 0.5,
+                      mb: 0.25,
+                      minHeight: 42,
+                      justifyContent: isRailMode ? 'center' : 'flex-start',
+                      px: isRailMode ? 1 : 1.5,
+                      '&.Mui-selected': {
+                        bgcolor: 'primary.main',
+                        color: 'primary.contrastText',
+                        '&:hover': { bgcolor: 'primary.dark' },
+                        '& .MuiListItemIcon-root': { color: 'primary.contrastText' },
+                      },
+                      '&:not(.Mui-selected):hover': { bgcolor: 'action.hover' },
+                    }}
+                  >
+                    <ListItemIcon
+                      sx={{
+                        minWidth: 0,
+                        mr: isRailMode ? 0 : 1.5,
+                        justifyContent: 'center',
+                        color: active ? 'inherit' : 'text.secondary',
+                        '& svg': { fontSize: 20 },
+                      }}
+                    >
+                      {iconNode}
+                    </ListItemIcon>
+                    {!isRailMode && (
+                      <ListItemText
+                        primary={item.text}
+                        primaryTypographyProps={{ fontSize: 14, fontWeight: active ? 600 : 500, noWrap: true }}
+                      />
+                    )}
+                  </ListItemButton>
+                );
+
+                return (
+                  <ListItem key={item.text} disablePadding>
+                    {isRailMode ? (
+                      <Tooltip title={item.text} placement="right">
+                        {button}
+                      </Tooltip>
+                    ) : button}
+                  </ListItem>
+                );
+              })}
+            </List>
+          </Box>
+        ))}
+      </Box>
+
+      <Divider />
+
+      {/* Footer — everything the old top AppBar used to hold: theme toggle,
+          notifications, and the profile menu (Profile/Settings/Admin/Logout).
+          The provider's photo sits left of their name and doubles as the
+          profile-menu trigger. Rail mode shows the same controls icon-only,
+          stacked, with just the photo/avatar for the profile menu. */}
+      <Box
+        sx={{
+          p: isRailMode ? 1 : 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: isRailMode ? 'center' : 'flex-start',
+          gap: isRailMode ? 0.5 : 1.25,
+          flexDirection: isRailMode ? 'column' : 'row',
+          flexShrink: 0,
+        }}
+      >
+        <Tooltip title="Account" placement={isRailMode ? 'right' : 'top'}>
+          <IconButton size="small" onClick={handleProfileMenuOpen} sx={{ p: 0 }}>
+            {currentUser && currentUser.firstName ? (
+              <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main', fontSize: 14 }} src={currentUser.profileImage || undefined}>
                 {currentUser.firstName.charAt(0).toUpperCase()}
               </Avatar>
             ) : (
-              <AccountIcon />
+              <Avatar sx={{ width: 32, height: 32 }}>
+                <PersonIcon fontSize="small" />
+              </Avatar>
             )}
           </IconButton>
-        </Toolbar>
-      </AppBarStyled>
-      
-      <Drawer
-        sx={{
-          width: drawerWidth,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
-            width: drawerWidth,
-            boxSizing: 'border-box',
-          },
-        }}
-        variant={isMobile ? "temporary" : "persistent"}
-        anchor="left"
-        open={open}
-        onClose={handleDrawerClose}
-      >
-        <DrawerHeader>
-          <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', px: 2 }}>
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-              ClinicTrust AI
+        </Tooltip>
+
+        {!isRailMode && currentUser && (
+          <Box sx={{ overflow: 'hidden', flex: 1, minWidth: 0 }}>
+            <Typography variant="body2" fontWeight={600} noWrap>
+              {currentUser.firstName} {currentUser.lastName}
             </Typography>
-            <IconButton onClick={handleDrawerClose}>
-              <ChevronLeftIcon />
-            </IconButton>
-          </Box>
-        </DrawerHeader>
-        <Divider />
-        
-        {currentUser && (
-          <Box sx={{ p: 2, display: 'flex', alignItems: 'center' }}>
-            <Avatar 
-              sx={{ width: 40, height: 40, bgcolor: 'primary.main', mr: 2 }}
-              src={currentUser.profileImage}
-            >
-              {currentUser.firstName ? currentUser.firstName.charAt(0).toUpperCase() : ''}
-            </Avatar>
-            <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                {currentUser.firstName} {currentUser.lastName}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {currentUser.role}
-                {currentUser.specialty ? ` - ${currentUser.specialty}` : ''}
-              </Typography>
-            </Box>
+            <Typography variant="caption" color="text.secondary" noWrap sx={{ textTransform: 'capitalize' }}>
+              {currentUser.role}{currentUser.specialty ? ` · ${currentUser.specialty}` : ''}
+            </Typography>
           </Box>
         )}
-        
-        <Divider />
-        
-        <List>
-          {getMenuItems(currentUser?.role, referralCounts).map((item) => {
-            // Check if this menu item is active - improved matching logic
-            const isActive = location.pathname === item.path || 
-                          (item.path !== '/app/dashboard' && location.pathname.startsWith(item.path));
-            
-            return (
-              <ListItem key={item.text} disablePadding>
-                <ListItemButton
-                  component={RouterLink}
-                  to={item.path}
-                  onClick={isMobile ? handleDrawerClose : undefined}
-                  selected={isActive}
-                  sx={{
-                    position: 'relative',
-                    borderRadius: '0 20px 20px 0',
-                    marginRight: 2,
-                    marginLeft: 1,
-                    marginY: 0.5,
-                    transition: 'all 0.2s ease-in-out',
-                    '&.Mui-selected': {
-                      backgroundColor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
-                      '&:hover': {
-                        backgroundColor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
-                      },
-                      '&::before': {
-                        content: '""',
-                        position: 'absolute',
-                        left: -8,
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        height: '65%',
-                        width: 4,
-                        backgroundColor: 'primary.main',
-                        borderRadius: 4,
-                        boxShadow: '0 0 8px rgba(0, 0, 0, 0.15)',
-                        transition: 'all 0.3s ease',
-                      },
-                    },
-                    '&:hover': {
-                      backgroundColor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)',
-                    },
-                  }}
-                >
-                  <ListItemIcon
-                    sx={{
-                      minWidth: 40,
-                      color: isActive ? 'primary.main' : 'inherit',
-                      transition: 'transform 0.2s ease-in-out',
-                      transform: isActive ? 'scale(1.1)' : 'scale(1)',
-                    }}
-                  >
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary={item.text} 
-                    primaryTypographyProps={{
-                      fontWeight: isActive ? 600 : 400,
-                      color: isActive ? 'primary.main' : 'text.primary',
-                      fontSize: '0.95rem',
-                    }}
-                  />
-                </ListItemButton>
-              </ListItem>
-            );
-          })}
-        </List>
+
+        <ThemeToggle variant="icon" size="small" />
+
+        <Tooltip title="Notifications" placement={isRailMode ? 'right' : 'top'}>
+          <IconButton size="small" onClick={handleNotificationsOpen}>
+            <Badge badgeContent={4} color="error" showZero={false}>
+              <NotificationsIcon fontSize="small" />
+            </Badge>
+          </IconButton>
+        </Tooltip>
+      </Box>
+    </Box>
+  );
+
+  return (
+    <Box sx={{ display: 'flex' }}>
+      {/* Mobile-only floating trigger — the drawer is an overlay on small
+          screens, so this is the only way to reopen it once closed. Hidden
+          once the drawer is open (it gets its own close button instead). */}
+      {isMobile && !mobileOpen && (
+        <Fab
+          size="medium"
+          color="primary"
+          aria-label="open navigation"
+          onClick={handleMenuButtonClick}
+          sx={{
+            position: 'fixed',
+            top: 16,
+            left: 16,
+            zIndex: (t) => t.zIndex.drawer + 1,
+            boxShadow: 3,
+          }}
+        >
+          <MenuIcon />
+        </Fab>
+      )}
+
+      <Drawer
+        variant={isMobile ? 'temporary' : 'permanent'}
+        anchor="left"
+        open={isMobile ? mobileOpen : true}
+        onClose={() => setMobileOpen(false)}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          width: isMobile ? DRAWER_WIDTH : sidebarWidth,
+          flexShrink: 0,
+          whiteSpace: 'nowrap',
+          '& .MuiDrawer-paper': {
+            width: isMobile ? DRAWER_WIDTH : sidebarWidth,
+            boxSizing: 'border-box',
+            border: 'none',
+            boxShadow: '1px 0 0 0 rgba(0,0,0,0.08)',
+            overflow: 'hidden',
+            transition: muiTheme.transitions.create('width', {
+              easing: muiTheme.transitions.easing.sharp,
+              duration: muiTheme.transitions.duration.enteringScreen,
+            }),
+          },
+        }}
+      >
+        {drawerContent}
       </Drawer>
-      
-      <Main open={open}>
-        <DrawerHeader />
+
+      <Main>
         <Outlet />
       </Main>
-      
+
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
@@ -417,7 +526,7 @@ export default function MainLayout() {
         <Divider />
         <MenuItem onClick={handleLogout}>Logout</MenuItem>
       </Menu>
-      
+
       <Menu
         anchorEl={notificationAnchorEl}
         open={Boolean(notificationAnchorEl)}
@@ -438,9 +547,9 @@ export default function MainLayout() {
           <Typography variant="body2" fontWeight="bold">High-risk patient alert</Typography>
         </MenuItem>
         <Divider />
-        <MenuItem 
-          component={RouterLink} 
-          to="/app/notifications" 
+        <MenuItem
+          component={RouterLink}
+          to="/app/notifications"
           onClick={handleNotificationsClose}
         >
           <Typography variant="body2" color="primary">View all notifications</Typography>

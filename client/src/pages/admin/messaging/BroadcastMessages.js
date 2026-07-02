@@ -23,15 +23,22 @@ import {
   Select,
   MenuItem,
   Grid,
-  Tooltip
+  Menu,
+  ListItemIcon,
+  ListItemText
 } from '@mui/material';
 import { ModernLoadingIndicator } from '../../../components/common';
+import EllipsisCell from '../../../components/common/EllipsisCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+} from '../../../components/common/adminTableStyles';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   Send as SendIcon,
-  Visibility as VisibilityIcon
+  Visibility as VisibilityIcon,
+  MoreVert as MoreVertIcon
 } from '@mui/icons-material';
 import { formatDateTime } from '../../../utils/dateFormatter';
 import * as adminMessagingService from '../../../services/adminMessagingService';
@@ -48,6 +55,19 @@ const BroadcastMessages = () => {
   const [openViewDialog, setOpenViewDialog] = useState(false);
   const [currentMessage, setCurrentMessage] = useState(null);
   const [formMode, setFormMode] = useState('create'); // 'create' or 'edit'
+
+  // Row action menu (kebab) — keeps the grid to one action column instead of
+  // a row of icon buttons, mirroring AdminProviders.js
+  const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState(null);
+  const [actionMenuMessage, setActionMenuMessage] = useState(null);
+  const openActionMenu = (event, message) => {
+    setActionMenuAnchorEl(event.currentTarget);
+    setActionMenuMessage(message);
+  };
+  const closeActionMenu = () => {
+    setActionMenuAnchorEl(null);
+    setActionMenuMessage(null);
+  };
 
   // Form state
   const [formData, setFormData] = useState({
@@ -195,6 +215,42 @@ const BroadcastMessages = () => {
   };
 
 
+  // Shared row-action menu — one instance, opened against whichever row's
+  // kebab button was clicked (see openActionMenu/closeActionMenu above).
+  const renderActionMenu = () => {
+    const message = actionMenuMessage;
+    if (!message) return null;
+    const runAction = (fn) => { closeActionMenu(); fn(); };
+    return (
+      <Menu
+        anchorEl={actionMenuAnchorEl}
+        open={Boolean(actionMenuAnchorEl)}
+        onClose={closeActionMenu}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+      >
+        <MenuItem onClick={() => runAction(() => handleViewMessage(message))}>
+          <ListItemIcon><VisibilityIcon fontSize="small" color="primary" /></ListItemIcon>
+          <ListItemText>View</ListItemText>
+        </MenuItem>
+        {message.status === 'draft' && [
+          <MenuItem key="edit" onClick={() => runAction(() => handleEditMessage(message))}>
+            <ListItemIcon><EditIcon fontSize="small" color="primary" /></ListItemIcon>
+            <ListItemText>Edit</ListItemText>
+          </MenuItem>,
+          <MenuItem key="send" onClick={() => runAction(() => handleSendMessage(message))}>
+            <ListItemIcon><SendIcon fontSize="small" color="primary" /></ListItemIcon>
+            <ListItemText>Send</ListItemText>
+          </MenuItem>,
+        ]}
+        <MenuItem onClick={() => runAction(() => handleDeletePrompt(message))}>
+          <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
+          <ListItemText sx={{ color: 'error.main' }}>Delete</ListItemText>
+        </MenuItem>
+      </Menu>
+    );
+  };
+
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -222,17 +278,17 @@ const BroadcastMessages = () => {
            <ModernLoadingIndicator message="Loading alerts..." />
         </Box>
       ) : (
-        <TableContainer component={Paper}>
-          <Table>
+        <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+          <Table size="small" sx={tableSx}>
             <TableHead>
-              <TableRow>
-                <TableCell>Title</TableCell>
-                <TableCell>Sender</TableCell>
-                <TableCell>Priority</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Sent At</TableCell>
-                <TableCell>Read Count</TableCell>
-                <TableCell>Actions</TableCell>
+              <TableRow sx={tableHeadRowSx}>
+                <TableCell sx={{ width: '24%' }}>Title</TableCell>
+                <TableCell sx={{ width: '16%' }}>Sender</TableCell>
+                <TableCell sx={{ width: '12%' }}>Priority</TableCell>
+                <TableCell sx={{ width: '12%' }}>Status</TableCell>
+                <TableCell sx={{ width: '16%' }}>Sent At</TableCell>
+                <TableCell sx={{ width: '20%' }}>Read Count</TableCell>
+                <TableCell sx={{ width: '48px' }} align="center">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -244,66 +300,33 @@ const BroadcastMessages = () => {
                 </TableRow>
               ) : (
                 messages.map((message) => (
-                  <TableRow key={message.id}>
-                    <TableCell>{message.title}</TableCell>
-                    <TableCell>{message.sender}</TableCell>
-                    <TableCell>
+                  <TableRow key={message.id} hover sx={tableBodyRowSx}>
+                    <TableCell sx={{ width: '24%' }}><EllipsisCell value={message.title} /></TableCell>
+                    <TableCell sx={{ width: '16%' }}><EllipsisCell value={message.sender} /></TableCell>
+                    <TableCell sx={{ width: '12%' }}>
                       <Chip
                         label={message.priority}
                         color={getPriorityColor(message.priority)}
                         size="small"
+                        sx={compactChipSx}
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '12%' }}>
                       <Chip
                         label={message.status}
                         color={getStatusColor(message.status)}
                         size="small"
+                        sx={compactChipSx}
                       />
                     </TableCell>
-                    <TableCell>{message.sentAt ? formatDateTime(message.sentAt) : 'Not sent'}</TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '16%' }}>{message.sentAt ? formatDateTime(message.sentAt) : 'Not sent'}</TableCell>
+                    <TableCell sx={{ width: '20%' }}>
                       {message.status === 'sent' ? `${message.readCount}/${message.recipientCount}` : 'N/A'}
                     </TableCell>
-                    <TableCell>
-                      <Tooltip title="View">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleViewMessage(message)}
-                        >
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      {message.status === 'draft' && (
-                        <>
-                          <Tooltip title="Edit">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleEditMessage(message)}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Send">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleSendMessage(message)}
-                              color="primary"
-                            >
-                              <SendIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </>
-                      )}
-                      <Tooltip title="Delete">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleDeletePrompt(message)}
-                          color="error"
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
+                    <TableCell sx={{ width: '48px' }} align="center">
+                      <IconButton size="small" onClick={(e) => openActionMenu(e, message)}>
+                        <MoreVertIcon fontSize="small" />
+                      </IconButton>
                     </TableCell>
                   </TableRow>
                 ))
@@ -312,6 +335,7 @@ const BroadcastMessages = () => {
           </Table>
         </TableContainer>
       )}
+      {renderActionMenu()}
 
       {/* Create/Edit Message Dialog */}
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="md" fullWidth>

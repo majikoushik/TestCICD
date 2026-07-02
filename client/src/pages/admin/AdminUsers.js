@@ -26,9 +26,16 @@ import {
   Alert,
   Snackbar,
   FormControlLabel,
-  Switch
+  Switch,
+  Menu,
+  ListItemIcon,
+  ListItemText
 } from '@mui/material';
 import { ModernLoadingIndicator } from '../../components/common';
+import EllipsisCell from '../../components/common/EllipsisCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+} from '../../components/common/adminTableStyles';
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -39,7 +46,8 @@ import {
   ContentCopy as ContentCopyIcon,
   FilterList as FilterListIcon,
   PersonAdd as PersonAddIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  MoreVert as MoreVertIcon
 } from '@mui/icons-material';
 import InputAdornment from '@mui/material/InputAdornment';
 import adminUserService from '../../services/adminUserService';
@@ -72,6 +80,18 @@ const AdminUsers = () => {
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [tempPassword, setTempPassword] = useState('');
   const [showTempPassword, setShowTempPassword] = useState(false);
+
+  // Row action menu (kebab) — see AdminProviders.js for the reference pattern
+  const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState(null);
+  const [actionMenuUser, setActionMenuUser] = useState(null);
+  const openActionMenu = (event, user) => {
+    setActionMenuAnchorEl(event.currentTarget);
+    setActionMenuUser(user);
+  };
+  const closeActionMenu = () => {
+    setActionMenuAnchorEl(null);
+    setActionMenuUser(null);
+  };
 
   const fetchUsers = async () => {
     try {
@@ -171,6 +191,7 @@ const AdminUsers = () => {
       if (currentUser._id || currentUser.id) {
         // Update existing user
         response = await adminUserService.updateUser(currentUser._id || currentUser.id, {
+          email: currentUser.email,
           role: editRole,
           isActive: editIsActive
         });
@@ -312,22 +333,22 @@ const AdminUsers = () => {
     try {
       setDeleteLoading(true); // Reuse the loading state
       setError(null);
-      setTempPassword('');
-      
+
       const userId = currentUser._id || currentUser.id;
-      
-      // Call the adminUserService to reset the password
+
+      // Sends the user a password reset email — they set their own new
+      // password by following the link, same as the self-service flow.
       const response = await adminUserService.resetPassword(userId);
-      
+
       if (response.success) {
-        // Store the temporary password
-        setTempPassword(response.data.tempPassword);
-        setShowTempPassword(true);
+        setConfirmDialogOpen(false);
+        setSnackbarMessage(response.message || `Password reset email sent to ${currentUser.email}`);
+        setSnackbarOpen(true);
       } else {
         setError(response.error || 'Failed to reset password');
         setConfirmDialogOpen(false);
       }
-      
+
       setDeleteLoading(false);
     } catch (err) {
       console.error('Error resetting password:', err);
@@ -366,6 +387,68 @@ const AdminUsers = () => {
       default:
         return 'default';
     }
+  };
+
+  // Shared row-action menu — one instance, opened against whichever row's
+  // kebab button was clicked (see openActionMenu/closeActionMenu above).
+  const renderActionMenu = () => {
+    const user = actionMenuUser;
+    if (!user) return null;
+    const runAction = (fn) => { closeActionMenu(); fn(); };
+    const isProtected = user.role === 'admin' || user.role === 'superadmin';
+    return (
+      <Menu
+        anchorEl={actionMenuAnchorEl}
+        open={Boolean(actionMenuAnchorEl)}
+        onClose={closeActionMenu}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+      >
+        <MenuItem onClick={() => runAction(() => {
+          setCurrentUser({ ...user });
+          setEditRole(user.role);
+          setEditIsActive(user.isActive);
+          setEditDialogOpen(true);
+        })}>
+          <ListItemIcon><EditIcon fontSize="small" color="primary" /></ListItemIcon>
+          <ListItemText>Edit User</ListItemText>
+        </MenuItem>
+        {user.lockedUntil && new Date(user.lockedUntil) > new Date() && (
+          <MenuItem onClick={() => runAction(() => openConfirmDialog(
+            'unlock',
+            user,
+            'Unlock Account',
+            `Are you sure you want to unlock ${user.name}'s account?`
+          ))}>
+            <ListItemIcon><LockOpenIcon fontSize="small" color="warning" /></ListItemIcon>
+            <ListItemText>Unlock Account</ListItemText>
+          </MenuItem>
+        )}
+        <MenuItem onClick={() => runAction(() => openConfirmDialog(
+          'reset-password',
+          user,
+          'Reset Password',
+          `Are you sure you want to reset ${user.name}'s password? They will receive a temporary password.`
+        ))}>
+          <ListItemIcon><KeyIcon fontSize="small" color="info" /></ListItemIcon>
+          <ListItemText>Reset Password</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => runAction(() => openConfirmDialog(
+            'delete',
+            user,
+            'Delete User',
+            `Are you sure you want to delete ${user.name}?`
+          ))}
+          disabled={isProtected}
+        >
+          <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
+          <ListItemText sx={{ color: 'error.main' }}>
+            {isProtected ? 'Cannot delete admin users' : 'Delete User'}
+          </ListItemText>
+        </MenuItem>
+      </Menu>
+    );
   };
 
   return (
@@ -451,16 +534,16 @@ const AdminUsers = () => {
         </Alert>
       ) : (
         <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-          <TableContainer sx={{ maxHeight: 600 }}>
-            <Table stickyHeader>
+          <TableContainer sx={{ maxHeight: 600, ...tableContainerSx }}>
+            <Table stickyHeader size="small" sx={tableSx}>
               <TableHead>
-                <TableRow sx={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
-                  <TableCell sx={{ fontWeight: 'bold', py: 2 }}>Name</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', py: 2 }}>Email</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', py: 2 }}>Role</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', py: 2 }}>Status</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', py: 2 }}>Created</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 'bold', py: 2 }}>Actions</TableCell>
+                <TableRow sx={tableHeadRowSx}>
+                  <TableCell sx={{ width: '22%' }}>Name</TableCell>
+                  <TableCell sx={{ width: '28%' }}>Email</TableCell>
+                  <TableCell sx={{ width: '14%' }}>Role</TableCell>
+                  <TableCell sx={{ width: '14%' }}>Status</TableCell>
+                  <TableCell sx={{ width: '22%' }}>Created</TableCell>
+                  <TableCell sx={{ width: '48px' }} align="center">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -474,100 +557,36 @@ const AdminUsers = () => {
                   filteredUsers
                     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                     .map((user) => (
-                      <TableRow hover key={user._id || user.id}>
-                        <TableCell sx={{ py: 1.5 }}>
-                          <Typography variant="body2" fontWeight="500">{user.name}</Typography>
+                      <TableRow hover key={user._id || user.id} sx={tableBodyRowSx}>
+                        <TableCell sx={{ width: '22%' }}>
+                          <EllipsisCell value={user.name} sx={{ fontWeight: 500 }} />
                         </TableCell>
-                        <TableCell sx={{ py: 1.5 }}>
-                          <Typography variant="body2">{user.email}</Typography>
+                        <TableCell sx={{ width: '28%' }}>
+                          <EllipsisCell value={user.email} />
                         </TableCell>
-                        <TableCell sx={{ py: 1.5 }}>
-                          <Chip 
-                            label={user.role} 
+                        <TableCell sx={{ width: '14%' }}>
+                          <Chip
+                            label={user.role}
                             color={getRoleColor(user.role)}
                             size="small"
-                            sx={{ fontWeight: 500, minWidth: '80px' }}
+                            sx={{ ...compactChipSx, minWidth: '80px' }}
                           />
                         </TableCell>
-                        <TableCell sx={{ py: 1.5 }}>
-                          <Chip 
-                            label={user.isActive !== false ? 'Active' : 'Inactive'} 
+                        <TableCell sx={{ width: '14%' }}>
+                          <Chip
+                            label={user.isActive !== false ? 'Active' : 'Inactive'}
                             color={user.isActive !== false ? 'success' : 'default'}
                             size="small"
-                            sx={{ fontWeight: 500, minWidth: '80px' }}
+                            sx={{ ...compactChipSx, minWidth: '80px' }}
                           />
                         </TableCell>
-                        <TableCell sx={{ py: 1.5 }}>
+                        <TableCell sx={{ width: '22%' }}>
                           {user.createdAt ? formatDate(user.createdAt) : 'N/A'}
                         </TableCell>
-                        <TableCell align="right" sx={{ py: 1.5 }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 0.5 }}>
-                            <IconButton 
-                              size="small" 
-                              color="primary"
-                              onClick={() => {
-                                setCurrentUser({ ...user });
-                                setEditRole(user.role);
-                                setEditIsActive(user.isActive);
-                                setEditDialogOpen(true);
-                              }}
-                              title="Edit User"
-                              sx={{ mx: 0.5 }}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                            
-                            {/* Unlock Account Button - only show if account is locked */}
-                            {user.lockedUntil && new Date(user.lockedUntil) > new Date() && (
-                              <IconButton 
-                                size="small" 
-                                color="warning"
-                                onClick={() => openConfirmDialog(
-                                  'unlock',
-                                  user,
-                                  'Unlock Account',
-                                  `Are you sure you want to unlock ${user.name}'s account?`
-                                )}
-                                title="Unlock Account"
-                                sx={{ mx: 0.5 }}
-                              >
-                                <LockOpenIcon fontSize="small" />
-                              </IconButton>
-                            )}
-                            
-                            {/* Reset Password Button */}
-                            <IconButton 
-                              size="small" 
-                              color="info"
-                              onClick={() => openConfirmDialog(
-                                'reset-password',
-                                user,
-                                'Reset Password',
-                                `Are you sure you want to reset ${user.name}'s password? They will receive a temporary password.`
-                              )}
-                              title="Reset Password"
-                              sx={{ mx: 0.5 }}
-                            >
-                              <KeyIcon fontSize="small" />
-                            </IconButton>
-                            
-                            {/* Delete User Button */}
-                            <IconButton 
-                              size="small" 
-                              color="error"
-                              onClick={() => openConfirmDialog(
-                                'delete',
-                                user,
-                                'Delete User',
-                                `Are you sure you want to delete ${user.name}?`
-                              )}
-                              disabled={user.role === 'admin' || user.role === 'superadmin'}
-                              title={user.role === 'admin' || user.role === 'superadmin' ? 'Cannot delete admin users' : 'Delete User'}
-                              sx={{ mx: 0.5 }}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Box>
+                        <TableCell sx={{ width: '48px' }} align="center">
+                          <IconButton size="small" onClick={(e) => openActionMenu(e, user)}>
+                            <MoreVertIcon fontSize="small" />
+                          </IconButton>
                         </TableCell>
                       </TableRow>
                     ))
@@ -575,7 +594,7 @@ const AdminUsers = () => {
               </TableBody>
             </Table>
           </TableContainer>
-          
+
           <TablePagination
             rowsPerPageOptions={[5, 10, 25]}
             component="div"
@@ -598,7 +617,8 @@ const AdminUsers = () => {
           />
         </Paper>
       )}
-      
+      {renderActionMenu()}
+
       {/* Edit User Dialog */}
       <Dialog
         open={editDialogOpen}
@@ -648,8 +668,8 @@ const AdminUsers = () => {
             onChange={(e) => setCurrentUser({ ...currentUser, email: e.target.value })}
             required
             error={!currentUser?.email}
-            helperText={currentUser && (currentUser._id || currentUser.id) ? 'Email cannot be changed' : !currentUser?.email ? 'Email is required' : ''}
-            disabled={saveLoading || (currentUser && (currentUser._id || currentUser.id))}
+            helperText={!currentUser?.email ? 'Email is required' : ''}
+            disabled={saveLoading}
           />
           
           <FormControl fullWidth margin="normal" required>
@@ -660,7 +680,6 @@ const AdminUsers = () => {
               disabled={saveLoading}
               label="Role"
             >
-              <MenuItem value="user">User</MenuItem>
               <MenuItem value="provider">Provider</MenuItem>
               <MenuItem value="admin">Admin</MenuItem>
               <MenuItem value="superadmin">Super Admin</MenuItem>

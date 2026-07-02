@@ -34,8 +34,16 @@ import {
   Avatar,
   Divider,
   Tooltip,
+  Menu,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material';
 import { ModernLoadingIndicator } from '../../components/common';
+import EllipsisCell from '../../components/common/EllipsisCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+  pageHeaderBoxSx, pageCardSx,
+} from '../../components/common/adminTableStyles';
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -46,7 +54,10 @@ import {
   LockOpen as LockOpenIcon,
   Visibility as VisibilityIcon,
   Person as PersonIcon,
+  Man as ManIcon,
+  Woman as WomanIcon,
   Token as TokenIcon,
+  MoreVert as MoreVertIcon,
 } from '@mui/icons-material';
 import adminProviderService from '../../services/adminProviderService';
 import { formatDate, formatDateTime } from '../../utils/dateFormatter';
@@ -61,7 +72,7 @@ function TabPanel(props) {
       aria-labelledby={`provider-tab-${index}`}
       {...other}
     >
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+      {value === index && <Box sx={{ pt: 1 }}>{children}</Box>}
     </div>
   );
 }
@@ -83,6 +94,19 @@ const AdminProviders = () => {
   // Detail dialog
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [currentProvider, setCurrentProvider] = useState(null);
+
+  // Row action menu (kebab) — keeps the grid to one action column instead of
+  // a row of icon buttons, so it never needs horizontal scroll on narrow screens
+  const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState(null);
+  const [actionMenuProvider, setActionMenuProvider] = useState(null);
+  const openActionMenu = (event, provider) => {
+    setActionMenuAnchorEl(event.currentTarget);
+    setActionMenuProvider(provider);
+  };
+  const closeActionMenu = () => {
+    setActionMenuAnchorEl(null);
+    setActionMenuProvider(null);
+  };
 
   // Edit dialog — one state var per editable field
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -249,6 +273,15 @@ const AdminProviders = () => {
     }
   };
 
+  // Onboarding stores gender as 'M' / 'F' / '' (see OnboardingProfileSetup.js
+  // GENDER_OPTIONS) — also tolerate full words in case NPI-sourced data uses them.
+  const getGenderInfo = (gender) => {
+    const normalized = (gender || '').trim().toLowerCase();
+    if (normalized === 'm' || normalized === 'male') return { label: 'Male', icon: <ManIcon fontSize="small" />, color: 'info.main' };
+    if (normalized === 'f' || normalized === 'female') return { label: 'Female', icon: <WomanIcon fontSize="small" />, color: 'secondary.main' };
+    return { label: 'Not specified', icon: <PersonIcon fontSize="small" />, color: 'text.disabled' };
+  };
+
   const getOnboardingLabel = (status) => ({
     pending_email:      'Email Unverified',
     profile_incomplete: 'Profile Incomplete',
@@ -264,95 +297,128 @@ const AdminProviders = () => {
   const getFilteredProvidersByStatus = (status) =>
     status === 'all' ? filteredProviders : filteredProviders.filter(p => p.accountStatus === status);
 
+  // Percentages sum to 100% — with tableLayout: 'fixed' this guarantees the
+  // table always fits the container's width on any screen size, no horizontal
+  // scrollbar and no column ever silently clipped off-screen.
+  const COLUMN_WIDTHS = {
+    name: '17%', email: '19%', gender: '6%', organization: '17%',
+    specialty: '13%', status: '13%', kyc: '13%', actions: '48px',
+  };
+
   const renderProviderTable = (status) => {
     const displayProviders = getFilteredProvidersByStatus(status);
     return (
-      <TableContainer component={Paper}>
-        <Table size="medium">
+      <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+        <Table size="small" sx={tableSx}>
           <TableHead>
-            <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Email</TableCell>
-              <TableCell>Organization</TableCell>
-              <TableCell>Specialty</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>KYC Verified</TableCell>
-              <TableCell>Actions</TableCell>
+            <TableRow sx={tableHeadRowSx}>
+              <TableCell sx={{ width: COLUMN_WIDTHS.name }}>Name</TableCell>
+              <TableCell sx={{ width: COLUMN_WIDTHS.email }}>Email</TableCell>
+              <TableCell sx={{ width: COLUMN_WIDTHS.gender }}>Gender</TableCell>
+              <TableCell sx={{ width: COLUMN_WIDTHS.organization }}>Organization</TableCell>
+              <TableCell sx={{ width: COLUMN_WIDTHS.specialty }}>Specialty</TableCell>
+              <TableCell sx={{ width: COLUMN_WIDTHS.status }}>Status</TableCell>
+              <TableCell sx={{ width: COLUMN_WIDTHS.kyc }}>KYC Verified</TableCell>
+              <TableCell sx={{ width: COLUMN_WIDTHS.actions }} align="center">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {displayProviders
               .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
               .map((provider) => (
-                <TableRow key={provider._id || provider.id}>
-                  <TableCell>{provider.name}</TableCell>
-                  <TableCell>{provider.email}</TableCell>
-                  <TableCell>{provider.organization}</TableCell>
-                  <TableCell>{provider.specialty || '—'}</TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                      <Chip label={provider.accountStatus || 'pending'} color={getStatusColor(provider.accountStatus)} size="small" />                      
-                    </Box>
+                <TableRow
+                  key={provider._id || provider.id}
+                  hover
+                  sx={tableBodyRowSx}
+                >
+                  <TableCell sx={{ width: COLUMN_WIDTHS.name }}>
+                    <EllipsisCell value={provider.name} />
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ width: COLUMN_WIDTHS.email }}><EllipsisCell value={provider.email} /></TableCell>
+                  <TableCell sx={{ width: COLUMN_WIDTHS.gender }}>
+                    <Tooltip title={getGenderInfo(provider.gender).label} placement="top">
+                      <Box sx={{ display: 'flex', color: getGenderInfo(provider.gender).color }}>
+                        {getGenderInfo(provider.gender).icon}
+                      </Box>
+                    </Tooltip>
+                  </TableCell>
+                  <TableCell sx={{ width: COLUMN_WIDTHS.organization }}><EllipsisCell value={provider.organization} /></TableCell>
+                  <TableCell sx={{ width: COLUMN_WIDTHS.specialty }}><EllipsisCell value={provider.specialty} /></TableCell>
+                  <TableCell sx={{ width: COLUMN_WIDTHS.status }}>
+                    <Chip label={provider.accountStatus || 'pending'} color={getStatusColor(provider.accountStatus)} size="small" sx={compactChipSx} />
+                  </TableCell>
+                  <TableCell sx={{ width: COLUMN_WIDTHS.kyc }}>
                     {provider.kycVerified
-                      ? <Chip icon={<CheckCircleIcon />} label="Verified" color="success" size="small" />
-                      : <Chip icon={<CancelIcon />} label="Not Verified" color="default" size="small" />}
+                      ? <Chip icon={<CheckCircleIcon sx={{ fontSize: '14px !important' }} />} label="Verified" color="success" size="small" sx={compactChipSx} />
+                      : <Chip icon={<CancelIcon sx={{ fontSize: '14px !important' }} />} label="Not Verified" color="default" size="small" sx={compactChipSx} />}
                   </TableCell>
-                  <TableCell>
-                    <Tooltip title="View Details">
-                      <IconButton size="small" color="primary" onClick={() => handleViewDetails(provider)}>
-                        <VisibilityIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Edit">
-                      <IconButton size="small" color="primary" onClick={() => handleEditClick(provider)}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    {provider.accountStatus === 'pending' && (
-                      <>
-                        <Tooltip title="Approve">
-                          <IconButton size="small" color="success" onClick={() => openConfirmDialog('approve', provider, 'Approve Provider', `Approve ${provider.name}?`)}>
-                            <CheckCircleIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Reject">
-                          <IconButton size="small" color="error" onClick={() => openConfirmDialog('reject', provider, 'Reject Provider', `Reject ${provider.name}?`)}>
-                            <CancelIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </>
-                    )}
-                    {provider.isActive !== false ? (
-                      <Tooltip title="Suspend">
-                        <IconButton size="small" color="error" onClick={() => openConfirmDialog('suspend', provider, 'Suspend Provider', `Suspend ${provider.name}?`)}>
-                          <LockIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    ) : (
-                      <Tooltip title="Reactivate">
-                        <IconButton size="small" color="success" onClick={() => openConfirmDialog('reactivate', provider, 'Reactivate Provider', `Reactivate ${provider.name}?`)}>
-                          <LockOpenIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-                    <Tooltip title="Delete">
-                      <IconButton size="small" color="error" onClick={() => openConfirmDialog('delete', provider, 'Delete Provider', `Delete ${provider.name}? This cannot be undone.`)}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
+                  <TableCell sx={{ width: COLUMN_WIDTHS.actions }} align="center">
+                    <IconButton size="small" onClick={(e) => openActionMenu(e, provider)}>
+                      <MoreVertIcon fontSize="small" />
+                    </IconButton>
                   </TableCell>
                 </TableRow>
               ))}
             {displayProviders.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center">No providers found</TableCell>
+                <TableCell colSpan={8} align="center">No providers found</TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </TableContainer>
+    );
+  };
+
+  // Shared row-action menu — one instance, opened against whichever row's
+  // kebab button was clicked (see openActionMenu/closeActionMenu above).
+  const renderActionMenu = () => {
+    const provider = actionMenuProvider;
+    if (!provider) return null;
+    const runAction = (fn) => { closeActionMenu(); fn(); };
+    return (
+      <Menu
+        anchorEl={actionMenuAnchorEl}
+        open={Boolean(actionMenuAnchorEl)}
+        onClose={closeActionMenu}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+      >
+        <MenuItem onClick={() => runAction(() => handleViewDetails(provider))}>
+          <ListItemIcon><VisibilityIcon fontSize="small" color="primary" /></ListItemIcon>
+          <ListItemText>View Details</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => runAction(() => handleEditClick(provider))}>
+          <ListItemIcon><EditIcon fontSize="small" color="primary" /></ListItemIcon>
+          <ListItemText>Edit</ListItemText>
+        </MenuItem>
+        {provider.accountStatus === 'pending' && [
+          <MenuItem key="approve" onClick={() => runAction(() => openConfirmDialog('approve', provider, 'Approve Provider', `Approve ${provider.name}?`))}>
+            <ListItemIcon><CheckCircleIcon fontSize="small" color="success" /></ListItemIcon>
+            <ListItemText>Approve</ListItemText>
+          </MenuItem>,
+          <MenuItem key="reject" onClick={() => runAction(() => openConfirmDialog('reject', provider, 'Reject Provider', `Reject ${provider.name}?`))}>
+            <ListItemIcon><CancelIcon fontSize="small" color="error" /></ListItemIcon>
+            <ListItemText>Reject</ListItemText>
+          </MenuItem>,
+        ]}
+        {provider.isActive !== false ? (
+          <MenuItem onClick={() => runAction(() => openConfirmDialog('suspend', provider, 'Suspend Provider', `Suspend ${provider.name}?`))}>
+            <ListItemIcon><LockIcon fontSize="small" color="error" /></ListItemIcon>
+            <ListItemText>Suspend</ListItemText>
+          </MenuItem>
+        ) : (
+          <MenuItem onClick={() => runAction(() => openConfirmDialog('reactivate', provider, 'Reactivate Provider', `Reactivate ${provider.name}?`))}>
+            <ListItemIcon><LockOpenIcon fontSize="small" color="success" /></ListItemIcon>
+            <ListItemText>Reactivate</ListItemText>
+          </MenuItem>
+        )}
+        <Divider />
+        <MenuItem onClick={() => runAction(() => openConfirmDialog('delete', provider, 'Delete Provider', `Delete ${provider.name}? This cannot be undone.`))}>
+          <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
+          <ListItemText sx={{ color: 'error.main' }}>Delete</ListItemText>
+        </MenuItem>
+      </Menu>
     );
   };
 
@@ -366,15 +432,21 @@ const AdminProviders = () => {
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h4" component="h1" gutterBottom>Provider Management</Typography>
+      <Box sx={pageHeaderBoxSx}>
+        <Box>
+          <Typography variant="h4" component="h1" fontWeight={700} gutterBottom>Provider Management</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Review, verify, and manage all healthcare providers on the platform
+          </Typography>
+        </Box>
         <TextField
           size="small"
           label="Search Providers"
           variant="outlined"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          InputProps={{ endAdornment: <SearchIcon color="action" /> }}
+          InputProps={{ endAdornment: <SearchIcon color="action" fontSize="small" /> }}
+          sx={{ minWidth: 260, bgcolor: 'background.paper' }}
         />
       </Box>
 
@@ -385,9 +457,13 @@ const AdminProviders = () => {
           <ModernLoadingIndicator message="Loading providers..." />
         </Box>
       ) : (
-        <>
+        <Paper variant="outlined" sx={pageCardSx}>
           <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-            <Tabs value={tabValue} onChange={handleTabChange}>
+            <Tabs
+              value={tabValue}
+              onChange={handleTabChange}
+              sx={{ '& .MuiTab-root': { fontWeight: 600, textTransform: 'none' } }}
+            >
               <Tab label="All Providers" />
               <Tab label="Pending Approval" />
               <Tab label="Approved" />
@@ -409,7 +485,8 @@ const AdminProviders = () => {
             onPageChange={handleChangePage}
             onRowsPerPageChange={handleChangeRowsPerPage}
           />
-        </>
+          {renderActionMenu()}
+        </Paper>
       )}
 
       {/* ── Provider Details Dialog ─────────────────────────────────────────── */}
@@ -448,6 +525,13 @@ const AdminProviders = () => {
                       <Divider sx={{ mb: 1 }} />
                       <DetailRow label="First Name" value={currentProvider.firstName} />
                       <DetailRow label="Last Name" value={currentProvider.lastName} />
+                      <Box sx={{ display: 'flex', py: 0.75, alignItems: 'center' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, minWidth: 160, color: 'text.secondary' }}>Gender</Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: getGenderInfo(currentProvider.gender).color }}>
+                          {getGenderInfo(currentProvider.gender).icon}
+                          <Typography variant="body2">{getGenderInfo(currentProvider.gender).label}</Typography>
+                        </Box>
+                      </Box>
                       <DetailRow label="Email" value={currentProvider.email} />
                       <DetailRow label="Organization" value={currentProvider.organization} />
                       <DetailRow label="Specialty" value={currentProvider.specialty} />

@@ -11,9 +11,19 @@ import {
   MenuItem,
   Snackbar,
   Alert,
+  InputAdornment,
   useTheme
 } from '@mui/material';
-import { Send as SendIcon } from '@mui/icons-material';
+import {
+  Send as SendIcon,
+  Person as PersonIcon,
+  Email as EmailIcon,
+  Phone as PhoneIcon,
+  Business as BusinessIcon,
+  Category as CategoryIcon,
+  Subject as SubjectIcon,
+  Notes as NotesIcon
+} from '@mui/icons-material';
 
 const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:5000').replace(/\/api$/, '');
 
@@ -156,6 +166,13 @@ export default function ContactPage() {
                       helperText={errors.name}
                       required
                       variant="outlined"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <PersonIcon fontSize="small" color="action" />
+                          </InputAdornment>
+                        ),
+                      }}
                     />
                   </Grid>
                   <Grid item xs={12} sm={6}>
@@ -170,6 +187,13 @@ export default function ContactPage() {
                       helperText={errors.email}
                       required
                       variant="outlined"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <EmailIcon fontSize="small" color="action" />
+                          </InputAdornment>
+                        ),
+                      }}
                     />
                   </Grid>
                   <Grid item xs={12} sm={6}>
@@ -180,6 +204,13 @@ export default function ContactPage() {
                       value={formData.phone}
                       onChange={handleChange}
                       variant="outlined"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <PhoneIcon fontSize="small" color="action" />
+                          </InputAdornment>
+                        ),
+                      }}
                     />
                   </Grid>
                   <Grid item xs={12} sm={6}>
@@ -190,6 +221,13 @@ export default function ContactPage() {
                       value={formData.organization}
                       onChange={handleChange}
                       variant="outlined"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <BusinessIcon fontSize="small" color="action" />
+                          </InputAdornment>
+                        ),
+                      }}
                     />
                   </Grid>
                   <Grid item xs={12}>
@@ -201,6 +239,13 @@ export default function ContactPage() {
                       value={formData.inquiryType}
                       onChange={handleChange}
                       variant="outlined"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <CategoryIcon fontSize="small" color="action" />
+                          </InputAdornment>
+                        ),
+                      }}
                     >
                       <MenuItem value="general">General Inquiry</MenuItem>
                       <MenuItem value="sales">Sales Information</MenuItem>
@@ -220,6 +265,13 @@ export default function ContactPage() {
                       helperText={errors.subject}
                       required
                       variant="outlined"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <SubjectIcon fontSize="small" color="action" />
+                          </InputAdornment>
+                        ),
+                      }}
                     />
                   </Grid>
                   <Grid item xs={12}>
@@ -235,6 +287,13 @@ export default function ContactPage() {
                       multiline
                       rows={6}
                       variant="outlined"
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1.5 }}>
+                            <NotesIcon fontSize="small" color="action" />
+                          </InputAdornment>
+                        ),
+                      }}
                     />
                   </Grid>
                   <Grid item xs={12}>

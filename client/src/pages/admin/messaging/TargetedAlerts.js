@@ -23,16 +23,22 @@ import {
   Select,
   MenuItem,
   Grid,
-  Tooltip,
   Autocomplete,
   Avatar,
   List,
   ListItem,
   ListItemAvatar,
   ListItemText,
-  Divider
+  ListItemIcon,
+  Divider,
+  Menu
 } from '@mui/material';
 import { ModernLoadingIndicator } from '../../../components/common';
+import EllipsisCell from '../../../components/common/EllipsisCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+  pageHeaderBoxSx,
+} from '../../../components/common/adminTableStyles';
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -41,10 +47,19 @@ import {
   Visibility as VisibilityIcon,
   Person as PersonIcon,
   Check as CheckIcon,
-  Clear as ClearIcon
+  Clear as ClearIcon,
+  MoreVert as MoreVertIcon
 } from '@mui/icons-material';
 import { formatDateTime } from '../../../utils/dateFormatter';
 import * as adminMessagingService from '../../../services/adminMessagingService';
+
+// Percentages sum to 100% — with tableLayout: 'fixed' (see tableSx) this
+// guarantees the grid always fits its container, no horizontal scroll and no
+// column silently clipped off-screen.
+const ALERT_COLUMN_WIDTHS = {
+  title: '24%', sender: '16%', priority: '10%', status: '10%',
+  recipients: '12%', sentAt: '16%', readStatus: '12%', actions: '48px',
+};
 
 /**
  * TargetedAlerts component for managing alerts targeted to specific providers
@@ -58,6 +73,19 @@ const TargetedAlerts = () => {
   const [openViewDialog, setOpenViewDialog] = useState(false);
   const [currentAlert, setCurrentAlert] = useState(null);
   const [formMode, setFormMode] = useState('create'); // 'create' or 'edit'
+
+  // Row action menu (kebab) — keeps the grid to one action column instead of
+  // a row of icon buttons, so it never needs horizontal scroll on narrow screens
+  const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState(null);
+  const [actionMenuAlert, setActionMenuAlert] = useState(null);
+  const openActionMenu = (event, alert) => {
+    setActionMenuAnchorEl(event.currentTarget);
+    setActionMenuAlert(alert);
+  };
+  const closeActionMenu = () => {
+    setActionMenuAnchorEl(null);
+    setActionMenuAlert(null);
+  };
 
   // Mock providers for recipient selection
   const [providers] = useState([
@@ -255,9 +283,46 @@ const TargetedAlerts = () => {
     return `${readCount}/${recipients.length}`;
   };
 
+  // Shared row-action menu — one instance, opened against whichever row's
+  // kebab button was clicked (see openActionMenu/closeActionMenu above).
+  const renderActionMenu = () => {
+    const alert = actionMenuAlert;
+    if (!alert) return null;
+    const runAction = (fn) => { closeActionMenu(); fn(); };
+    return (
+      <Menu
+        anchorEl={actionMenuAnchorEl}
+        open={Boolean(actionMenuAnchorEl)}
+        onClose={closeActionMenu}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+      >
+        <MenuItem onClick={() => runAction(() => handleViewAlert(alert))}>
+          <ListItemIcon><VisibilityIcon fontSize="small" color="primary" /></ListItemIcon>
+          <ListItemText>View</ListItemText>
+        </MenuItem>
+        {alert.status === 'draft' && [
+          <MenuItem key="edit" onClick={() => runAction(() => handleEditAlert(alert))}>
+            <ListItemIcon><EditIcon fontSize="small" color="primary" /></ListItemIcon>
+            <ListItemText>Edit</ListItemText>
+          </MenuItem>,
+          <MenuItem key="send" onClick={() => runAction(() => handleSendAlert(alert))}>
+            <ListItemIcon><SendIcon fontSize="small" color="primary" /></ListItemIcon>
+            <ListItemText>Send</ListItemText>
+          </MenuItem>,
+        ]}
+        <Divider />
+        <MenuItem onClick={() => runAction(() => handleDeletePrompt(alert))}>
+          <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
+          <ListItemText sx={{ color: 'error.main' }}>Delete</ListItemText>
+        </MenuItem>
+      </Menu>
+    );
+  };
+
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box sx={pageHeaderBoxSx}>
         <Typography variant="h6" component="h2">
           Targeted Alerts
         </Typography>
@@ -282,18 +347,18 @@ const TargetedAlerts = () => {
            <ModernLoadingIndicator message="Loading alerts..." />
         </Box>
       ) : (
-        <TableContainer component={Paper}>
-          <Table>
+        <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+          <Table size="small" sx={tableSx}>
             <TableHead>
-              <TableRow>
-                <TableCell>Title</TableCell>
-                <TableCell>Sender</TableCell>
-                <TableCell>Priority</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Recipients</TableCell>
-                <TableCell>Sent At</TableCell>
-                <TableCell>Read Status</TableCell>
-                <TableCell>Actions</TableCell>
+              <TableRow sx={tableHeadRowSx}>
+                <TableCell sx={{ width: ALERT_COLUMN_WIDTHS.title }}>Title</TableCell>
+                <TableCell sx={{ width: ALERT_COLUMN_WIDTHS.sender }}>Sender</TableCell>
+                <TableCell sx={{ width: ALERT_COLUMN_WIDTHS.priority }}>Priority</TableCell>
+                <TableCell sx={{ width: ALERT_COLUMN_WIDTHS.status }}>Status</TableCell>
+                <TableCell sx={{ width: ALERT_COLUMN_WIDTHS.recipients }}>Recipients</TableCell>
+                <TableCell sx={{ width: ALERT_COLUMN_WIDTHS.sentAt }}>Sent At</TableCell>
+                <TableCell sx={{ width: ALERT_COLUMN_WIDTHS.readStatus }}>Read Status</TableCell>
+                <TableCell sx={{ width: ALERT_COLUMN_WIDTHS.actions }} align="center">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -305,65 +370,36 @@ const TargetedAlerts = () => {
                 </TableRow>
               ) : (
                 alerts.map((alert) => (
-                  <TableRow key={alert.id}>
-                    <TableCell>{alert.title}</TableCell>
-                    <TableCell>{alert.sender}</TableCell>
-                    <TableCell>
+                  <TableRow key={alert.id} hover sx={tableBodyRowSx}>
+                    <TableCell sx={{ width: ALERT_COLUMN_WIDTHS.title }}>
+                      <EllipsisCell value={alert.title} />
+                    </TableCell>
+                    <TableCell sx={{ width: ALERT_COLUMN_WIDTHS.sender }}>
+                      <EllipsisCell value={alert.sender} />
+                    </TableCell>
+                    <TableCell sx={{ width: ALERT_COLUMN_WIDTHS.priority }}>
                       <Chip
                         label={alert.priority}
                         color={getPriorityColor(alert.priority)}
                         size="small"
+                        sx={compactChipSx}
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: ALERT_COLUMN_WIDTHS.status }}>
                       <Chip
                         label={alert.status}
                         color={getStatusColor(alert.status)}
                         size="small"
+                        sx={compactChipSx}
                       />
                     </TableCell>
-                    <TableCell>{alert.recipients?.length || 0}</TableCell>
-                    <TableCell>{alert.sentAt ? formatDateTime(alert.sentAt) : 'Not sent'}</TableCell>
-                    <TableCell>{getReadCount(alert.recipients)}</TableCell>
-                    <TableCell>
-                      <Tooltip title="View">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleViewAlert(alert)}
-                        >
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      {alert.status === 'draft' && (
-                        <>
-                          <Tooltip title="Edit">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleEditAlert(alert)}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Send">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleSendAlert(alert)}
-                              color="primary"
-                            >
-                              <SendIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </>
-                      )}
-                      <Tooltip title="Delete">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleDeletePrompt(alert)}
-                          color="error"
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
+                    <TableCell sx={{ width: ALERT_COLUMN_WIDTHS.recipients }}>{alert.recipients?.length || 0}</TableCell>
+                    <TableCell sx={{ width: ALERT_COLUMN_WIDTHS.sentAt }}>{alert.sentAt ? formatDateTime(alert.sentAt) : 'Not sent'}</TableCell>
+                    <TableCell sx={{ width: ALERT_COLUMN_WIDTHS.readStatus }}>{getReadCount(alert.recipients)}</TableCell>
+                    <TableCell sx={{ width: ALERT_COLUMN_WIDTHS.actions }} align="center">
+                      <IconButton size="small" onClick={(e) => openActionMenu(e, alert)}>
+                        <MoreVertIcon fontSize="small" />
+                      </IconButton>
                     </TableCell>
                   </TableRow>
                 ))
@@ -372,6 +408,8 @@ const TargetedAlerts = () => {
           </Table>
         </TableContainer>
       )}
+
+      {renderActionMenu()}
 
       {/* Create/Edit Alert Dialog */}
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="md" fullWidth>

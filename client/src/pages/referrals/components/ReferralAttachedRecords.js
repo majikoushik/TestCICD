@@ -19,14 +19,20 @@ import {
   Checkbox,
   Chip,
   Divider,
-  Alert
+  Alert,
+  Grid,
+  Avatar,
+  InputAdornment
 } from '@mui/material';
 import {
   Description as DescriptionIcon,
   Add as AddIcon,
   VerifiedUser as VerifiedUserIcon,
   RemoveRedEye as ViewIcon,
-  Download as DownloadIcon
+  Download as DownloadIcon,
+  Close as CloseIcon,
+  Tag as TagIcon,
+  AttachFile as AttachFileIcon
 } from '@mui/icons-material';
 
 export default function ReferralAttachedRecords({ attachedRecords, patientId }) {
@@ -223,27 +229,55 @@ export default function ReferralAttachedRecords({ attachedRecords, patientId }) 
       
       {/* Attach Record Dialog */}
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>Attach Patient Record</DialogTitle>
-        <DialogContent>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Avatar sx={{ width: 40, height: 40, bgcolor: 'primary.main' }}>
+            <AttachFileIcon fontSize="small" />
+          </Avatar>
+          <Typography variant="h6" component="span" sx={{ flexGrow: 1 }}>
+            Attach Patient Record
+          </Typography>
+          <IconButton aria-label="close" onClick={handleCloseDialog} size="small">
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
           <Box sx={{ mt: 1 }}>
-            <TextField
-              margin="dense"
-              label="Record Type"
-              name="recordType"
-              fullWidth
-              value={recordData.recordType}
-              onChange={handleInputChange}
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              margin="dense"
-              label="Record ID"
-              name="recordId"
-              fullWidth
-              value={recordData.recordId}
-              onChange={handleInputChange}
-              sx={{ mb: 2 }}
-            />
+            <Grid container spacing={2} sx={{ mb: 1 }}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  margin="dense"
+                  label="Record Type"
+                  name="recordType"
+                  fullWidth
+                  value={recordData.recordType}
+                  onChange={handleInputChange}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <DescriptionIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  margin="dense"
+                  label="Record ID"
+                  name="recordId"
+                  fullWidth
+                  value={recordData.recordId}
+                  onChange={handleInputChange}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <TagIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid>
+            </Grid>
             <FormControlLabel
               control={
                 <Checkbox
@@ -258,9 +292,10 @@ export default function ReferralAttachedRecords({ attachedRecords, patientId }) 
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button 
-            onClick={handleSubmit} 
+          <Button
+            onClick={handleSubmit}
             variant="contained"
+            startIcon={isSubmitting ? null : <AddIcon />}
             disabled={isSubmitting || !recordData.recordType || !recordData.recordId}
           >
             {isSubmitting ? <ModernLoadingIndicator variant="button" size={24} /> : 'Attach Record'}

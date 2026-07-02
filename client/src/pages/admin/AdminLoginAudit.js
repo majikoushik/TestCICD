@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ModernLoadingIndicator } from '../../components/common';
+import EllipsisCell from '../../components/common/EllipsisCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+  pageHeaderBoxSx,
+} from '../../components/common/adminTableStyles';
 import {
   Container,
   Typography,
@@ -186,7 +191,7 @@ const AdminLoginAudit = () => {
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
 
       {/* ── Header ── */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+      <Box sx={{ ...pageHeaderBoxSx, alignItems: 'flex-start' }}>
         <Box>
           <Typography variant="h4" component="h1" gutterBottom>Login Audit</Typography>
           <Typography variant="body2" color="text.secondary">
@@ -305,16 +310,16 @@ const AdminLoginAudit = () => {
         </Box>
       ) : (
         <>
-          <TableContainer component={Paper}>
-            <Table size="small">
+          <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+            <Table size="small" sx={tableSx}>
               <TableHead>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 700 }}>User</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Role</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>IP Address</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Browser / OS</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Timestamp</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                <TableRow sx={tableHeadRowSx}>
+                  <TableCell sx={{ width: '22%' }}>User</TableCell>
+                  <TableCell sx={{ width: '12%' }}>Role</TableCell>
+                  <TableCell sx={{ width: '14%' }}>IP Address</TableCell>
+                  <TableCell sx={{ width: '20%' }}>Browser / OS</TableCell>
+                  <TableCell sx={{ width: '18%' }}>Timestamp</TableCell>
+                  <TableCell sx={{ width: '14%' }}>Status</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -325,29 +330,30 @@ const AdminLoginAudit = () => {
                     const os      = parseOS(log.userAgent);
                     const mobile  = isMobile(log.userAgent);
                     return (
-                      <TableRow key={idx} hover>
+                      <TableRow key={idx} hover sx={tableBodyRowSx}>
                         {/* User */}
-                        <TableCell>
-                          <Typography variant="body2" fontWeight={600}>{log.userName || '—'}</Typography>
-                          <Typography variant="caption" color="text.secondary">{log.userEmail}</Typography>
+                        <TableCell sx={{ width: '22%' }}>
+                          <Typography variant="body2" fontWeight={600} noWrap sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{log.userName || '—'}</Typography>
+                          <EllipsisCell value={log.userEmail} variant="caption" sx={{ color: 'text.secondary' }} />
                         </TableCell>
 
                         {/* Role */}
-                        <TableCell>
+                        <TableCell sx={{ width: '12%' }}>
                           <Chip
                             label={log.userRole}
                             size="small"
                             color={['admin', 'superadmin'].includes(log.userRole) ? 'primary' : 'default'}
+                            sx={compactChipSx}
                           />
                         </TableCell>
 
                         {/* IP */}
-                        <TableCell>
-                          <Typography variant="body2" fontFamily="monospace">{log.ipAddress || '—'}</Typography>
+                        <TableCell sx={{ width: '14%' }}>
+                          <Typography variant="body2" fontFamily="monospace" noWrap sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{log.ipAddress || '—'}</Typography>
                         </TableCell>
 
                         {/* Browser / OS */}
-                        <TableCell>
+                        <TableCell sx={{ width: '20%' }}>
                           <Tooltip title={log.userAgent} arrow placement="top">
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                               {mobile ? <MobileIcon fontSize="small" color="action" /> : <ComputerIcon fontSize="small" color="action" />}
@@ -360,17 +366,18 @@ const AdminLoginAudit = () => {
                         </TableCell>
 
                         {/* Timestamp */}
-                        <TableCell>
+                        <TableCell sx={{ width: '18%' }}>
                           <Typography variant="body2">{formatDateTime(log.timestamp)}</Typography>
                         </TableCell>
 
                         {/* Status */}
-                        <TableCell>
+                        <TableCell sx={{ width: '14%' }}>
                           <Chip
                             icon={log.successful ? <CheckCircleIcon /> : <CancelIcon />}
                             label={log.successful ? 'Success' : 'Failed'}
                             color={log.successful ? 'success' : 'error'}
                             size="small"
+                            sx={compactChipSx}
                           />
                         </TableCell>
                       </TableRow>

@@ -4,7 +4,8 @@ import {
   TableRow, TableCell, TableContainer, TablePagination, Chip, IconButton,
   TextField, InputAdornment, Select, MenuItem, FormControl, InputLabel,
   Dialog, DialogTitle, DialogContent, DialogActions, Button, Tabs, Tab,
-  Alert, Snackbar, Tooltip, Divider, Stack, Avatar,
+  Alert, Snackbar, Tooltip, Divider, Stack, Avatar, Menu, ListItemIcon,
+  ListItemText,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -21,9 +22,15 @@ import {
   Close as CloseIcon,
   ContactMail as ContactMailIcon,
   FiberNew as NewIcon,
+  MoreVert as MoreVertIcon,
 } from '@mui/icons-material';
 import contactAdminService from '../../services/contactAdminService';
 import { formatDateTime } from '../../utils/dateFormatter';
+import EllipsisCell from '../../components/common/EllipsisCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+  pageHeaderBoxSx,
+} from '../../components/common/adminTableStyles';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 const STATUS_META = {
@@ -225,6 +232,19 @@ export default function AdminContacts() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [snack, setSnack]           = useState({ open: false, msg: '', severity: 'success' });
 
+  // Row action menu (kebab) — keeps the grid to one action column instead of
+  // a row of icon buttons, so it never needs horizontal scroll on narrow screens
+  const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState(null);
+  const [actionMenuContact, setActionMenuContact] = useState(null);
+  const openActionMenu = (event, contact) => {
+    setActionMenuAnchorEl(event.currentTarget);
+    setActionMenuContact(contact);
+  };
+  const closeActionMenu = () => {
+    setActionMenuAnchorEl(null);
+    setActionMenuContact(null);
+  };
+
   const load = useCallback(async () => {
     setLoading(true);
     const res = await contactAdminService.getAll(STATUS_TABS[statusTab]);
@@ -281,11 +301,52 @@ export default function AdminContacts() {
 
   const paginated = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
+  // Percentages sum to 100% — with tableLayout: 'fixed' this guarantees the
+  // table always fits the container's width on any screen size.
+  const COLUMN_WIDTHS = {
+    contact: '20%', organization: '15%', inquiry: '12%', subject: '25%',
+    received: '13%', status: '15%', actions: '48px',
+  };
+
+  // Shared row-action menu — one instance, opened against whichever row's
+  // kebab button was clicked (see openActionMenu/closeActionMenu above).
+  const renderActionMenu = () => {
+    const contact = actionMenuContact;
+    if (!contact) return null;
+    const runAction = (fn) => { closeActionMenu(); fn(); };
+    return (
+      <Menu
+        anchorEl={actionMenuAnchorEl}
+        open={Boolean(actionMenuAnchorEl)}
+        onClose={closeActionMenu}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+      >
+        <MenuItem onClick={() => runAction(() => openDetail(contact))}>
+          <ListItemIcon><ViewIcon fontSize="small" color="primary" /></ListItemIcon>
+          <ListItemText>View details</ListItemText>
+        </MenuItem>
+        <MenuItem
+          component="a"
+          href={`mailto:${contact.email}?subject=Re: ${encodeURIComponent(contact.subject)}`}
+          onClick={closeActionMenu}
+        >
+          <ListItemIcon><EmailIcon fontSize="small" color="primary" /></ListItemIcon>
+          <ListItemText>Reply by email</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => runAction(() => handleDelete(contact._id))}>
+          <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
+          <ListItemText sx={{ color: 'error.main' }}>Delete</ListItemText>
+        </MenuItem>
+      </Menu>
+    );
+  };
+
   return (
     <Container maxWidth="xl">
       <Box py={4}>
         {/* Header */}
-        <Box display="flex" alignItems="center" justifyContent="space-between" mb={4}>
+        <Box sx={pageHeaderBoxSx}>
           <Box>
             <Typography variant="h4" fontWeight={700}>Contact Enquiries</Typography>
             <Typography variant="body2" color="text.secondary" mt={0.5}>
@@ -395,17 +456,17 @@ export default function AdminContacts() {
           </Box>
         ) : (
           <Paper elevation={1}>
-            <TableContainer>
-              <Table size="small">
+            <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+              <Table size="small" sx={tableSx}>
                 <TableHead>
-                  <TableRow sx={{ bgcolor: 'grey.50' }}>
-                    <TableCell><strong>Contact</strong></TableCell>
-                    <TableCell><strong>Organization</strong></TableCell>
-                    <TableCell><strong>Inquiry Type</strong></TableCell>
-                    <TableCell><strong>Subject</strong></TableCell>
-                    <TableCell><strong>Received</strong></TableCell>
-                    <TableCell><strong>Status</strong></TableCell>
-                    <TableCell align="center"><strong>Actions</strong></TableCell>
+                  <TableRow sx={tableHeadRowSx}>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.contact }}>Contact</TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.organization }}>Organization</TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.inquiry }}>Inquiry Type</TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.subject }}>Subject</TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.received }}>Received</TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.status }}>Status</TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.actions }} align="center">Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -419,6 +480,7 @@ export default function AdminContacts() {
                         hover
                         onClick={() => openDetail(contact)}
                         sx={{
+                          ...tableBodyRowSx,
                           cursor: 'pointer',
                           fontWeight: isNew ? 700 : 400,
                           bgcolor: isNew ? 'primary.50' : 'inherit',
@@ -426,55 +488,49 @@ export default function AdminContacts() {
                         }}
                       >
                         {/* Contact */}
-                        <TableCell>
+                        <TableCell sx={{ width: COLUMN_WIDTHS.contact }}>
                           <Box display="flex" alignItems="center" gap={1.5}>
                             <Avatar sx={{ bgcolor: avatarColor(contact.name), width: 32, height: 32, fontSize: 12 }}>
                               {initials(contact.name)}
                             </Avatar>
-                            <Box>
-                              <Typography variant="body2" fontWeight={isNew ? 700 : 500} noWrap sx={{ maxWidth: 160 }}>
+                            <Box sx={{ minWidth: 0, flex: 1 }}>
+                              <Typography variant="body2" fontWeight={isNew ? 700 : 500} noWrap>
                                 {contact.name}
                               </Typography>
-                              <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 160, display: 'block' }}>
-                                {contact.email}
-                              </Typography>
+                              <EllipsisCell value={contact.email} variant="caption" sx={{ color: 'text.secondary' }} />
                             </Box>
                           </Box>
                         </TableCell>
 
                         {/* Org */}
-                        <TableCell>
-                          <Typography variant="body2" color="text.secondary" noWrap sx={{ maxWidth: 140 }}>
-                            {contact.organization || '—'}
-                          </Typography>
+                        <TableCell sx={{ width: COLUMN_WIDTHS.organization }}>
+                          <EllipsisCell value={contact.organization} variant="body2" sx={{ color: 'text.secondary' }} />
                         </TableCell>
 
                         {/* Inquiry Type */}
-                        <TableCell>
+                        <TableCell sx={{ width: COLUMN_WIDTHS.inquiry }}>
                           <Chip
                             label={inq.label}
                             size="small"
-                            sx={{ bgcolor: `${inq.color}18`, color: inq.color, fontWeight: 700, fontSize: '0.7rem', border: `1px solid ${inq.color}30` }}
+                            sx={{ ...compactChipSx, bgcolor: `${inq.color}18`, color: inq.color, border: `1px solid ${inq.color}30` }}
                           />
                         </TableCell>
 
                         {/* Subject */}
-                        <TableCell>
-                          <Typography variant="body2" noWrap sx={{ maxWidth: 220 }}>
-                            {contact.subject}
-                          </Typography>
+                        <TableCell sx={{ width: COLUMN_WIDTHS.subject }}>
+                          <EllipsisCell value={contact.subject} variant="body2" />
                         </TableCell>
 
                         {/* Date */}
-                        <TableCell>
+                        <TableCell sx={{ width: COLUMN_WIDTHS.received }}>
                           <Typography variant="caption" color="text.secondary" noWrap>
                             {formatDateTime(contact.createdAt)}
                           </Typography>
                         </TableCell>
 
                         {/* Status */}
-                        <TableCell onClick={e => e.stopPropagation()}>
-                          <FormControl size="small" variant="standard" sx={{ minWidth: 110 }}>
+                        <TableCell sx={{ width: COLUMN_WIDTHS.status }} onClick={e => e.stopPropagation()}>
+                          <FormControl size="small" variant="standard" sx={{ minWidth: 110, maxWidth: '100%' }}>
                             <Select
                               value={contact.status}
                               onChange={e => handleStatusChange(contact._id, e.target.value)}
@@ -486,6 +542,7 @@ export default function AdminContacts() {
                                   size="small"
                                   color={STATUS_META[val]?.color || 'default'}
                                   variant={val === 'new' ? 'filled' : 'outlined'}
+                                  sx={compactChipSx}
                                 />
                               )}
                               sx={{ '& .MuiSelect-select': { p: 0 } }}
@@ -499,28 +556,10 @@ export default function AdminContacts() {
                         </TableCell>
 
                         {/* Actions */}
-                        <TableCell align="center" onClick={e => e.stopPropagation()}>
-                          <Stack direction="row" justifyContent="center">
-                            <Tooltip title="View details">
-                              <IconButton size="small" onClick={() => openDetail(contact)}>
-                                <ViewIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Reply by email">
-                              <IconButton
-                                size="small"
-                                component="a"
-                                href={`mailto:${contact.email}?subject=Re: ${encodeURIComponent(contact.subject)}`}
-                              >
-                                <EmailIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Delete">
-                              <IconButton size="small" color="error" onClick={() => handleDelete(contact._id)}>
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          </Stack>
+                        <TableCell sx={{ width: COLUMN_WIDTHS.actions }} align="center" onClick={e => e.stopPropagation()}>
+                          <IconButton size="small" onClick={(e) => openActionMenu(e, contact)}>
+                            <MoreVertIcon fontSize="small" />
+                          </IconButton>
                         </TableCell>
                       </TableRow>
                     );
@@ -538,6 +577,7 @@ export default function AdminContacts() {
               rowsPerPageOptions={[10, 25, 50]}
               onRowsPerPageChange={e => { setRowsPerPage(+e.target.value); setPage(0); }}
             />
+            {renderActionMenu()}
           </Paper>
         )}
       </Box>

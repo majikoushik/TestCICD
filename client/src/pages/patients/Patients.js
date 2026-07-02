@@ -31,7 +31,6 @@ import {
   Chip,
   Tooltip,
   Alert,
-  Avatar,
   Menu,
   MenuItem,
   ListItemIcon,
@@ -41,6 +40,11 @@ import {
   Skeleton,
   TableSortLabel,
 } from '@mui/material';
+import EllipsisCell from '../../components/common/EllipsisCell';
+import EllipsisHeaderCell from '../../components/common/EllipsisHeaderCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+} from '../../components/common/adminTableStyles';
 import {
   Search as SearchIcon,
   Add as AddIcon,
@@ -298,6 +302,13 @@ function Patients() {
     }
   }, []);
 
+  // Percentages sum to 100% — with tableLayout: 'fixed' this guarantees the
+  // table always fits the container's width on any screen size.
+  const COLUMN_WIDTHS = {
+    patientId: '9%', name: '18%', ageGender: '11%', contact: '18%',
+    conditions: '18%', risk: '11%', updated: '15%', actions: '48px',
+  };
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       {error && (
@@ -554,12 +565,12 @@ function Patients() {
           </Box>
         </Box>
         
-        <TableContainer>
-          <Table sx={{ minWidth: 650 }}>
+        <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+          <Table size="small" sx={tableSx}>
             <TableHead>
-            <TableRow>
-                <TableCell>Patient ID</TableCell>
-                <TableCell sortDirection={reduxFilters.sortBy === 'name' ? reduxFilters.sortOrder : false}>
+            <TableRow sx={tableHeadRowSx}>
+                <EllipsisHeaderCell label="Patient ID" sx={{ width: COLUMN_WIDTHS.patientId }} />
+                <TableCell sx={{ width: COLUMN_WIDTHS.name }} sortDirection={reduxFilters.sortBy === 'name' ? reduxFilters.sortOrder : false}>
                   <TableSortLabel
                     active={reduxFilters.sortBy === 'name'}
                     direction={reduxFilters.sortBy === 'name' ? reduxFilters.sortOrder : 'asc'}
@@ -568,7 +579,7 @@ function Patients() {
                     Name
                   </TableSortLabel>
                 </TableCell>
-                <TableCell sortDirection={reduxFilters.sortBy === 'dateOfBirth' ? reduxFilters.sortOrder : false}>
+                <TableCell sx={{ width: COLUMN_WIDTHS.ageGender }} sortDirection={reduxFilters.sortBy === 'dateOfBirth' ? reduxFilters.sortOrder : false}>
                   <TableSortLabel
                     active={reduxFilters.sortBy === 'dateOfBirth'}
                     direction={reduxFilters.sortBy === 'dateOfBirth' ? reduxFilters.sortOrder : 'asc'}
@@ -577,9 +588,9 @@ function Patients() {
                     Age / Gender
                   </TableSortLabel>
                 </TableCell>
-                <TableCell>Contact</TableCell>
-                <TableCell>Conditions</TableCell>
-                <TableCell sortDirection={reduxFilters.sortBy === 'riskScore' ? reduxFilters.sortOrder : false}>
+                <EllipsisHeaderCell label="Contact" sx={{ width: COLUMN_WIDTHS.contact }} />
+                <EllipsisHeaderCell label="Conditions" sx={{ width: COLUMN_WIDTHS.conditions }} />
+                <TableCell sx={{ width: COLUMN_WIDTHS.risk }} sortDirection={reduxFilters.sortBy === 'riskScore' ? reduxFilters.sortOrder : false}>
                   <TableSortLabel
                     active={reduxFilters.sortBy === 'riskScore'}
                     direction={reduxFilters.sortBy === 'riskScore' ? reduxFilters.sortOrder : 'asc'}
@@ -588,7 +599,7 @@ function Patients() {
                     Risk Level
                   </TableSortLabel>
                 </TableCell>
-                <TableCell sortDirection={reduxFilters.sortBy === 'updatedAt' ? reduxFilters.sortOrder : false}>
+                <TableCell sx={{ width: COLUMN_WIDTHS.updated }} sortDirection={reduxFilters.sortBy === 'updatedAt' ? reduxFilters.sortOrder : false}>
                   <TableSortLabel
                     active={reduxFilters.sortBy === 'updatedAt'}
                     direction={reduxFilters.sortBy === 'updatedAt' ? reduxFilters.sortOrder : 'desc'}
@@ -597,26 +608,21 @@ function Patients() {
                     Last Updated
                   </TableSortLabel>
                 </TableCell>
-                <TableCell align="right">Actions</TableCell>
+                <EllipsisHeaderCell label="Actions" sx={{ width: COLUMN_WIDTHS.actions }} align="center" />
               </TableRow>
             </TableHead>
             <TableBody>
               {loading ? (
                 [...Array(5)].map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell><Skeleton variant="text" width={80} /></TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <Skeleton variant="circular" width={40} height={40} sx={{ mr: 1 }} />
-                        <Skeleton variant="text" width={120} />
-                      </Box>
-                    </TableCell>
-                    <TableCell><Skeleton variant="text" width={80} /></TableCell>
-                    <TableCell><Skeleton variant="text" width={140} /></TableCell>
-                    <TableCell><Skeleton variant="rounded" width={90} height={24} /></TableCell>
-                    <TableCell><Skeleton variant="rounded" width={60} height={24} /></TableCell>
-                    <TableCell><Skeleton variant="text" width={90} /></TableCell>
-                    <TableCell align="right"><Skeleton variant="circular" width={30} height={30} /></TableCell>
+                  <TableRow key={i} sx={tableBodyRowSx}>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.patientId }}><Skeleton variant="text" width={80} /></TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.name }}><Skeleton variant="text" width={120} /></TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.ageGender }}><Skeleton variant="text" width={80} /></TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.contact }}><Skeleton variant="text" width={140} /></TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.conditions }}><Skeleton variant="rounded" width={90} height={24} /></TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.risk }}><Skeleton variant="rounded" width={60} height={24} /></TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.updated }}><Skeleton variant="text" width={90} /></TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.actions }} align="center"><Skeleton variant="circular" width={30} height={30} /></TableCell>
                   </TableRow>
                 ))
               ) : (
@@ -630,31 +636,37 @@ function Patients() {
                         key={patient.patientId}
                         hover
                         onClick={() => handlePatientClick(patient.patientId)}
-                        sx={{ cursor: 'pointer' }}
+                        sx={{ cursor: 'pointer', ...tableBodyRowSx }}
                       >
-                        <TableCell>{patient.patientId}</TableCell>
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Avatar sx={{ mr: 1, bgcolor: getGenderAvatar(patient.gender).bgcolor }}>
-                              {getGenderAvatar(patient.gender).icon}
-                            </Avatar>
-                            {name}
+                        <TableCell sx={{ width: COLUMN_WIDTHS.patientId }}>
+                          <EllipsisCell value={patient.patientId} />
+                        </TableCell>
+                        <TableCell sx={{ width: COLUMN_WIDTHS.name }}>
+                          <EllipsisCell value={name} />
+                        </TableCell>
+                        <TableCell sx={{ width: COLUMN_WIDTHS.ageGender }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                            <Typography variant="body2" component="span">
+                              {calculateAge(patient.dateOfBirth || patient.birthDate)}
+                            </Typography>
+                            <Tooltip title={patient.gender ? patient.gender.charAt(0).toUpperCase() + patient.gender.slice(1) : 'Not specified'}>
+                              <Box sx={{ display: 'flex', color: `${getGenderAvatar(patient.gender).bgcolor.replace('.light', '.main')}` }}>
+                                {getGenderAvatar(patient.gender).icon}
+                              </Box>
+                            </Tooltip>
                           </Box>
                         </TableCell>
-                        <TableCell>
-                          {calculateAge(patient.dateOfBirth || patient.birthDate)} / {patient.gender ? patient.gender.charAt(0).toUpperCase() + patient.gender.slice(1) : '—'}
+                        <TableCell sx={{ width: COLUMN_WIDTHS.contact }}>
+                          <EllipsisCell value={email} />
+                          <EllipsisCell value={patient.contactInfo?.phone} variant="body2" sx={{ color: 'text.secondary' }} />
                         </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">{email}</Typography>
-                          <Typography variant="body2" color="text.secondary">{patient.contactInfo?.phone}</Typography>
-                        </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ width: COLUMN_WIDTHS.conditions }}>
                           {patient.medicalHistory && patient.medicalHistory.length > 0 ? (
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxWidth: 200 }}>
-                              <Chip label={patient.medicalHistory[0].condition} size="small" variant="outlined" />
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxWidth: '100%' }}>
+                              <Chip label={patient.medicalHistory[0].condition} size="small" variant="outlined" sx={compactChipSx} />
                               {patient.medicalHistory.length > 1 && (
                                 <Tooltip title={patient.medicalHistory.slice(1).map(c => c.condition).join(', ')}>
-                                  <Chip label={`+${patient.medicalHistory.length - 1}`} size="small" variant="outlined" />
+                                  <Chip label={`+${patient.medicalHistory.length - 1}`} size="small" variant="outlined" sx={compactChipSx} />
                                 </Tooltip>
                               )}
                             </Box>
@@ -662,25 +674,26 @@ function Patients() {
                             <Typography variant="body2" color="text.secondary">None on file</Typography>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ width: COLUMN_WIDTHS.risk }}>
                           <Chip
                             label={riskInfo.level}
                             color={riskInfo.color}
                             size="small"
                             icon={riskInfo.level === 'High' ? <WarningIcon /> : undefined}
+                            sx={compactChipSx}
                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ width: COLUMN_WIDTHS.updated }}>
                           <Typography variant="body2" color="text.secondary">
                             {formatLastUpdated(patient.updatedAt)}
                           </Typography>
                         </TableCell>
-                        <TableCell align="right">
+                        <TableCell sx={{ width: COLUMN_WIDTHS.actions }} align="center">
                           <IconButton
                             size="small"
                             onClick={(e) => handleActionClick(e, patient)}
                           >
-                            <MoreVertIcon />
+                            <MoreVertIcon fontSize="small" />
                           </IconButton>
                         </TableCell>
                       </TableRow>

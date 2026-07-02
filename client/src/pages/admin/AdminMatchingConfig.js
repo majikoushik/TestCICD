@@ -4,8 +4,10 @@ import {
   Button, Chip, TextField, IconButton, Divider, Alert, CircularProgress,
   Accordion, AccordionSummary, AccordionDetails, Tooltip, Stack,
   Dialog, DialogTitle, DialogContent, DialogActions, Card, CardContent,
-  Table, TableBody, TableRow, TableCell,
+  Table, TableBody, TableRow, TableCell, TableContainer,
 } from '@mui/material';
+import EllipsisCell from '../../components/common/EllipsisCell';
+import { tableContainerSx, tableSx, tableBodyRowSx, compactChipSx } from '../../components/common/adminTableStyles';
 import {
   ExpandMore as ExpandMoreIcon,
   Add as AddIcon,
@@ -381,22 +383,25 @@ export default function AdminMatchingConfig() {
                   <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
                     {testResults.length} match{testResults.length !== 1 ? 'es' : ''} found:
                   </Typography>
-                  <Table size="small">
-                    <TableBody>
-                      {testResults.map((r, i) => (
-                        <TableRow key={i}>
-                          <TableCell sx={{ py: 0.5 }}>
-                            <Chip label={r.matchType} size="small"
-                              color={r.matchType === 'exact' ? 'success' : r.matchType === 'prefix' ? 'primary' : 'default'}
-                            />
-                          </TableCell>
-                          <TableCell sx={{ py: 0.5 }}><Typography variant="body2">{r.term}</Typography></TableCell>
-                          <TableCell sx={{ py: 0.5 }}><Typography variant="caption" color="text.secondary">{r.group}</Typography></TableCell>
-                          <TableCell sx={{ py: 0.5 }} align="right"><Chip label={`+${r.score}`} size="small" variant="outlined" /></TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <TableContainer sx={tableContainerSx}>
+                    <Table size="small" sx={tableSx}>
+                      <TableBody>
+                        {testResults.map((r, i) => (
+                          <TableRow key={i} hover sx={tableBodyRowSx}>
+                            <TableCell sx={{ width: '20%' }}>
+                              <Chip label={r.matchType} size="small"
+                                color={r.matchType === 'exact' ? 'success' : r.matchType === 'prefix' ? 'primary' : 'default'}
+                                sx={compactChipSx}
+                              />
+                            </TableCell>
+                            <TableCell sx={{ width: '30%' }}><EllipsisCell value={r.term} /></TableCell>
+                            <TableCell sx={{ width: '35%' }}><EllipsisCell value={r.group} variant="caption" sx={{ color: 'text.secondary' }} /></TableCell>
+                            <TableCell sx={{ width: '15%' }} align="right"><Chip label={`+${r.score}`} size="small" variant="outlined" sx={compactChipSx} /></TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
                 </Box>
               )
             )}
@@ -407,24 +412,26 @@ export default function AdminMatchingConfig() {
         <Grid item xs={12} md={7}>
           <Paper sx={{ p: 3 }}>
             <SectionHeader icon={<CheckIcon />} title="Matching Score Reference" subtitle="How each specialty match type contributes to the final score" />
-            <Table size="small">
-              <TableBody>
-                {[
-                  ['Exact match', 'Provider specialty = search term (case-insensitive)', '30 pts', 'success'],
-                  ['Synonym match', 'Both terms appear in the same synonym group', '22 pts', 'primary'],
-                  ['Sub-specialty match', 'Search term found in provider\'s subSpecialties list', '18 pts', 'primary'],
-                  ['Partial/prefix match', '"Derma" → "Dermatology" (configurable)', '12 pts*', 'default'],
-                  ['No match (normal mode)', 'Provider is excluded from results', '—', 'error'],
-                  ['No match (bypass mode)', 'Provider included; text bonus applied if text matches', '+15 bonus', 'warning'],
-                ].map(([type, desc, score, color]) => (
-                  <TableRow key={type}>
-                    <TableCell sx={{ py: 0.75 }}><Chip label={type} size="small" color={color} /></TableCell>
-                    <TableCell sx={{ py: 0.75 }}><Typography variant="caption">{desc}</Typography></TableCell>
-                    <TableCell sx={{ py: 0.75 }} align="right"><Typography variant="body2" fontWeight={600}>{score}</Typography></TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <TableContainer sx={tableContainerSx}>
+              <Table size="small" sx={tableSx}>
+                <TableBody>
+                  {[
+                    ['Exact match', 'Provider specialty = search term (case-insensitive)', '30 pts', 'success'],
+                    ['Synonym match', 'Both terms appear in the same synonym group', '22 pts', 'primary'],
+                    ['Sub-specialty match', 'Search term found in provider\'s subSpecialties list', '18 pts', 'primary'],
+                    ['Partial/prefix match', '"Derma" → "Dermatology" (configurable)', '12 pts*', 'default'],
+                    ['No match (normal mode)', 'Provider is excluded from results', '—', 'error'],
+                    ['No match (bypass mode)', 'Provider included; text bonus applied if text matches', '+15 bonus', 'warning'],
+                  ].map(([type, desc, score, color]) => (
+                    <TableRow key={type} hover sx={tableBodyRowSx}>
+                      <TableCell sx={{ width: '22%' }}><Chip label={type} size="small" color={color} sx={compactChipSx} /></TableCell>
+                      <TableCell sx={{ width: '58%' }}><EllipsisCell value={desc} variant="caption" /></TableCell>
+                      <TableCell sx={{ width: '20%' }} align="right"><Typography variant="body2" fontWeight={600}>{score}</Typography></TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
             <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
               * Partial match score is configurable above. Must be &lt; synonym score (22) to preserve ranking order.
             </Typography>

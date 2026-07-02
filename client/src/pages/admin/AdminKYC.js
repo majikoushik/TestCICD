@@ -4,8 +4,8 @@ import {
   TableRow, TableCell, TableContainer, TablePagination, Chip, IconButton,
   TextField, InputAdornment, Select, MenuItem, FormControl, InputLabel,
   Dialog, DialogTitle, DialogContent, DialogActions, Button, Tabs, Tab,
-  Alert, Snackbar, Tooltip, Divider, Stack, Avatar, Switch, FormControlLabel,
-  Autocomplete,
+  Alert, Snackbar, Tooltip, Divider, Avatar, Switch, FormControlLabel,
+  Autocomplete, Menu, ListItemIcon, ListItemText,
 } from '@mui/material';
 import {
   Search as SearchIcon, Refresh as RefreshIcon, Visibility as ViewIcon,
@@ -16,11 +16,16 @@ import {
   Edit as EditIcon, Print as FaxIcon, Badge as BadgeIcon,
   MedicalServices as MedicalIcon, PeopleAlt as PeopleIcon,
   DeleteOutline as DeleteIcon, WarningAmber as WarnIcon,
-  ForwardToInbox as ResendEmailIcon,
+  ForwardToInbox as ResendEmailIcon, MoreVert as MoreVertIcon,
 } from '@mui/icons-material';
 import { get, post, patch, del } from '../../utils/apiUtils';
 import { authStorage } from '../../utils/storageUtils';
 import { formatDate, formatDateTime } from '../../utils/dateFormatter';
+import EllipsisCell from '../../components/common/EllipsisCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+  pageHeaderBoxSx,
+} from '../../components/common/adminTableStyles';
 
 const _RAW = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 const API_BASE = _RAW.replace(/\/api$/, '');
@@ -192,6 +197,18 @@ export default function AdminKYC() {
 
   // Admin resend verification email
   const [resending, setResending] = useState(false);
+
+  // Row action menu (kebab) — consolidates the row's icon buttons into one menu
+  const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState(null);
+  const [actionMenuProfile, setActionMenuProfile] = useState(null);
+  const openActionMenu = (event, profile) => {
+    setActionMenuAnchorEl(event.currentTarget);
+    setActionMenuProfile(profile);
+  };
+  const closeActionMenu = () => {
+    setActionMenuAnchorEl(null);
+    setActionMenuProfile(null);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -365,6 +382,12 @@ export default function AdminKYC() {
     }
   };
 
+  // Percentages sum to 100% — actions column uses a small fixed px width instead.
+  const COLUMN_WIDTHS = {
+    provider: '22%', organization: '17%', npi: '11%', specialty: '16%',
+    license: '12%', submitted: '11%', status: '11%', actions: '48px',
+  };
+
   const filtered = profiles.filter(p => {
     if (!search) return true;
     const q = search.toLowerCase();
@@ -429,18 +452,18 @@ export default function AdminKYC() {
           </Box>
         ) : (
           <Paper elevation={1}>
-            <TableContainer>
-              <Table size="small">
+            <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+              <Table size="small" sx={tableSx}>
                 <TableHead>
-                  <TableRow sx={{ bgcolor: 'grey.50' }}>
-                    <TableCell><strong>Provider</strong></TableCell>
-                    <TableCell><strong>Organization</strong></TableCell>
-                    <TableCell><strong>NPI</strong></TableCell>
-                    <TableCell><strong>Specialty</strong></TableCell>
-                    <TableCell><strong>License #</strong></TableCell>
-                    <TableCell><strong>Submitted</strong></TableCell>
-                    <TableCell><strong>KYC Status</strong></TableCell>
-                    <TableCell align="center"><strong>Actions</strong></TableCell>
+                  <TableRow sx={tableHeadRowSx}>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.provider }}>Provider</TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.organization }}>Organization</TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.npi }}>NPI</TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.specialty }}>Specialty</TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.license }}>License #</TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.submitted }}>Submitted</TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.status }}>KYC Status</TableCell>
+                    <TableCell sx={{ width: COLUMN_WIDTHS.actions }} align="center">Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -448,59 +471,31 @@ export default function AdminKYC() {
                     const sta = KYC_STATUS[p.kycStatus] || KYC_STATUS.profile_incomplete;
                     const name = p.user?.name || 'Unknown';
                     const isReviewable = p.kycStatus === 'under_review';
-                    const isVerified   = p.kycStatus === 'verified';
                     return (
                       <TableRow key={p._id} hover
                         onClick={() => { setSelected(p); setDialogOpen(true); }}
-                        sx={{ cursor: 'pointer', bgcolor: isReviewable ? 'info.50' : 'inherit' }}>
-                        <TableCell>
+                        sx={{ ...tableBodyRowSx, cursor: 'pointer', bgcolor: isReviewable ? 'info.50' : 'inherit' }}>
+                        <TableCell sx={{ width: COLUMN_WIDTHS.provider }}>
                           <Box display="flex" alignItems="center" gap={1.5}>
-                            <Avatar sx={{ bgcolor: avatarColor(name), width: 32, height: 32, fontSize: 12 }}>{initials(name)}</Avatar>
-                            <Box>
-                              <Typography variant="body2" fontWeight={600} noWrap sx={{ maxWidth: 160 }}>{name}</Typography>
-                              <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 160, display: 'block' }}>{p.user?.email}</Typography>
+                            <Avatar sx={{ bgcolor: avatarColor(name), width: 32, height: 32, fontSize: 12, flexShrink: 0 }}>{initials(name)}</Avatar>
+                            <Box sx={{ minWidth: 0, flex: 1 }}>
+                              <EllipsisCell value={name} variant="body2" sx={{ fontWeight: 600 }} />
+                              <EllipsisCell value={p.user?.email} variant="caption" sx={{ color: 'text.secondary', display: 'block' }} />
                             </Box>
                           </Box>
                         </TableCell>
-                        <TableCell><Typography variant="body2" noWrap sx={{ maxWidth: 140 }}>{p.user?.organization || '—'}</Typography></TableCell>
-                        <TableCell><Typography variant="body2" fontFamily="monospace">{p.npi || '—'}</Typography></TableCell>
-                        <TableCell><Typography variant="body2" noWrap sx={{ maxWidth: 120 }}>{p.specialty || '—'}</Typography></TableCell>
-                        <TableCell><Typography variant="body2">{p.licenseNumber || '—'}</Typography></TableCell>
-                        <TableCell><Typography variant="caption" color="text.secondary">{formatDate(p.createdAt)}</Typography></TableCell>
-                        <TableCell>
-                          <Chip label={sta.label} color={sta.color} size="small" variant={isReviewable ? 'filled' : 'outlined'} />
+                        <TableCell sx={{ width: COLUMN_WIDTHS.organization }}><EllipsisCell value={p.user?.organization} /></TableCell>
+                        <TableCell sx={{ width: COLUMN_WIDTHS.npi }}><Typography variant="body2" fontFamily="monospace" noWrap>{p.npi || '—'}</Typography></TableCell>
+                        <TableCell sx={{ width: COLUMN_WIDTHS.specialty }}><EllipsisCell value={p.specialty} /></TableCell>
+                        <TableCell sx={{ width: COLUMN_WIDTHS.license }}><EllipsisCell value={p.licenseNumber} /></TableCell>
+                        <TableCell sx={{ width: COLUMN_WIDTHS.submitted }}><Typography variant="caption" color="text.secondary">{formatDate(p.createdAt)}</Typography></TableCell>
+                        <TableCell sx={{ width: COLUMN_WIDTHS.status }}>
+                          <Chip label={sta.label} color={sta.color} size="small" variant={isReviewable ? 'filled' : 'outlined'} sx={compactChipSx} />
                         </TableCell>
-                        <TableCell align="center" onClick={e => e.stopPropagation()}>
-                          <Stack direction="row" justifyContent="center">
-                            <Tooltip title="View details">
-                              <IconButton size="small" onClick={() => { setSelected(p); setDialogOpen(true); }}><ViewIcon fontSize="small" /></IconButton>
-                            </Tooltip>
-                            {p.kycDocumentPath && (
-                              <Tooltip title="Download document">
-                                <IconButton size="small" onClick={() => handleDownloadDoc(p._id)}><DownloadIcon fontSize="small" /></IconButton>
-                              </Tooltip>
-                            )}
-                            {!isVerified && (
-                              <Tooltip title="Edit profile">
-                                <IconButton size="small" color="primary" onClick={(e) => handleEditOpen(p, e)}><EditIcon fontSize="small" /></IconButton>
-                              </Tooltip>
-                            )}
-                            {isReviewable && (
-                              <>
-                                <Tooltip title="Approve">
-                                  <IconButton size="small" color="success" onClick={(e) => handleApproveClick(p, e)}><ApproveIcon fontSize="small" /></IconButton>
-                                </Tooltip>
-                                <Tooltip title="Reject">
-                                  <IconButton size="small" color="error" onClick={(e) => handleRejectClick(p, e)}><RejectIcon fontSize="small" /></IconButton>
-                                </Tooltip>
-                              </>
-                            )}
-                            <Tooltip title="Delete provider">
-                              <IconButton size="small" color="error" onClick={(e) => handleDeleteClick(p, e)}>
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          </Stack>
+                        <TableCell sx={{ width: COLUMN_WIDTHS.actions }} align="center" onClick={e => e.stopPropagation()}>
+                          <IconButton size="small" onClick={(e) => openActionMenu(e, p)}>
+                            <MoreVertIcon fontSize="small" />
+                          </IconButton>
                         </TableCell>
                       </TableRow>
                     );
@@ -514,6 +509,55 @@ export default function AdminKYC() {
           </Paper>
         )}
       </Box>
+
+      {/* ── Row action menu (kebab) ─────────────────────────────────────────── */}
+      {actionMenuProfile && (() => {
+        const p = actionMenuProfile;
+        const isVerified = p.kycStatus === 'verified';
+        const isReviewable = p.kycStatus === 'under_review';
+        const runAction = (fn) => { closeActionMenu(); fn(); };
+        return (
+          <Menu
+            anchorEl={actionMenuAnchorEl}
+            open={Boolean(actionMenuAnchorEl)}
+            onClose={closeActionMenu}
+            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+          >
+            <MenuItem onClick={() => runAction(() => { setSelected(p); setDialogOpen(true); })}>
+              <ListItemIcon><ViewIcon fontSize="small" color="primary" /></ListItemIcon>
+              <ListItemText>View details</ListItemText>
+            </MenuItem>
+            {p.kycDocumentPath && (
+              <MenuItem onClick={() => runAction(() => handleDownloadDoc(p._id))}>
+                <ListItemIcon><DownloadIcon fontSize="small" /></ListItemIcon>
+                <ListItemText>Download document</ListItemText>
+              </MenuItem>
+            )}
+            {!isVerified && (
+              <MenuItem onClick={() => runAction(() => handleEditOpen(p, null))}>
+                <ListItemIcon><EditIcon fontSize="small" color="primary" /></ListItemIcon>
+                <ListItemText>Edit profile</ListItemText>
+              </MenuItem>
+            )}
+            {isReviewable && [
+              <MenuItem key="approve" onClick={() => runAction(() => handleApproveClick(p, null))}>
+                <ListItemIcon><ApproveIcon fontSize="small" color="success" /></ListItemIcon>
+                <ListItemText>Approve</ListItemText>
+              </MenuItem>,
+              <MenuItem key="reject" onClick={() => runAction(() => handleRejectClick(p, null))}>
+                <ListItemIcon><RejectIcon fontSize="small" color="error" /></ListItemIcon>
+                <ListItemText>Reject</ListItemText>
+              </MenuItem>,
+            ]}
+            <Divider />
+            <MenuItem onClick={() => runAction(() => handleDeleteClick(p, null))}>
+              <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
+              <ListItemText sx={{ color: 'error.main' }}>Delete provider</ListItemText>
+            </MenuItem>
+          </Menu>
+        );
+      })()}
 
       {/* ── View / Decision Dialog ────────────────────────────────────────── */}
       {selected && (

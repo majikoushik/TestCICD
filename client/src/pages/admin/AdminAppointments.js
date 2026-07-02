@@ -23,7 +23,11 @@ import {
   AccessTime as TimeIcon,
 } from '@mui/icons-material';
 import { get, put } from '../../utils/apiUtils';
-import { formatDate, formatDateTime } from '../../utils/dateFormatter';
+import { formatDate, formatDateTime, formatScheduledDateTime } from '../../utils/dateFormatter';
+import EllipsisCell from '../../components/common/EllipsisCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+} from '../../components/common/adminTableStyles';
 
 // ============================================================================
 // CONSTANTS
@@ -66,6 +70,21 @@ const TYPE_OPTIONS = [
 // ============================================================================
 // HELPERS
 // ============================================================================
+
+// Percentages sum to 100% — with tableLayout: 'fixed' (see tableSx) this
+// guarantees the appointments grid always fits its container, no horizontal
+// scroll and no column silently clipped off-screen.
+const APPT_COLUMN_WIDTHS = {
+  patient: '20%', provider: '19%', type: '12%',
+  date: '19%', status: '12%', location: '18%', actions: '48px',
+};
+
+// Provider Detail Breakdown table (Provider Utilization tab) — 9 columns, no
+// actions column, so these percentages sum to a full 100%.
+const UTIL_COLUMN_WIDTHS = {
+  provider: '20%', totalSlots: '10%', booked: '10%', fillRate: '11%',
+  completed: '11%', noShow: '10%', cancelRate: '11%', avgDuration: '10%', tokens: '7%',
+};
 
 function typeLabel(type) {
   const found = TYPE_OPTIONS.find(t => t.value === type);
@@ -195,7 +214,7 @@ function AppointmentDetailDialog({ appointment, open, onClose, onAction }) {
           </Grid>
           <Grid item xs={12} sm={6}>
             <Typography variant="caption" color="text.secondary">Date & Time</Typography>
-            <Typography variant="body2">{formatDateTime(appointment.appointmentDate || appointment.date)}</Typography>
+            <Typography variant="body2">{formatScheduledDateTime(appointment.scheduledDate, appointment.startTime)}</Typography>
           </Grid>
           <Grid item xs={12} sm={6}>
             <Typography variant="caption" color="text.secondary">Location</Typography>
@@ -205,16 +224,16 @@ function AppointmentDetailDialog({ appointment, open, onClose, onAction }) {
                 : appointment.location || appointment.clinic || 'In-Person'}
             </Typography>
           </Grid>
-          {appointment.duration && (
+          {appointment.durationMinutes && (
             <Grid item xs={12} sm={6}>
               <Typography variant="caption" color="text.secondary">Duration</Typography>
-              <Typography variant="body2">{appointment.duration} min</Typography>
+              <Typography variant="body2">{appointment.durationMinutes} min</Typography>
             </Grid>
           )}
-          {appointment.reason && (
+          {(appointment.reasonForVisit || appointment.chiefComplaint) && (
             <Grid item xs={12}>
               <Typography variant="caption" color="text.secondary">Reason</Typography>
-              <Typography variant="body2">{appointment.reason}</Typography>
+              <Typography variant="body2">{appointment.reasonForVisit || appointment.chiefComplaint}</Typography>
             </Grid>
           )}
           {appointment.notes && (
@@ -242,11 +261,13 @@ function AppointmentDetailDialog({ appointment, open, onClose, onAction }) {
             {rescheduleHistory.map((entry, idx) => (
               <Box key={idx} sx={{ mb: 1, p: 1, bgcolor: 'action.hover', borderRadius: 1 }}>
                 <Typography variant="caption" color="text.secondary">
-                  {formatDateTime(entry.rescheduledAt || entry.date)} — {entry.reason || 'No reason provided'}
+                  {formatDateTime(entry.changedAt)} — {entry.reason || 'No reason provided'}
                 </Typography>
-                {entry.previousDate && (
+                {entry.fromDate && (
                   <Typography variant="caption" display="block" color="text.secondary">
-                    Previous: {formatDateTime(entry.previousDate)}
+                    From: {formatScheduledDateTime(entry.fromDate, entry.fromStartTime)}
+                    {' → '}
+                    To: {formatScheduledDateTime(entry.toDate, entry.toStartTime)}
                   </Typography>
                 )}
               </Box>
@@ -631,30 +652,29 @@ export default function AdminAppointments() {
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
           {/* Table */}
-          <TableContainer component={Paper} variant="outlined">
-            <Table size="small">
+          <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+            <Table size="small" sx={tableSx}>
               <TableHead>
-                <TableRow sx={{ bgcolor: 'action.hover' }}>
-                  <TableCell><Typography variant="caption" fontWeight={700}>Appt ID</Typography></TableCell>
-                  <TableCell><Typography variant="caption" fontWeight={700}>Patient</Typography></TableCell>
-                  <TableCell><Typography variant="caption" fontWeight={700}>Provider</Typography></TableCell>
-                  <TableCell><Typography variant="caption" fontWeight={700}>Type</Typography></TableCell>
-                  <TableCell><Typography variant="caption" fontWeight={700}>Date & Time</Typography></TableCell>
-                  <TableCell><Typography variant="caption" fontWeight={700}>Status</Typography></TableCell>
-                  <TableCell><Typography variant="caption" fontWeight={700}>Location</Typography></TableCell>
-                  <TableCell><Typography variant="caption" fontWeight={700}>Actions</Typography></TableCell>
+                <TableRow sx={tableHeadRowSx}>
+                  <TableCell sx={{ width: APPT_COLUMN_WIDTHS.patient }}>Patient</TableCell>
+                  <TableCell sx={{ width: APPT_COLUMN_WIDTHS.provider }}>Provider</TableCell>
+                  <TableCell sx={{ width: APPT_COLUMN_WIDTHS.type }}>Type</TableCell>
+                  <TableCell sx={{ width: APPT_COLUMN_WIDTHS.date }}>Date & Time</TableCell>
+                  <TableCell sx={{ width: APPT_COLUMN_WIDTHS.status }}>Status</TableCell>
+                  <TableCell sx={{ width: APPT_COLUMN_WIDTHS.location }}>Location</TableCell>
+                  <TableCell sx={{ width: APPT_COLUMN_WIDTHS.actions }} align="center">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                    <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                       <CircularProgress size={28} />
                     </TableCell>
                   </TableRow>
                 ) : appointments.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                    <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                       <Typography variant="body2" color="text.secondary">No appointments found</Typography>
                     </TableCell>
                   </TableRow>
@@ -664,56 +684,45 @@ export default function AdminAppointments() {
                     const apptType = appt.appointmentType || appt.type;
                     const isVirtual = apptType === 'telehealth' || appt.locationType === 'telehealth' || appt.isVirtual;
                     return (
-                      <TableRow key={apptId} hover>
-                        <TableCell>
-                          <Typography variant="caption" fontFamily="monospace" sx={{ fontSize: '0.7rem' }}>
-                            {String(apptId).slice(-8) || '—'}
-                          </Typography>
+                      <TableRow key={apptId} hover sx={tableBodyRowSx}>
+                        <TableCell sx={{ width: APPT_COLUMN_WIDTHS.patient }}>
+                          <EllipsisCell value={appt.patientName || appt.patient?.name} />
                         </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {appt.patientName || appt.patient?.name || '—'}
-                          </Typography>
+                        <TableCell sx={{ width: APPT_COLUMN_WIDTHS.provider }}>
+                          <EllipsisCell value={appt.providerName || appt.provider?.name} />
                         </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {appt.providerName || appt.provider?.name || '—'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ width: APPT_COLUMN_WIDTHS.type }}>
                           <Chip
                             label={typeLabel(apptType)}
                             size="small"
                             sx={{
+                              ...compactChipSx,
                               backgroundColor: TYPE_COLORS[apptType] || '#757575',
                               color: '#fff',
-                              fontSize: '0.7rem'
                             }}
                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ width: APPT_COLUMN_WIDTHS.date }}>
                           <Typography variant="body2" noWrap>
-                            {formatDateTime(appt.appointmentDate || appt.date)}
+                            {formatScheduledDateTime(appt.scheduledDate, appt.startTime)}
                           </Typography>
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ width: APPT_COLUMN_WIDTHS.status }}>
                           <Chip
                             label={statusLabel(appt.status)}
                             color={STATUS_COLORS[appt.status] || 'default'}
                             size="small"
-                            sx={{ fontSize: '0.7rem' }}
+                            sx={compactChipSx}
                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ width: APPT_COLUMN_WIDTHS.location }}>
                           {isVirtual ? (
-                            <Chip label="Telehealth" size="small" color="secondary" sx={{ fontSize: '0.7rem' }} />
+                            <Chip label="Telehealth" size="small" color="secondary" sx={compactChipSx} />
                           ) : (
-                            <Typography variant="body2">
-                              {appt.location || appt.clinic || 'In-Person'}
-                            </Typography>
+                            <EllipsisCell value={appt.location || appt.clinic || 'In-Person'} />
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ width: APPT_COLUMN_WIDTHS.actions }} align="center">
                           <Tooltip title="View Details">
                             <IconButton size="small" onClick={() => setViewAppointment(appt)}>
                               <ViewIcon fontSize="small" />
@@ -877,31 +886,29 @@ export default function AdminAppointments() {
                 {topProviders.length === 0 ? (
                   <Typography variant="body2" color="text.secondary">No provider data available</Typography>
                 ) : (
-                  <TableContainer>
-                    <Table size="small">
+                  <TableContainer sx={tableContainerSx}>
+                    <Table size="small" sx={tableSx}>
                       <TableHead>
-                        <TableRow>
-                          <TableCell><Typography variant="caption" fontWeight={700}>Provider</Typography></TableCell>
-                          <TableCell align="right"><Typography variant="caption" fontWeight={700}>Count</Typography></TableCell>
-                          <TableCell align="right"><Typography variant="caption" fontWeight={700}>Completed</Typography></TableCell>
-                          <TableCell align="right"><Typography variant="caption" fontWeight={700}>No-Show</Typography></TableCell>
+                        <TableRow sx={tableHeadRowSx}>
+                          <TableCell sx={{ width: '40%' }}>Provider</TableCell>
+                          <TableCell sx={{ width: '20%' }} align="right">Count</TableCell>
+                          <TableCell sx={{ width: '20%' }} align="right">Completed</TableCell>
+                          <TableCell sx={{ width: '20%' }} align="right">No-Show</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
                         {topProviders.map((prov, idx) => (
-                          <TableRow key={prov._id || prov.providerId || idx} hover>
-                            <TableCell>
-                              <Typography variant="body2">
-                                {prov.providerName || prov.name || '—'}
-                              </Typography>
+                          <TableRow key={prov._id || prov.providerId || idx} hover sx={tableBodyRowSx}>
+                            <TableCell sx={{ width: '40%' }}>
+                              <EllipsisCell value={prov.providerName || prov.name} />
                             </TableCell>
-                            <TableCell align="right">
+                            <TableCell sx={{ width: '20%' }} align="right">
                               <Typography variant="body2" fontWeight={600}>{prov.count ?? prov.total ?? '—'}</Typography>
                             </TableCell>
-                            <TableCell align="right">
+                            <TableCell sx={{ width: '20%' }} align="right">
                               <Typography variant="body2" color="success.main">{prov.completed ?? '—'}</Typography>
                             </TableCell>
-                            <TableCell align="right">
+                            <TableCell sx={{ width: '20%' }} align="right">
                               <Typography variant="body2" color="error.main">{prov.noShows ?? prov.noShow ?? '—'}</Typography>
                             </TableCell>
                           </TableRow>
@@ -1024,13 +1031,13 @@ export default function AdminAppointments() {
                       <TimeIcon color="secondary" fontSize="small" />
                       <Typography variant="subtitle1" fontWeight={700}>Peak Appointment Hours</Typography>
                     </Box>
-                    <TableContainer>
-                      <Table size="small">
+                    <TableContainer sx={tableContainerSx}>
+                      <Table size="small" sx={tableSx}>
                         <TableHead>
-                          <TableRow>
-                            <TableCell><Typography variant="caption" fontWeight={700}>Time Slot</Typography></TableCell>
-                            <TableCell align="right"><Typography variant="caption" fontWeight={700}>Appts</Typography></TableCell>
-                            <TableCell><Typography variant="caption" fontWeight={700}>Load</Typography></TableCell>
+                          <TableRow sx={tableHeadRowSx}>
+                            <TableCell sx={{ width: '40%' }}>Time Slot</TableCell>
+                            <TableCell sx={{ width: '20%' }} align="right">Appts</TableCell>
+                            <TableCell sx={{ width: '40%' }}>Load</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
@@ -1038,14 +1045,14 @@ export default function AdminAppointments() {
                             const maxCount = Math.max(...(utilization.peakHours || []).map(s => s.count), 1);
                             const pct = Math.round((slot.count / maxCount) * 100);
                             return (
-                              <TableRow key={slot.hour} hover>
-                                <TableCell>
+                              <TableRow key={slot.hour} hover sx={tableBodyRowSx}>
+                                <TableCell sx={{ width: '40%' }}>
                                   <Typography variant="body2">{slot.label}</Typography>
                                 </TableCell>
-                                <TableCell align="right">
+                                <TableCell sx={{ width: '20%' }} align="right">
                                   <Typography variant="body2" fontWeight={600}>{slot.count}</Typography>
                                 </TableCell>
-                                <TableCell sx={{ width: 100 }}>
+                                <TableCell sx={{ width: '40%' }}>
                                   <LinearProgress
                                     variant="determinate"
                                     value={pct}
@@ -1070,19 +1077,19 @@ export default function AdminAppointments() {
                   <Typography variant="subtitle1" fontWeight={700}>Provider Detail Breakdown</Typography>
                 </Box>
                 <Divider />
-                <TableContainer>
-                  <Table size="small">
+                <TableContainer sx={tableContainerSx}>
+                  <Table size="small" sx={tableSx}>
                     <TableHead>
-                      <TableRow sx={{ bgcolor: 'action.hover' }}>
-                        <TableCell><Typography variant="caption" fontWeight={700}>Provider</Typography></TableCell>
-                        <TableCell align="right"><Typography variant="caption" fontWeight={700}>Total Slots</Typography></TableCell>
-                        <TableCell align="right"><Typography variant="caption" fontWeight={700}>Booked</Typography></TableCell>
-                        <TableCell align="right"><Typography variant="caption" fontWeight={700}>Fill Rate</Typography></TableCell>
-                        <TableCell align="right"><Typography variant="caption" fontWeight={700}>Completed</Typography></TableCell>
-                        <TableCell align="right"><Typography variant="caption" fontWeight={700}>No-Show</Typography></TableCell>
-                        <TableCell align="right"><Typography variant="caption" fontWeight={700}>Cancel Rate</Typography></TableCell>
-                        <TableCell align="right"><Typography variant="caption" fontWeight={700}>Avg Duration</Typography></TableCell>
-                        <TableCell align="right"><Typography variant="caption" fontWeight={700}>Tokens Earned</Typography></TableCell>
+                      <TableRow sx={tableHeadRowSx}>
+                        <TableCell sx={{ width: UTIL_COLUMN_WIDTHS.provider }}>Provider</TableCell>
+                        <TableCell sx={{ width: UTIL_COLUMN_WIDTHS.totalSlots }} align="right">Total Slots</TableCell>
+                        <TableCell sx={{ width: UTIL_COLUMN_WIDTHS.booked }} align="right">Booked</TableCell>
+                        <TableCell sx={{ width: UTIL_COLUMN_WIDTHS.fillRate }} align="right">Fill Rate</TableCell>
+                        <TableCell sx={{ width: UTIL_COLUMN_WIDTHS.completed }} align="right">Completed</TableCell>
+                        <TableCell sx={{ width: UTIL_COLUMN_WIDTHS.noShow }} align="right">No-Show</TableCell>
+                        <TableCell sx={{ width: UTIL_COLUMN_WIDTHS.cancelRate }} align="right">Cancel Rate</TableCell>
+                        <TableCell sx={{ width: UTIL_COLUMN_WIDTHS.avgDuration }} align="right">Avg Duration</TableCell>
+                        <TableCell sx={{ width: UTIL_COLUMN_WIDTHS.tokens }} align="right">Tokens Earned</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -1090,44 +1097,44 @@ export default function AdminAppointments() {
                         const fill = prov.fillRate ?? 0;
                         const fillColor = fill >= 80 ? 'success.main' : fill >= 60 ? 'warning.main' : 'error.main';
                         return (
-                          <TableRow key={prov.providerId || prov.providerName} hover>
-                            <TableCell>
-                              <Typography variant="body2" fontWeight={600}>{prov.providerName}</Typography>
-                              <Typography variant="caption" color="text.secondary">{prov.specialty || '—'}</Typography>
+                          <TableRow key={prov.providerId || prov.providerName} hover sx={tableBodyRowSx}>
+                            <TableCell sx={{ width: UTIL_COLUMN_WIDTHS.provider }}>
+                              <EllipsisCell value={prov.providerName} />
+                              <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>{prov.specialty || '—'}</Typography>
                             </TableCell>
-                            <TableCell align="right">
+                            <TableCell sx={{ width: UTIL_COLUMN_WIDTHS.totalSlots }} align="right">
                               <Typography variant="body2">{prov.totalSlots ?? '—'}</Typography>
                             </TableCell>
-                            <TableCell align="right">
+                            <TableCell sx={{ width: UTIL_COLUMN_WIDTHS.booked }} align="right">
                               <Typography variant="body2">{prov.bookedSlots ?? '—'}</Typography>
                             </TableCell>
-                            <TableCell align="right">
+                            <TableCell sx={{ width: UTIL_COLUMN_WIDTHS.fillRate }} align="right">
                               <Chip
                                 label={fill + '%'}
                                 size="small"
                                 color={fill >= 80 ? 'success' : fill >= 60 ? 'warning' : 'error'}
-                                sx={{ fontWeight: 700, minWidth: 52 }}
+                                sx={{ ...compactChipSx, fontWeight: 700, minWidth: 52 }}
                               />
                             </TableCell>
-                            <TableCell align="right">
+                            <TableCell sx={{ width: UTIL_COLUMN_WIDTHS.completed }} align="right">
                               <Typography variant="body2" color="success.main" fontWeight={600}>
                                 {prov.completed ?? '—'}
                               </Typography>
                             </TableCell>
-                            <TableCell align="right">
+                            <TableCell sx={{ width: UTIL_COLUMN_WIDTHS.noShow }} align="right">
                               <Typography variant="body2" color="error.main">
                                 {prov.noShow ?? '—'}
                               </Typography>
                             </TableCell>
-                            <TableCell align="right">
+                            <TableCell sx={{ width: UTIL_COLUMN_WIDTHS.cancelRate }} align="right">
                               <Typography variant="body2" color={prov.cancelRate > 15 ? 'error.main' : 'text.primary'}>
                                 {prov.cancelRate != null ? prov.cancelRate + '%' : '—'}
                               </Typography>
                             </TableCell>
-                            <TableCell align="right">
+                            <TableCell sx={{ width: UTIL_COLUMN_WIDTHS.avgDuration }} align="right">
                               <Typography variant="body2">{prov.avgDuration != null ? prov.avgDuration + ' min' : '—'}</Typography>
                             </TableCell>
-                            <TableCell align="right">
+                            <TableCell sx={{ width: UTIL_COLUMN_WIDTHS.tokens }} align="right">
                               <Typography variant="body2" fontWeight={600} color={fillColor}>
                                 {prov.tokensEarned != null ? '+' + prov.tokensEarned : '—'}
                               </Typography>

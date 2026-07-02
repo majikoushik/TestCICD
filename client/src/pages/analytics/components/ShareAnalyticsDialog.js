@@ -18,11 +18,13 @@ import {
   Typography,
   Divider,
   Box,
-  Chip
+  Chip,
+  IconButton,
 } from '@mui/material';
 import {
   Person as PersonIcon,
-  Share as ShareIcon
+  Share as ShareIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 
 export default function ShareAnalyticsDialog({ open, onClose, onShare, sharedWith = [] }) {
@@ -142,8 +144,16 @@ export default function ShareAnalyticsDialog({ open, onClose, onShare, sharedWit
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Share Analytics Report</DialogTitle>
-      <DialogContent>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main' }}>
+          <ShareIcon fontSize="small" />
+        </Avatar>
+        <Typography variant="h6" component="span" sx={{ flexGrow: 1 }}>Share Analytics Report</Typography>
+        <IconButton onClick={handleClose} size="small" aria-label="close">
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent dividers>
         <Typography variant="body2" color="text.secondary" paragraph>
           Share this analytics report with other healthcare providers. You can control their access level.
         </Typography>

@@ -8,6 +8,11 @@ import {
   Switch, Divider, Snackbar, InputAdornment
 } from '@mui/material';
 import { ModernLoadingIndicator } from '../../components/common';
+import EllipsisCell from '../../components/common/EllipsisCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+  pageHeaderBoxSx,
+} from '../../components/common/adminTableStyles';
 import {
   Search as SearchIcon,
   Visibility as VisibilityIcon,
@@ -274,19 +279,19 @@ const AdminReferrals = () => {
         const displayReferrals = getFilteredReferralsByTab(tabIndex);
         
         return (
-          <TableContainer component={Paper}>
-            <Table size="medium">
+          <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+            <Table size="small" sx={tableSx}>
               <TableHead>
-                <TableRow>
-                  <TableCell>Patient</TableCell>
-                  <TableCell>From Provider</TableCell>
-                  <TableCell>To Provider</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Priority</TableCell>
-                  <TableCell>Created</TableCell>
-                  <TableCell>Payment</TableCell>
-                  <TableCell>Dispute</TableCell>
-                  <TableCell>Actions</TableCell>
+                <TableRow sx={tableHeadRowSx}>
+                  <TableCell sx={{ width: '17%' }}>Patient</TableCell>
+                  <TableCell sx={{ width: '16%' }}>From Provider</TableCell>
+                  <TableCell sx={{ width: '16%' }}>To Provider</TableCell>
+                  <TableCell sx={{ width: '10%' }}>Status</TableCell>
+                  <TableCell sx={{ width: '10%' }}>Priority</TableCell>
+                  <TableCell sx={{ width: '10%' }}>Created</TableCell>
+                  <TableCell sx={{ width: '10%' }}>Payment</TableCell>
+                  <TableCell sx={{ width: '11%' }}>Dispute</TableCell>
+                  <TableCell sx={{ width: '48px' }} align="center">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -302,48 +307,49 @@ const AdminReferrals = () => {
                     const recProvName = recProv.firstName ? `Dr. ${recProv.firstName} ${recProv.lastName || ''}`.trim() : (recProv.name || '—');
                     const billingStatus = referral.billing?.status || 'pending';
                     return (
-                    <TableRow key={refId}>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={500}>{patientName}</Typography>
+                    <TableRow key={refId} hover sx={tableBodyRowSx}>
+                      <TableCell sx={{ width: '17%' }}>
+                        <Typography variant="body2" fontWeight={500} noWrap>{patientName}</Typography>
                         <Typography variant="caption" color="text.secondary">{patient.patientId}</Typography>
                       </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">{refProvName}</Typography>
-                        <Typography variant="caption" color="text.secondary">{refProv.specialty}</Typography>
+                      <TableCell sx={{ width: '16%' }}>
+                        <EllipsisCell value={refProvName} />
+                        <Typography variant="caption" color="text.secondary" noWrap component="div" sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{refProv.specialty}</Typography>
                       </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">{recProvName}</Typography>
-                        <Typography variant="caption" color="text.secondary">{recProv.specialty}</Typography>
+                      <TableCell sx={{ width: '16%' }}>
+                        <EllipsisCell value={recProvName} />
+                        <Typography variant="caption" color="text.secondary" noWrap component="div" sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{recProv.specialty}</Typography>
                       </TableCell>
-                      <TableCell>
-                        <Chip label={referral.status} color={getStatusColor(referral.status)} size="small" />
+                      <TableCell sx={{ width: '10%' }}>
+                        <Chip label={referral.status} color={getStatusColor(referral.status)} size="small" sx={compactChipSx} />
                       </TableCell>
-                      <TableCell>
-                        <Chip label={referral.urgency || 'routine'} color={referral.urgency === 'emergency' ? 'error' : referral.urgency === 'urgent' ? 'warning' : 'default'} size="small" variant="outlined" />
+                      <TableCell sx={{ width: '10%' }}>
+                        <Chip label={referral.urgency || 'routine'} color={referral.urgency === 'emergency' ? 'error' : referral.urgency === 'urgent' ? 'warning' : 'default'} size="small" variant="outlined" sx={compactChipSx} />
                       </TableCell>
-                      <TableCell>{formatDate(referral.createdAt)}</TableCell>
-                      <TableCell>
-                        <Chip label={billingStatus} color={getPaymentStatusColor(billingStatus)} size="small" />
+                      <TableCell sx={{ width: '10%' }}>{formatDate(referral.createdAt)}</TableCell>
+                      <TableCell sx={{ width: '10%' }}>
+                        <Chip label={billingStatus} color={getPaymentStatusColor(billingStatus)} size="small" sx={compactChipSx} />
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ width: '11%' }}>
                         {referral.hasDispute ? (
                           <Chip
                             label={referral.disputeStatus || 'Pending'}
                             color={referral.disputeStatus === 'Resolved' ? 'success' : referral.disputeStatus === 'Rejected' ? 'default' : 'error'}
                             size="small"
+                            sx={compactChipSx}
                           />
                         ) : (
                           <Typography variant="body2" color="text.secondary">None</Typography>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ width: '48px' }} align="center">
                         <IconButton size="small" color="primary" onClick={() => handleViewDetails(referral)}>
                           <VisibilityIcon fontSize="small" />
                         </IconButton>
                       </TableCell>
                     </TableRow>
                   );})}
-                
+
                 {displayReferrals.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={9} align="center">
@@ -359,7 +365,7 @@ const AdminReferrals = () => {
 
       return (
         <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+          <Box sx={pageHeaderBoxSx}>
             <Typography variant="h4" component="h1" gutterBottom>
               Referral Management
             </Typography>

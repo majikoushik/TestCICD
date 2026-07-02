@@ -4,7 +4,7 @@ import {
   TableContainer, TableHead, TableRow, TablePagination, Alert, Button,
   Chip, TextField, FormControl, InputLabel, Select, MenuItem,
   Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
-  IconButton, Tooltip, Card, CardContent, Grid
+  IconButton, Tooltip, Card, CardContent, Grid, Menu, ListItemIcon, ListItemText
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -16,11 +16,17 @@ import {
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
   HourglassEmpty as PendingIcon,
-  Warning as WarningIcon
+  Warning as WarningIcon,
+  MoreVert as MoreVertIcon
 } from '@mui/icons-material';
 import { LinearProgress, Stack, Divider } from '@mui/material';
 import { FlashOn as AutoIcon, FormatQuote as GuidelinesIcon, History as HistoryIcon, Autorenew as RenewIcon, Chat as NotesIcon, Send as SendIcon } from '@mui/icons-material';
 import { ModernLoadingIndicator } from '../../components/common';
+import EllipsisCell from '../../components/common/EllipsisCell';
+import EllipsisHeaderCell from '../../components/common/EllipsisHeaderCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+} from '../../components/common/adminTableStyles';
 import { getPriorAuths, submitAppeal, getAppealDraft, getPAHistory, addPANote } from '../../services/priorAuthService';
 import CreatePriorAuth from './CreatePriorAuth';
 
@@ -121,6 +127,19 @@ export default function PriorAuth() {
   const [newNote, setNewNote] = useState('');
   const [noteLoading, setNoteLoading] = useState(false);
 
+  // Row action menu (kebab) — keeps the grid to one action column instead of
+  // a row of icon buttons, so it never needs horizontal scroll on narrow screens
+  const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState(null);
+  const [actionMenuPA, setActionMenuPA] = useState(null);
+  const openActionMenu = (event, pa) => {
+    setActionMenuAnchorEl(event.currentTarget);
+    setActionMenuPA(pa);
+  };
+  const closeActionMenu = () => {
+    setActionMenuAnchorEl(null);
+    setActionMenuPA(null);
+  };
+
   const loadPAs = useCallback(async () => {
     try {
       setLoading(true);
@@ -214,6 +233,40 @@ export default function PriorAuth() {
 
   const formatDate = (d) => d ? new Date(d).toLocaleDateString() : '—';
 
+  // Shared row-action menu — one instance, opened against whichever row's
+  // kebab button was clicked (see openActionMenu/closeActionMenu above).
+  const renderActionMenu = () => {
+    const pa = actionMenuPA;
+    if (!pa) return null;
+    const runAction = (fn) => { closeActionMenu(); fn(); };
+    return (
+      <Menu
+        anchorEl={actionMenuAnchorEl}
+        open={Boolean(actionMenuAnchorEl)}
+        onClose={closeActionMenu}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+      >
+        <MenuItem onClick={() => runAction(() => { setSelectedPA(pa); setDetailDialogOpen(true); })}>
+          <ListItemIcon><VisibilityIcon fontSize="small" color="primary" /></ListItemIcon>
+          <ListItemText>View Details</ListItemText>
+        </MenuItem>
+        {pa.status === 'Denied' && (
+          <MenuItem onClick={() => runAction(() => { setSelectedPA(pa); setAppealDialogOpen(true); })}>
+            <ListItemIcon><GavelIcon fontSize="small" color="warning" /></ListItemIcon>
+            <ListItemText>Submit Appeal</ListItemText>
+          </MenuItem>
+        )}
+        {pa.status === 'Expired' && (
+          <MenuItem onClick={() => runAction(() => { setRenewalSource(pa); setRenewOpen(true); })}>
+            <ListItemIcon><RenewIcon fontSize="small" color="secondary" /></ListItemIcon>
+            <ListItemText>Request Renewal</ListItemText>
+          </MenuItem>
+        )}
+      </Menu>
+    );
+  };
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -279,18 +332,18 @@ export default function PriorAuth() {
         </Box>
       ) : (
         <Paper>
-          <TableContainer>
-            <Table size="small">
+          <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+            <Table size="small" sx={tableSx}>
               <TableHead>
-                <TableRow>
-                  <TableCell><strong>Patient</strong></TableCell>
-                  <TableCell><strong>Service</strong></TableCell>
-                  <TableCell><strong>Urgency</strong></TableCell>
-                  <TableCell><strong>Status</strong></TableCell>
-                  <TableCell><strong>AI Rec.</strong></TableCell>
-                  <TableCell><strong>Submitted</strong></TableCell>
-                  <TableCell><strong>Expiry</strong></TableCell>
-                  <TableCell align="center"><strong>Actions</strong></TableCell>
+                <TableRow sx={tableHeadRowSx}>
+                  <EllipsisHeaderCell label="Patient" sx={{ width: '16%' }} />
+                  <EllipsisHeaderCell label="Service" sx={{ width: '18%' }} />
+                  <EllipsisHeaderCell label="Urgency" sx={{ width: '10%' }} />
+                  <EllipsisHeaderCell label="Status" sx={{ width: '13%' }} />
+                  <EllipsisHeaderCell label="AI Rec." sx={{ width: '14%' }} />
+                  <EllipsisHeaderCell label="Submitted" sx={{ width: '13%' }} />
+                  <EllipsisHeaderCell label="Expiry" sx={{ width: '13%' }} />
+                  <EllipsisHeaderCell label="Actions" sx={{ width: '48px' }} align="center" />
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -301,26 +354,28 @@ export default function PriorAuth() {
                     </TableCell>
                   </TableRow>
                 ) : displayed.map((pa) => (
-                  <TableRow key={pa._id} hover>
-                    <TableCell>{pa.patientName}</TableCell>
-                    <TableCell>
-                      <Typography variant="body2">{pa.serviceType}</Typography>
+                  <TableRow key={pa._id} hover sx={tableBodyRowSx}>
+                    <TableCell sx={{ width: '16%' }}><EllipsisCell value={pa.patientName} /></TableCell>
+                    <TableCell sx={{ width: '18%' }}>
+                      <EllipsisCell value={pa.serviceType} />
                       {pa.serviceCode && <Typography variant="caption" color="text.secondary">CPT: {pa.serviceCode}</Typography>}
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '10%' }}>
                       <Chip
                         label={pa.urgency}
                         size="small"
                         color={pa.urgency === 'Emergent' ? 'error' : pa.urgency === 'Urgent' ? 'warning' : 'default'}
+                        sx={compactChipSx}
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '13%' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                         <Chip
                           icon={STATUS_ICON[pa.status]}
                           label={pa.status}
                           size="small"
                           color={STATUS_COLOR[pa.status] || 'default'}
+                          sx={compactChipSx}
                         />
                         {pa.autoApproved && (
                           <Tooltip title="Auto-approved by AI">
@@ -329,7 +384,7 @@ export default function PriorAuth() {
                         )}
                       </Box>
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '14%' }}>
                       {pa.aiRecommendation ? (
                         <Chip
                           label={pa.aiRecommendation}
@@ -337,31 +392,16 @@ export default function PriorAuth() {
                           variant="outlined"
                           color={pa.aiRecommendation === 'Approve' ? 'success' : pa.aiRecommendation === 'Deny' ? 'error' : 'warning'}
                           icon={<AIIcon />}
+                          sx={compactChipSx}
                         />
                       ) : <Typography variant="caption" color="text.secondary">Pending</Typography>}
                     </TableCell>
-                    <TableCell>{formatDate(pa.createdAt)}</TableCell>
-                    <TableCell>{pa.expiryDate ? formatDate(pa.expiryDate) : '—'}</TableCell>
-                    <TableCell align="center">
-                      <Tooltip title="View Details">
-                        <IconButton size="small" color="primary" onClick={() => { setSelectedPA(pa); setDetailDialogOpen(true); }}>
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      {pa.status === 'Denied' && (
-                        <Tooltip title="Submit Appeal">
-                          <IconButton size="small" color="warning" onClick={() => { setSelectedPA(pa); setAppealDialogOpen(true); }}>
-                            <GavelIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                      {pa.status === 'Expired' && (
-                        <Tooltip title="Request Renewal">
-                          <IconButton size="small" color="secondary" onClick={() => { setRenewalSource(pa); setRenewOpen(true); }}>
-                            <RenewIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
+                    <TableCell sx={{ width: '13%' }}>{formatDate(pa.createdAt)}</TableCell>
+                    <TableCell sx={{ width: '13%' }}>{pa.expiryDate ? formatDate(pa.expiryDate) : '—'}</TableCell>
+                    <TableCell sx={{ width: '48px' }} align="center">
+                      <IconButton size="small" onClick={(e) => openActionMenu(e, pa)}>
+                        <MoreVertIcon fontSize="small" />
+                      </IconButton>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -376,6 +416,7 @@ export default function PriorAuth() {
             onPageChange={(e, p) => setPage(p)}
             rowsPerPageOptions={[10]}
           />
+          {renderActionMenu()}
         </Paper>
       )}
 

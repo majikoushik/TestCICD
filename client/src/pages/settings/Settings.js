@@ -31,7 +31,12 @@ import {
   Token as TokenIcon,
   Message as MessageIcon,
   Verified as VerifiedIcon,
-  Edit as EditIcon
+  Edit as EditIcon,
+  Close as CloseIcon,
+  Email as EmailIcon,
+  Phone as PhoneIcon,
+  Fax as FaxIcon,
+  Badge as BadgeIcon
 } from '@mui/icons-material';
 import { updateUserProfile, updateProfileImage, getUserSettings, updateUserSettings } from '../../services/userService';
 import { post } from '../../utils/apiUtils';
@@ -529,7 +534,8 @@ export default function Settings() {
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField fullWidth label="Email Address" size="small" value={profile.email} disabled
-                    helperText="Contact support to change your email address" />
+                    helperText="Contact support to change your email address"
+                    InputProps={{ startAdornment: <InputAdornment position="start"><EmailIcon fontSize="small" color="action" /></InputAdornment> }} />
                 </Grid>
                 <Grid item xs={12} sm={3}>
                   <FormControl fullWidth size="small">
@@ -541,7 +547,8 @@ export default function Settings() {
                 </Grid>
                 <Grid item xs={12} sm={3}>
                   <TextField fullWidth label="NPI Number" size="small" value={profile.npi} disabled
-                    helperText="NPI is set during KYC verification" />
+                    helperText="NPI is set during KYC verification"
+                    InputProps={{ startAdornment: <InputAdornment position="start"><BadgeIcon fontSize="small" color="action" /></InputAdornment> }} />
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <FormControl fullWidth size="small">
@@ -557,11 +564,13 @@ export default function Settings() {
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField fullWidth label="Phone" size="small" value={profile.phone} onChange={(e) => setP('phone', e.target.value)}
-                    placeholder="(555) 000-0000" />
+                    placeholder="(555) 000-0000"
+                    InputProps={{ startAdornment: <InputAdornment position="start"><PhoneIcon fontSize="small" color="action" /></InputAdornment> }} />
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField fullWidth label="Fax" size="small" value={profile.fax} onChange={(e) => setP('fax', e.target.value)}
-                    placeholder="(555) 000-0001" />
+                    placeholder="(555) 000-0001"
+                    InputProps={{ startAdornment: <InputAdornment position="start"><FaxIcon fontSize="small" color="action" /></InputAdornment> }} />
                 </Grid>
                 <Grid item xs={12}>
                   <TextField fullWidth multiline rows={3} label="Short Bio / Summary" size="small"
@@ -1164,8 +1173,16 @@ export default function Settings() {
 
       {/* ── Change Password Dialog ──────────────────────────────────────────── */}
       <Dialog open={pwDialog} onClose={closePwDialog} maxWidth="xs" fullWidth>
-        <DialogTitle>Change Password</DialogTitle>
-        <DialogContent>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36 }}>
+            <LockIcon fontSize="small" />
+          </Avatar>
+          <Typography variant="h6" sx={{ flex: 1 }}>Change Password</Typography>
+          <IconButton onClick={closePwDialog} size="small">
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
           {pwError   && <Alert severity="error"   sx={{ mb: 2 }}>{pwError}</Alert>}
           {pwSuccess && <Alert severity="success" sx={{ mb: 2 }}>Password changed successfully!</Alert>}
           <DialogContentText sx={{ mb: 2 }}>
@@ -1183,6 +1200,11 @@ export default function Settings() {
               value={pwData[field]}
               onChange={(e) => setPwData((s) => ({ ...s, [field]: e.target.value }))}
               InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <LockIcon fontSize="small" color="action" />
+                  </InputAdornment>
+                ),
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton onClick={() => setShowPw((s) => ({ ...s, [field]: !s[field] }))} edge="end">
@@ -1212,7 +1234,7 @@ export default function Settings() {
         </DialogContent>
         <DialogActions>
           <Button onClick={closePwDialog}>Cancel</Button>
-          <Button onClick={handleChangePassword} variant="contained" disabled={pwSaving}>
+          <Button onClick={handleChangePassword} variant="contained" disabled={pwSaving} startIcon={pwSaving ? null : <LockIcon />}>
             {pwSaving ? <CircularProgress size={18} color="inherit" /> : 'Change Password'}
           </Button>
         </DialogActions>

@@ -6,7 +6,7 @@ const User = require('../models/User');
 const LoginHistory = require('../models/LoginHistory');
 const { protect } = require('../middleware/auth');
 const ProviderProfile = require('../models/ProviderProfile');
-const { sendEmail, verificationEmailHtml, verificationEmailText, kycStatusUpdateHtml } = require('../services/emailService');
+const { sendEmail, verificationEmailHtml, verificationEmailText, kycStatusUpdateHtml, passwordResetEmailHtml, passwordResetEmailText } = require('../services/emailService');
 const logger = require('../utils/logger');
 const AdminSetting = require('../models/Admin');
 
@@ -335,7 +335,22 @@ router.post('/request-password-reset', async (req, res) => {
 
     const resetToken = jwt.sign({ id: user._id }, process.env.JWT_RESET_SECRET, { expiresIn: '1h' });
 
-    // In production: send resetToken via email; never expose it in the response.
+    try {
+      const name = user.firstName || user.name || 'there';
+      await sendEmail({
+        to: user.email,
+        subject: `Reset your ${process.env.BRAND_NAME || 'ClinicTrust AI'} password`,
+        html: passwordResetEmailHtml(name, resetToken),
+        text: passwordResetEmailText(name, resetToken),
+        category: 'password-reset',
+      });
+    } catch (emailErr) {
+      logger.error('Password reset email failed to send', logger.reqCtx(req, emailErr));
+    }
+
+    // The resetToken itself is never returned to the client in production —
+    // only used here (dev-mode) as a documented test hook (see e2e A2-11)
+    // since there's no way to read a real inbox in that suite.
     res.status(200).json({
       ...genericResponse,
       ...(process.env.NODE_ENV === 'development' && { resetToken }),
@@ -343,6 +358,30 @@ router.post('/request-password-reset', async (req, res) => {
   } catch (error) {
     logger.error('Password reset request error', logger.reqCtx(req, error));
     res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+// @route   GET api/auth/verify-reset-token
+// @desc    Check whether a password-reset token is valid, without consuming it —
+//          lets the client show an error screen before rendering the new-password
+//          form, instead of only finding out the link is bad after the user submits.
+// @access  Public
+router.get('/verify-reset-token', async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) {
+      return res.status(400).json({ success: false, error: 'No reset token provided' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_RESET_SECRET);
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      return res.status(400).json({ success: false, error: 'Invalid or expired token' });
+    }
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    res.status(400).json({ success: false, error: 'Invalid or expired token' });
   }
 });
 

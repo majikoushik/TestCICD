@@ -12,10 +12,16 @@ import {
   History as HistoryIcon, GetApp as DownloadIcon,
   VerifiedUser as VerifiedUserIcon, Warning as WarningIcon,
   Person as PersonIcon, LocalHospital as HospitalIcon,
-  Security as LockIcon,
+  Security as LockIcon, Man as ManIcon, Woman as WomanIcon,
 } from '@mui/icons-material';
 import { getAdminPatients, getAdminPatientById } from '../../services/adminPatientsService';
 import { ModernLoadingIndicator } from '../../components/common';
+import EllipsisCell from '../../components/common/EllipsisCell';
+import EllipsisHeaderCell from '../../components/common/EllipsisHeaderCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+  pageHeaderBoxSx,
+} from '../../components/common/adminTableStyles';
 import { formatDate } from '../../utils/dateFormatter';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -53,6 +59,15 @@ function statusColor(status) {
   if (status === 'Critical') return 'error';
   if (status === 'Stable')   return 'info';
   return 'success';
+}
+
+// Patient model stores gender as 'male' / 'female' / 'other' (see server/models/Patient.js).
+function getGenderInfo(gender) {
+  const normalized = (gender || '').trim().toLowerCase();
+  if (normalized === 'm' || normalized === 'male') return { label: 'Male', icon: <ManIcon fontSize="small" />, color: 'info.main' };
+  if (normalized === 'f' || normalized === 'female') return { label: 'Female', icon: <WomanIcon fontSize="small" />, color: 'secondary.main' };
+  if (normalized === 'other') return { label: 'Other', icon: <PersonIcon fontSize="small" />, color: 'text.secondary' };
+  return { label: 'Not specified', icon: <PersonIcon fontSize="small" />, color: 'text.disabled' };
 }
 
 function hasActiveConsent(consentRecords) {
@@ -185,7 +200,7 @@ export default function AdminPatientRecords() {
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+      <Box sx={pageHeaderBoxSx}>
         <Box>
           <Typography variant="h4" fontWeight={700} gutterBottom>Patient Records Oversight</Typography>
           <Typography variant="body2" color="text.secondary">
@@ -246,21 +261,21 @@ export default function AdminPatientRecords() {
               <ModernLoadingIndicator message="Loading patient records…" />
             </Box>
           ) : (
-            <TableContainer component={Paper} variant="outlined">
-              <Table size="small">
+            <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+              <Table size="small" sx={tableSx}>
                 <TableHead>
-                  <TableRow>
-                    <TableCell>Patient ID</TableCell>
-                    <TableCell>Name</TableCell>
-                    <TableCell>Age</TableCell>
-                    <TableCell>Gender</TableCell>
-                    <TableCell>Primary Condition</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Last Visit</TableCell>
-                    <TableCell>Provider</TableCell>
-                    <TableCell>Completeness</TableCell>
-                    <TableCell>Consent</TableCell>
-                    <TableCell>Actions</TableCell>
+                  <TableRow sx={tableHeadRowSx}>
+                    <EllipsisHeaderCell label="Patient ID" sx={{ width: '9%' }} />
+                    <EllipsisHeaderCell label="Name" sx={{ width: '15%' }} />
+                    <EllipsisHeaderCell label="Age" sx={{ width: '5%' }} />
+                    <EllipsisHeaderCell label="Gender" sx={{ width: '7%' }} />
+                    <EllipsisHeaderCell label="Primary Condition" sx={{ width: '16%' }} />
+                    <EllipsisHeaderCell label="Status" sx={{ width: '8%' }} />
+                    <EllipsisHeaderCell label="Last Visit" sx={{ width: '9%' }} />
+                    <EllipsisHeaderCell label="Provider" sx={{ width: '11%' }} />
+                    <EllipsisHeaderCell label="Completeness" sx={{ width: '11%' }} />
+                    <EllipsisHeaderCell label="Consent" sx={{ width: '9%' }} />
+                    <EllipsisHeaderCell label="Actions" sx={{ width: '48px' }} align="center" />
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -271,24 +286,30 @@ export default function AdminPatientRecords() {
                       </TableCell>
                     </TableRow>
                   ) : displayRows.map(record => (
-                    <TableRow key={record.id} hover>
-                      <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>
+                    <TableRow key={record.id} hover sx={tableBodyRowSx}>
+                      <TableCell sx={{ width: '9%', fontFamily: 'monospace', fontSize: 12 }}>
                         {maskId(record.patientId)}
                       </TableCell>
-                      <TableCell>
-                        {deIdentified ? '— hidden —' : record.name}
+                      <TableCell sx={{ width: '15%' }}>
+                        <EllipsisCell value={deIdentified ? '— hidden —' : record.name} />
                       </TableCell>
-                      <TableCell>{record.age}</TableCell>
-                      <TableCell sx={{ textTransform: 'capitalize' }}>{record.gender}</TableCell>
-                      <TableCell>{record.condition}</TableCell>
-                      <TableCell>
-                        <Chip label={record.status} color={statusColor(record.status)} size="small" />
+                      <TableCell sx={{ width: '5%' }}>{record.age}</TableCell>
+                      <TableCell sx={{ width: '7%' }}>
+                        <Tooltip title={getGenderInfo(record.gender).label} placement="top">
+                          <Box sx={{ display: 'flex', color: getGenderInfo(record.gender).color }}>
+                            {getGenderInfo(record.gender).icon}
+                          </Box>
+                        </Tooltip>
                       </TableCell>
-                      <TableCell>{formatDate(record.lastVisit)}</TableCell>
-                      <TableCell>
-                        <Typography variant="caption">{record.primaryProvider}</Typography>
+                      <TableCell sx={{ width: '16%' }}><EllipsisCell value={record.condition} /></TableCell>
+                      <TableCell sx={{ width: '8%' }}>
+                        <Chip label={record.status} color={statusColor(record.status)} size="small" sx={compactChipSx} />
                       </TableCell>
-                      <TableCell sx={{ minWidth: 120 }}>
+                      <TableCell sx={{ width: '9%' }}>{formatDate(record.lastVisit)}</TableCell>
+                      <TableCell sx={{ width: '11%' }}>
+                        <EllipsisCell value={record.primaryProvider} variant="caption" />
+                      </TableCell>
+                      <TableCell sx={{ width: '11%' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <LinearProgress
                             variant="determinate"
@@ -299,18 +320,18 @@ export default function AdminPatientRecords() {
                           <Typography variant="caption">{record.completeness}%</Typography>
                         </Box>
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ width: '9%' }}>
                         {record.consentVerified ? (
                           <Tooltip title="Has active consent record">
-                            <Chip icon={<VerifiedUserIcon />} label="Active" color="success" size="small" />
+                            <Chip icon={<VerifiedUserIcon />} label="Active" color="success" size="small" sx={compactChipSx} />
                           </Tooltip>
                         ) : (
                           <Tooltip title="No active consent record">
-                            <Chip icon={<WarningIcon />} label="None" color="error" size="small" />
+                            <Chip icon={<WarningIcon />} label="None" color="error" size="small" sx={compactChipSx} />
                           </Tooltip>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ width: '48px' }} align="center">
                         <Tooltip title="View details">
                           <IconButton size="small" color="primary" onClick={() => openDetail(record)}>
                             <VisibilityIcon fontSize="small" />
@@ -377,9 +398,16 @@ export default function AdminPatientRecords() {
                       ['Phone', deIdentified ? '— hidden —' : detailRecord._raw?.contactInfo?.phone],
                       ['Address', deIdentified ? '— hidden —' : detailRecord._raw?.contactInfo?.address],
                     ].map(([k, v]) => (
-                      <Box key={k} sx={{ display: 'flex', gap: 1, mb: 0.5 }}>
+                      <Box key={k} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                         <Typography variant="body2" fontWeight={600} sx={{ minWidth: 80 }}>{k}:</Typography>
-                        <Typography variant="body2" color="text.secondary">{v || '—'}</Typography>
+                        {k === 'Gender' ? (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: getGenderInfo(detailRecord.gender).color }}>
+                            {getGenderInfo(detailRecord.gender).icon}
+                            <Typography variant="body2">{getGenderInfo(detailRecord.gender).label}</Typography>
+                          </Box>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">{v || '—'}</Typography>
+                        )}
                       </Box>
                     ))}
                   </CardContent>

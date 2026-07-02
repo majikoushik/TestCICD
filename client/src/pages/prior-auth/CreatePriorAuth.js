@@ -2,9 +2,15 @@ import React, { useState } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, Grid, FormControl, InputLabel, Select, MenuItem,
-  Typography, Box, Chip, Alert, Stepper, Step, StepLabel, Divider
+  Typography, Box, Chip, Alert, Stepper, Step, StepLabel, Divider,
+  Avatar, IconButton, InputAdornment
 } from '@mui/material';
-import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import {
+  Add as AddIcon, Delete as DeleteIcon, Close as CloseIcon,
+  AssignmentTurnedIn as AssignmentTurnedInIcon,
+  Description as DescriptionIcon, Send as SendIcon,
+  NavigateNext as NavigateNextIcon,
+} from '@mui/icons-material';
 import { createPriorAuth } from '../../services/priorAuthService';
 import PatientSearchAutocomplete from '../../components/common/PatientSearchAutocomplete';
 
@@ -113,9 +119,17 @@ export default function CreatePriorAuth({ open, onClose, onCreated, prefillRefer
   return (
     <Dialog open={open} onClose={handleClose} fullWidth maxWidth="md">
       <DialogTitle component="div">
-        <Typography variant="h6">
-          {renewalOf ? `Renew Prior Authorization` : 'New Prior Authorization Request'}
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main' }}>
+            <AssignmentTurnedInIcon fontSize="small" />
+          </Avatar>
+          <Typography variant="h6" sx={{ flexGrow: 1 }}>
+            {renewalOf ? `Renew Prior Authorization` : 'New Prior Authorization Request'}
+          </Typography>
+          <IconButton onClick={handleClose} size="small" aria-label="close">
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
         {renewalOf && (
           <Alert severity="info" sx={{ mt: 1, py: 0.5 }} icon={false}>
             Renewal of PA #{String(renewalOf).slice(-8).toUpperCase()} — clinical notes are pre-filled from the expired request. Update as needed.
@@ -132,11 +146,20 @@ export default function CreatePriorAuth({ open, onClose, onCreated, prefillRefer
         {step === 0 && (
           <Grid container spacing={2}>
             <Grid item xs={12}>
+              <Typography variant="overline" color="text.secondary">Patient</Typography>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
+            <Grid item xs={12}>
               <PatientSearchAutocomplete
                 required
                 value={selectedPatient}
                 onChange={handlePatientChange}
               />
+            </Grid>
+
+            <Grid item xs={12} sx={{ mt: 1 }}>
+              <Typography variant="overline" color="text.secondary">Service Details</Typography>
+              <Divider sx={{ mb: 2 }} />
             </Grid>
             <Grid item xs={12} md={6}>
               <FormControl fullWidth required>
@@ -164,6 +187,11 @@ export default function CreatePriorAuth({ open, onClose, onCreated, prefillRefer
               <TextField fullWidth label="Target Provider (optional)" value={form.targetProviderName}
                 onChange={set('targetProviderName')} />
             </Grid>
+
+            <Grid item xs={12} sx={{ mt: 1 }}>
+              <Typography variant="overline" color="text.secondary">Insurance</Typography>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
             <Grid item xs={12} md={6}>
               <FormControl fullWidth>
                 <InputLabel>Insurance Plan</InputLabel>
@@ -188,6 +216,10 @@ export default function CreatePriorAuth({ open, onClose, onCreated, prefillRefer
         {step === 1 && (
           <Grid container spacing={2}>
             <Grid item xs={12}>
+              <Typography variant="overline" color="text.secondary">Clinical Justification</Typography>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
+            <Grid item xs={12}>
               <TextField
                 fullWidth required multiline rows={5}
                 label="Clinical Notes (min 20 characters)"
@@ -199,11 +231,18 @@ export default function CreatePriorAuth({ open, onClose, onCreated, prefillRefer
                     ? `${20 - form.clinicalNotes.length} more characters required`
                     : 'Clinical notes look good'
                 }
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1 }}>
+                      <DescriptionIcon fontSize="small" color="action" />
+                    </InputAdornment>
+                  ),
+                }}
               />
             </Grid>
-            <Grid item xs={12}>
-              <Divider sx={{ my: 1 }} />
-              <Typography variant="subtitle2" gutterBottom>Diagnosis Codes (ICD-10)</Typography>
+            <Grid item xs={12} sx={{ mt: 1 }}>
+              <Typography variant="overline" color="text.secondary">Diagnosis Codes (ICD-10)</Typography>
+              <Divider sx={{ mb: 2 }} />
               <Box sx={{ display: 'flex', gap: 1, mb: 1, flexWrap: 'wrap' }}>
                 <TextField size="small" label="ICD-10 Code" value={newDxCode}
                   onChange={e => setNewDxCode(e.target.value)} placeholder="e.g. M54.5"
@@ -277,8 +316,8 @@ export default function CreatePriorAuth({ open, onClose, onCreated, prefillRefer
         <Button onClick={handleClose}>Cancel</Button>
         {step > 0 && <Button onClick={() => setStep(s => s - 1)}>Back</Button>}
         {step < 2
-          ? <Button variant="contained" disabled={!canNext()} onClick={() => setStep(s => s + 1)}>Next</Button>
-          : <Button variant="contained" color="primary" disabled={loading} onClick={handleSubmit}>
+          ? <Button variant="contained" endIcon={<NavigateNextIcon />} disabled={!canNext()} onClick={() => setStep(s => s + 1)}>Next</Button>
+          : <Button variant="contained" color="primary" startIcon={loading ? undefined : <SendIcon />} disabled={loading} onClick={handleSubmit}>
               {loading ? 'Submitting...' : 'Submit Request'}
             </Button>
         }

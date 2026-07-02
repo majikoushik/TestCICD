@@ -37,7 +37,9 @@ import {
   Send as SendIcon,
   Person as PersonIcon,
   Token as TokenIcon,
-  CheckCircle as CheckCircleIcon
+  CheckCircle as CheckCircleIcon,
+  Notes as NotesIcon,
+  Category as CategoryIcon
 } from '@mui/icons-material';
 
 const steps = ['Select Recipient', 'Amount & Purpose', 'Confirm Transfer'];
@@ -200,6 +202,11 @@ export default function TokenTransfer() {
                   required
                   InputProps={{
                     ...params.InputProps,
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PersonIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
                     endAdornment: (
                       <>
                         {loading.recipients ? <ModernLoadingIndicator variant="button" color="inherit" size={20} /> : null}
@@ -248,8 +255,8 @@ export default function TokenTransfer() {
             <Typography variant="h6" gutterBottom>
               Transfer Details
             </Typography>
-            <Grid container spacing={3}>
-              <Grid item xs={12}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
                 <TextField
                   required
                   fullWidth
@@ -261,7 +268,7 @@ export default function TokenTransfer() {
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <TokenIcon />
+                        <TokenIcon fontSize="small" color="action" />
                       </InputAdornment>
                     ),
                   }}
@@ -275,7 +282,7 @@ export default function TokenTransfer() {
                   }
                 />
               </Grid>
-              <Grid item xs={12}>
+              <Grid item xs={12} sm={6}>
                 <FormControl fullWidth required>
                   <TextField
                     label="Purpose"
@@ -285,6 +292,13 @@ export default function TokenTransfer() {
                     select
                     SelectProps={{
                       native: true,
+                    }}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <CategoryIcon fontSize="small" color="action" />
+                        </InputAdornment>
+                      ),
                     }}
                   >
                     <option value="" disabled>Select a purpose</option>
@@ -309,6 +323,13 @@ export default function TokenTransfer() {
                   value={transferData.note}
                   onChange={handleInputChange}
                   placeholder="Add a note to the recipient..."
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1 }}>
+                        <NotesIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
             </Grid>

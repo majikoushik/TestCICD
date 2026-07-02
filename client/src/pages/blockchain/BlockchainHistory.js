@@ -38,10 +38,16 @@ import {
   TrendingUp as TrendingUpIcon,
   Security as SecurityIcon,
   Speed as SpeedIcon,
-  CompareArrows as CompareArrowsIcon
+  CompareArrows as CompareArrowsIcon,
+  MoreVert as MoreVertIcon
 } from '@mui/icons-material';
 import { blockchainService } from '../../services';
 import { ModernLoadingIndicator } from '../../components/common';
+import EllipsisCell from '../../components/common/EllipsisCell';
+import EllipsisHeaderCell from '../../components/common/EllipsisHeaderCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+} from '../../components/common/adminTableStyles';
 
 const BlockchainHistory = () => {
   const navigate = useNavigate();
@@ -58,6 +64,19 @@ const BlockchainHistory = () => {
     event: 'all', // 'all', 'ReferralCreated', 'ReferralAccepted', etc.
     status: 'all' // 'all', 'Confirmed', 'Pending'
   });
+
+  // Row action menu (kebab) — keeps the grid to one action column instead of
+  // a row of icon buttons, so it never needs horizontal scroll on narrow screens
+  const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState(null);
+  const [actionMenuTx, setActionMenuTx] = useState(null);
+  const openActionMenu = (event, tx) => {
+    setActionMenuAnchorEl(event.currentTarget);
+    setActionMenuTx(tx);
+  };
+  const closeActionMenu = () => {
+    setActionMenuAnchorEl(null);
+    setActionMenuTx(null);
+  };
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -142,12 +161,6 @@ const BlockchainHistory = () => {
     }
   };
 
-  const formatAddress = (address) => {
-    if (!address) return '';
-    if (address.length <= 12) return address;
-    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
-  };
-
   const getExplorerUrl = (hash) => {
     // Replace with actual blockchain explorer URL (e.g., Etherscan for Ethereum)
     return `https://sepolia.etherscan.io/tx/${hash}`;
@@ -178,9 +191,45 @@ const BlockchainHistory = () => {
   };
   
   // Get unique event types for filter menu
-  const eventTypes = transactions.length > 0 
+  const eventTypes = transactions.length > 0
     ? [...new Set(transactions.map(tx => tx.event))]
     : [];
+
+  // Shared row-action menu — one instance, opened against whichever row's
+  // kebab button was clicked (see openActionMenu/closeActionMenu above).
+  const renderActionMenu = () => {
+    const tx = actionMenuTx;
+    if (!tx) return null;
+    const runAction = (fn) => { closeActionMenu(); fn(); };
+    return (
+      <Menu
+        anchorEl={actionMenuAnchorEl}
+        open={Boolean(actionMenuAnchorEl)}
+        onClose={closeActionMenu}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+      >
+        <MenuItem onClick={() => runAction(() => handleCopyHash(tx.hash))}>
+          <ListItemIcon><CopyIcon fontSize="small" color="primary" /></ListItemIcon>
+          <ListItemText>{copiedHash === tx.hash ? 'Copied!' : 'Copy Hash'}</ListItemText>
+        </MenuItem>
+        <MenuItem
+          component={Link}
+          href={getExplorerUrl(tx.hash)}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={closeActionMenu}
+        >
+          <ListItemIcon><OpenInNewIcon fontSize="small" color="primary" /></ListItemIcon>
+          <ListItemText>View on Explorer</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => runAction(() => handleViewDetails(tx))}>
+          <ListItemIcon><VisibilityIcon fontSize="small" color="primary" /></ListItemIcon>
+          <ListItemText>View Details</ListItemText>
+        </MenuItem>
+      </Menu>
+    );
+  };
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -436,92 +485,65 @@ const BlockchainHistory = () => {
         </Alert>
       ) : (
         <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-          <TableContainer sx={{ maxHeight: 600 }}>
-            <Table stickyHeader>
+          <TableContainer component={Paper} variant="outlined" sx={{ ...tableContainerSx, maxHeight: 600 }}>
+            <Table stickyHeader sx={tableSx}>
               <TableHead>
-                <TableRow>
-                  <TableCell>Event</TableCell>
-                  <TableCell>Transaction Hash</TableCell>
-                  <TableCell>Block</TableCell>
-                  <TableCell>From</TableCell>
-                  <TableCell>To</TableCell>
-                  <TableCell>Timestamp</TableCell>
-                  <TableCell>Status</TableCell>
+                <TableRow sx={tableHeadRowSx}>
+                  <EllipsisHeaderCell label="Event" sx={{ width: '11%' }} />
+                  <EllipsisHeaderCell label="Transaction Hash" sx={{ width: '24%' }} />
+                  <EllipsisHeaderCell label="Block" sx={{ width: '9%' }} />
+                  <EllipsisHeaderCell label="From" sx={{ width: '15%' }} />
+                  <EllipsisHeaderCell label="To" sx={{ width: '15%' }} />
+                  <EllipsisHeaderCell label="Timestamp" sx={{ width: '15%' }} />
+                  <EllipsisHeaderCell label="Status" sx={{ width: '11%' }} />
+                  <EllipsisHeaderCell label="Actions" sx={{ width: '48px' }} align="center" />
                 </TableRow>
               </TableHead>
               <TableBody>
                 {filteredTransactions
                   .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                   .map((tx) => (
-                    <TableRow hover key={tx.hash}>
-                      <TableCell>
-                        <Chip 
-                          label={tx.event} 
-                          color={getEventColor(tx.event)} 
-                          size="small" 
+                    <TableRow hover key={tx.hash} sx={tableBodyRowSx}>
+                      <TableCell sx={{ width: '11%' }}>
+                        <Chip
+                          label={tx.event}
+                          color={getEventColor(tx.event)}
+                          size="small"
+                          sx={compactChipSx}
                         />
                       </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-                            {formatAddress(tx.hash)}
-                          </Typography>
-                          <Tooltip title={copiedHash === tx.hash ? "Copied!" : "Copy hash"}>
-                            <IconButton 
-                              size="small" 
-                              onClick={() => handleCopyHash(tx.hash)}
-                            >
-                              <CopyIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="View on explorer">
-                            <IconButton 
-                              size="small"
-                              component={Link}
-                              href={getExplorerUrl(tx.hash)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <OpenInNewIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="View details">
-                            <IconButton 
-                              size="small"
-                              onClick={() => handleViewDetails(tx)}
-                            >
-                              <VisibilityIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </Box>
+                      <TableCell sx={{ width: '24%' }}>
+                        <EllipsisCell value={tx.hash} sx={{ fontFamily: 'monospace' }} />
                       </TableCell>
-                      <TableCell>{tx.blockNumber}</TableCell>
-                      <TableCell>
-                        <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-                          {formatAddress(tx.from)}
-                        </Typography>
+                      <TableCell sx={{ width: '9%' }}>{tx.blockNumber}</TableCell>
+                      <TableCell sx={{ width: '15%' }}>
+                        <EllipsisCell value={tx.from} sx={{ fontFamily: 'monospace' }} />
                       </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-                          {formatAddress(tx.to)}
-                        </Typography>
+                      <TableCell sx={{ width: '15%' }}>
+                        <EllipsisCell value={tx.to} sx={{ fontFamily: 'monospace' }} />
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ width: '15%' }}>
                         {new Date(tx.timestamp).toLocaleString()}
                       </TableCell>
-                      <TableCell>
-                        <Chip 
-                          label={tx.status} 
-                          color={tx.status === 'Confirmed' ? 'success' : 'warning'} 
-                          size="small" 
+                      <TableCell sx={{ width: '11%' }}>
+                        <Chip
+                          label={tx.status}
+                          color={tx.status === 'Confirmed' ? 'success' : 'warning'}
+                          size="small"
+                          sx={compactChipSx}
                         />
+                      </TableCell>
+                      <TableCell sx={{ width: '48px' }} align="center">
+                        <IconButton size="small" onClick={(e) => openActionMenu(e, tx)}>
+                          <MoreVertIcon fontSize="small" />
+                        </IconButton>
                       </TableCell>
                     </TableRow>
                   ))}
-                
+
                 {filteredTransactions.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} align="center">
+                    <TableCell colSpan={8} align="center">
                       No transactions found
                     </TableCell>
                   </TableRow>
@@ -529,7 +551,7 @@ const BlockchainHistory = () => {
               </TableBody>
             </Table>
           </TableContainer>
-          
+
           <TablePagination
             rowsPerPageOptions={[5, 10, 25, 50]}
             component="div"
@@ -539,6 +561,7 @@ const BlockchainHistory = () => {
             onPageChange={handleChangePage}
             onRowsPerPageChange={handleChangeRowsPerPage}
           />
+          {renderActionMenu()}
         </Paper>
       )}
 

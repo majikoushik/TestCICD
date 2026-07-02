@@ -121,32 +121,38 @@ export function AuthProvider({ children }) {
   };
 
   // Reset password request
+  // Deliberately does NOT touch the global `loading` flag — AuthLayout renders
+  // a full-page spinner in its place while `loading` is true, which unmounts
+  // this page's <Outlet /> (and all its local state, e.g. ForgotPassword.js's
+  // `submitted` flag) mid-request. That flag is reserved for the one-time
+  // "is there a valid session" bootstrap check; each auth action already
+  // tracks its own in-flight state locally (e.g. `isSubmitting`).
   const forgotPassword = async (email) => {
     try {
-      setLoading(true);
       const response = await authService.requestPasswordReset({ email });
       setError('');
       return response;
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to process password reset.');
       throw err;
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Reset password with token
+  // Check a reset token is valid before showing the "set new password" form
+  const verifyResetToken = async (token) => {
+    return authService.verifyResetToken(token);
+  };
+
+  // Reset password with token — see forgotPassword above for why this
+  // doesn't touch the global `loading` flag.
   const resetPassword = async (token, password) => {
     try {
-      setLoading(true);
       const response = await authService.resetPassword({ token, password });
       setError('');
       return response;
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to reset password.');
       throw err;
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -176,6 +182,7 @@ export function AuthProvider({ children }) {
     logout,
     updateProfile,
     forgotPassword,
+    verifyResetToken,
     resetPassword,
     clearError,
     refreshUser

@@ -23,7 +23,6 @@ import {
   Select,
   MenuItem,
   Grid,
-  Tooltip,
   Card,
   CardContent,
   CardHeader,
@@ -35,9 +34,14 @@ import {
   Avatar,
   Tabs,
   Tab,
-  Autocomplete
+  Autocomplete,
+  Menu
 } from '@mui/material';
 import { ModernLoadingIndicator } from '../../../components/common';
+import EllipsisCell from '../../../components/common/EllipsisCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+} from '../../../components/common/adminTableStyles';
 import {
   Timeline,
   TimelineItem,
@@ -59,7 +63,8 @@ import {
   AssignmentInd as AssignmentIndIcon,
   Done as DoneIcon,
   Timeline as TimelineIcon,
-  FilterList as FilterListIcon
+  FilterList as FilterListIcon,
+  MoreVert as MoreVertIcon
 } from '@mui/icons-material';
 import { formatDateTime } from '../../../utils/dateFormatter';
 import * as adminMessagingService from '../../../services/adminMessagingService';
@@ -83,6 +88,18 @@ const EscalationWorkflows = () => {
     category: ''
   });
   const [openFiltersDialog, setOpenFiltersDialog] = useState(false);
+
+  // Row action menu (kebab) — see AdminProviders.js for the reference pattern
+  const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState(null);
+  const [actionMenuWorkflow, setActionMenuWorkflow] = useState(null);
+  const openActionMenu = (event, workflow) => {
+    setActionMenuAnchorEl(event.currentTarget);
+    setActionMenuWorkflow(workflow);
+  };
+  const closeActionMenu = () => {
+    setActionMenuAnchorEl(null);
+    setActionMenuWorkflow(null);
+  };
 
   // Mock providers for assignment
   const [providers] = useState([
@@ -325,6 +342,38 @@ const EscalationWorkflows = () => {
     }
   };
 
+  // Shared row-action menu — one instance, opened against whichever row's
+  // kebab button was clicked (see openActionMenu/closeActionMenu above).
+  const renderActionMenu = () => {
+    const workflow = actionMenuWorkflow;
+    if (!workflow) return null;
+    const runAction = (fn) => { closeActionMenu(); fn(); };
+    return (
+      <Menu
+        anchorEl={actionMenuAnchorEl}
+        open={Boolean(actionMenuAnchorEl)}
+        onClose={closeActionMenu}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+      >
+        <MenuItem onClick={() => runAction(() => handleViewWorkflow(workflow))}>
+          <ListItemIcon><VisibilityIcon fontSize="small" color="primary" /></ListItemIcon>
+          <ListItemText>View Details</ListItemText>
+        </MenuItem>
+        {workflow.status !== 'resolved' && [
+          <MenuItem key="assign" onClick={() => runAction(() => handleAssignPrompt(workflow))}>
+            <ListItemIcon><AssignmentIndIcon fontSize="small" color="primary" /></ListItemIcon>
+            <ListItemText>Assign</ListItemText>
+          </MenuItem>,
+          <MenuItem key="resolve" onClick={() => runAction(() => handleResolvePrompt(workflow))}>
+            <ListItemIcon><DoneIcon fontSize="small" color="success" /></ListItemIcon>
+            <ListItemText>Resolve</ListItemText>
+          </MenuItem>,
+        ]}
+      </Menu>
+    );
+  };
+
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -424,19 +473,19 @@ const EscalationWorkflows = () => {
            <ModernLoadingIndicator message="Loading alerts..." />
         </Box>
       ) : (
-        <TableContainer component={Paper}>
-          <Table>
+        <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+          <Table size="small" sx={tableSx}>
             <TableHead>
-              <TableRow>
-                <TableCell>Title</TableCell>
-                <TableCell>Patient</TableCell>
-                <TableCell>Risk Score</TableCell>
-                <TableCell>Priority</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Category</TableCell>
-                <TableCell>Assigned To</TableCell>
-                <TableCell>Flagged At</TableCell>
-                <TableCell>Actions</TableCell>
+              <TableRow sx={tableHeadRowSx}>
+                <TableCell sx={{ width: '16%' }}>Title</TableCell>
+                <TableCell sx={{ width: '13%' }}>Patient</TableCell>
+                <TableCell sx={{ width: '9%' }}>Risk Score</TableCell>
+                <TableCell sx={{ width: '9%' }}>Priority</TableCell>
+                <TableCell sx={{ width: '11%' }}>Status</TableCell>
+                <TableCell sx={{ width: '12%' }}>Category</TableCell>
+                <TableCell sx={{ width: '13%' }}>Assigned To</TableCell>
+                <TableCell sx={{ width: '15%' }}>Flagged At</TableCell>
+                <TableCell sx={{ width: '48px' }} align="center">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -448,66 +497,42 @@ const EscalationWorkflows = () => {
                 </TableRow>
               ) : (
                 workflows.map((workflow) => (
-                  <TableRow key={workflow.id}>
-                    <TableCell>{workflow.title}</TableCell>
-                    <TableCell>{workflow.patientName}</TableCell>
-                    <TableCell>
+                  <TableRow key={workflow.id} hover sx={tableBodyRowSx}>
+                    <TableCell sx={{ width: '16%' }}><EllipsisCell value={workflow.title} /></TableCell>
+                    <TableCell sx={{ width: '13%' }}><EllipsisCell value={workflow.patientName} /></TableCell>
+                    <TableCell sx={{ width: '9%' }}>
                       <Chip
                         label={`${Math.round(workflow.aiRiskScore * 100)}%`}
                         color={workflow.aiRiskScore > 0.8 ? 'error' : workflow.aiRiskScore > 0.6 ? 'warning' : 'success'}
                         size="small"
+                        sx={compactChipSx}
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '9%' }}>
                       <Chip
                         label={workflow.priority}
                         color={getPriorityColor(workflow.priority)}
                         size="small"
+                        sx={compactChipSx}
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '11%' }}>
                       <Chip
                         label={workflow.status.replace('_', ' ')}
                         color={getStatusColor(workflow.status)}
                         size="small"
+                        sx={compactChipSx}
                       />
                     </TableCell>
-                    <TableCell>{workflow.category}</TableCell>
-                    <TableCell>
-                      {workflow.assignedTo ? workflow.assignedTo.name : 'Unassigned'}
+                    <TableCell sx={{ width: '12%' }}><EllipsisCell value={workflow.category} /></TableCell>
+                    <TableCell sx={{ width: '13%' }}>
+                      <EllipsisCell value={workflow.assignedTo ? workflow.assignedTo.name : 'Unassigned'} />
                     </TableCell>
-                    <TableCell>{formatDateTime(workflow.flaggedAt)}</TableCell>
-                    <TableCell>
-                      <Tooltip title="View Details">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleViewWorkflow(workflow)}
-                        >
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      {workflow.status !== 'resolved' && (
-                        <>
-                          <Tooltip title="Assign">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleAssignPrompt(workflow)}
-                              color="primary"
-                            >
-                              <AssignmentIndIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Resolve">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleResolvePrompt(workflow)}
-                              color="success"
-                            >
-                              <DoneIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </>
-                      )}
+                    <TableCell sx={{ width: '15%' }}>{formatDateTime(workflow.flaggedAt)}</TableCell>
+                    <TableCell sx={{ width: '48px' }} align="center">
+                      <IconButton size="small" onClick={(e) => openActionMenu(e, workflow)}>
+                        <MoreVertIcon fontSize="small" />
+                      </IconButton>
                     </TableCell>
                   </TableRow>
                 ))
@@ -516,6 +541,7 @@ const EscalationWorkflows = () => {
           </Table>
         </TableContainer>
       )}
+      {renderActionMenu()}
 
       {/* View Workflow Dialog */}
       <Dialog open={openViewDialog} onClose={() => setOpenViewDialog(false)} maxWidth="md" fullWidth>

@@ -67,6 +67,30 @@ export const formatDateTime = (date) => {
 };
 
 /**
+ * Some schemas (e.g. Appointment) store the calendar date and time-of-day as
+ * two separate fields — a Date for the day and a plain "HH:MM" string for the
+ * time — rather than one combined timestamp. This merges the two into a
+ * single Date and formats it with the platform's configured date format.
+ * @param {string|Date} dateVal  date-only value (time portion ignored)
+ * @param {string} timeStr       "HH:MM" (24-hour) time-of-day string
+ * @returns {string}  e.g. "12/31/2024, 02:30 PM"
+ */
+export const formatScheduledDateTime = (dateVal, timeStr) => {
+  if (!dateVal) return '';
+  try {
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return '';
+    if (timeStr && /^\d{1,2}:\d{2}/.test(timeStr)) {
+      const [h, m] = timeStr.split(':').map(Number);
+      d.setHours(h, m, 0, 0);
+    }
+    return formatDateTime(d);
+  } catch {
+    return '';
+  }
+};
+
+/**
  * Format a date to a relative time string (e.g., "2 days ago", "just now").
  * Falls back to formatDate() for dates older than 7 days.
  * @param {string|Date} date

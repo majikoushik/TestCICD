@@ -31,9 +31,15 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableContainer,
   TableHead,
   TableRow
 } from '@mui/material';
+import EllipsisCell from '../../components/common/EllipsisCell';
+import EllipsisHeaderCell from '../../components/common/EllipsisHeaderCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+} from '../../components/common/adminTableStyles';
 import {
   Add as AddIcon,
   TrendingUp as TrendingUpIcon,
@@ -747,34 +753,35 @@ export default function AnalyticsDashboard() {
                   <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
                     Affected Patients
                   </Typography>
-                  <Paper variant="outlined" sx={{ mt: 2 }}>
-                    <Table size="small">
+                  <TableContainer component={Paper} variant="outlined" sx={{ ...tableContainerSx, mt: 2 }}>
+                    <Table size="small" sx={tableSx}>
                       <TableHead>
-                        <TableRow>
-                          <TableCell>Patient ID</TableCell>
-                          <TableCell>Name</TableCell>
-                          <TableCell>Risk Score</TableCell>
-                          <TableCell>Last Visit</TableCell>
+                        <TableRow sx={tableHeadRowSx}>
+                          <EllipsisHeaderCell label="Patient ID" sx={{ width: '25%' }} />
+                          <EllipsisHeaderCell label="Name" sx={{ width: '35%' }} />
+                          <EllipsisHeaderCell label="Risk Score" sx={{ width: '20%' }} />
+                          <EllipsisHeaderCell label="Last Visit" sx={{ width: '20%' }} />
                         </TableRow>
                       </TableHead>
                       <TableBody>
                         {selectedAlert.patients.map((patient) => (
-                          <TableRow key={patient.id}>
-                            <TableCell>{patient.id}</TableCell>
-                            <TableCell>{patient.name}</TableCell>
-                            <TableCell>
-                              <Chip 
+                          <TableRow key={patient.id} hover sx={tableBodyRowSx}>
+                            <TableCell sx={{ width: '25%' }}><EllipsisCell value={patient.id} /></TableCell>
+                            <TableCell sx={{ width: '35%' }}><EllipsisCell value={patient.name} /></TableCell>
+                            <TableCell sx={{ width: '20%' }}>
+                              <Chip
                                 label={`${(patient.risk * 100).toFixed(0)}%`}
                                 color={patient.risk > 0.8 ? 'error' : patient.risk > 0.6 ? 'warning' : 'info'}
                                 size="small"
+                                sx={compactChipSx}
                               />
                             </TableCell>
-                            <TableCell>{new Date(patient.lastVisit).toLocaleDateString()}</TableCell>
+                            <TableCell sx={{ width: '20%' }}>{new Date(patient.lastVisit).toLocaleDateString()}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
-                  </Paper>
+                  </TableContainer>
                 </>
               )}
               

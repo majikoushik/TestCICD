@@ -219,8 +219,23 @@ export const requestPasswordReset = async (data) => {
 };
 
 /**
+ * Check whether a password-reset token is valid, without consuming it.
+ * Used by the Reset Password screen to show an error state up front instead
+ * of only discovering an expired/invalid link after the user fills the form.
+ *
+ * @param {string} token - Reset token from the emailed link
+ * @returns {Promise} Promise that resolves if the token is valid, rejects otherwise
+ */
+export const verifyResetToken = async (token) => {
+  if (process.env.REACT_APP_MOCK_API === 'true') {
+    return await mockResponse({ success: true }, 500);
+  }
+  return await get('/auth/verify-reset-token', { token });
+};
+
+/**
  * Reset a password
- * 
+ *
  * @param {Object} data - Password reset data
  * @param {string} data.token - Reset token
  * @param {string} data.password - New password
@@ -333,6 +348,7 @@ export default {
   logout,
   refreshToken,
   requestPasswordReset,
+  verifyResetToken,
   resetPassword,
   changePassword,
   getCurrentUser,

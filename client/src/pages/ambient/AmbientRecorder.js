@@ -31,8 +31,14 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  InputAdornment
 } from '@mui/material';
+import EllipsisCell from '../../components/common/EllipsisCell';
+import EllipsisHeaderCell from '../../components/common/EllipsisHeaderCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx, pageCardSx,
+} from '../../components/common/adminTableStyles';
 import {
   Mic as MicIcon,
   Stop as StopIcon,
@@ -42,7 +48,14 @@ import {
   Psychology as AIIcon,
   Assignment as NoteIcon,
   Visibility as ViewIcon,
-  Send as SendIcon
+  Send as SendIcon,
+  ArrowBack as ArrowBackIcon,
+  CalendarToday as CalendarTodayIcon,
+  CreditCard as CreditCardIcon,
+  Summarize as SummarizeIcon,
+  Description as DescriptionIcon,
+  PriorityHigh as PriorityHighIcon,
+  Comment as CommentIcon
 } from '@mui/icons-material';
 import ambientSessionService from '../../services/ambientSessionService';
 import PatientSearchAutocomplete from '../../components/common/PatientSearchAutocomplete';
@@ -387,11 +400,17 @@ export default function AmbientRecorder() {
       <Typography variant="h6" gutterBottom>Patient & Setup</Typography>
       <Grid container spacing={2}>
         <Grid item xs={12}>
+          <Typography variant="overline" color="text.secondary">Patient</Typography>
+          <Divider sx={{ mb: 2 }} />
           <PatientSearchAutocomplete
             required
             value={selectedPatient}
             onChange={handlePatientSelect}
           />
+        </Grid>
+        <Grid item xs={12} sx={{ mt: 1 }}>
+          <Typography variant="overline" color="text.secondary">Visit Details</Typography>
+          <Divider sx={{ mb: 2 }} />
         </Grid>
         <Grid item xs={12}>
           <TextField
@@ -412,6 +431,13 @@ export default function AmbientRecorder() {
             value={form.patientDOB}
             onChange={handleFormChange('patientDOB')}
             InputLabelProps={{ shrink: true }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <CalendarTodayIcon fontSize="small" color="action" />
+                </InputAdornment>
+              )
+            }}
           />
         </Grid>
         <Grid item xs={12} sm={6}>
@@ -420,6 +446,13 @@ export default function AmbientRecorder() {
             label="Patient Insurance"
             value={form.patientInsurance}
             onChange={handleFormChange('patientInsurance')}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <CreditCardIcon fontSize="small" color="action" />
+                </InputAdornment>
+              )
+            }}
           />
         </Grid>
       </Grid>
@@ -540,7 +573,7 @@ export default function AmbientRecorder() {
           {submitting ? 'Analyzing...' : serverTranscribing ? 'Finalizing transcript...' : 'Submit for AI Analysis'}
         </Button>
 
-        <Button variant="outlined" onClick={() => setActiveStep(0)}>
+        <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => setActiveStep(0)}>
           Back
         </Button>
       </Box>
@@ -594,7 +627,10 @@ export default function AmbientRecorder() {
         <Grid container spacing={3}>
           {/* Clinical Summary */}
           <Grid item xs={12}>
-            <Typography variant="subtitle1" fontWeight={600} gutterBottom>Clinical Summary</Typography>
+            <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              <SummarizeIcon fontSize="small" color="action" />
+              Clinical Summary
+            </Typography>
             <TextField
               fullWidth
               multiline
@@ -607,7 +643,10 @@ export default function AmbientRecorder() {
 
           {/* Referral Note Draft */}
           <Grid item xs={12}>
-            <Typography variant="subtitle1" fontWeight={600} gutterBottom>Referral Note Draft</Typography>
+            <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              <DescriptionIcon fontSize="small" color="action" />
+              Referral Note Draft
+            </Typography>
             <TextField
               fullWidth
               multiline
@@ -620,7 +659,10 @@ export default function AmbientRecorder() {
 
           {/* Urgency Classification */}
           <Grid item xs={12} sm={6}>
-            <Typography variant="subtitle1" fontWeight={600} gutterBottom>Urgency Classification</Typography>
+            <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              <PriorityHighIcon fontSize="small" color="action" />
+              Urgency Classification
+            </Typography>
             <FormControl fullWidth>
               <InputLabel>Urgency</InputLabel>
               <Select
@@ -637,12 +679,22 @@ export default function AmbientRecorder() {
 
           {/* Urgency Reason */}
           <Grid item xs={12} sm={6}>
-            <Typography variant="subtitle1" fontWeight={600} gutterBottom>Urgency Reason</Typography>
+            <Typography variant="subtitle1" fontWeight={600} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              <CommentIcon fontSize="small" color="action" />
+              Urgency Reason
+            </Typography>
             <TextField
               fullWidth
               label="Urgency Reason"
               value={editedUrgencyReason}
               onChange={(e) => setEditedUrgencyReason(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <CommentIcon fontSize="small" color="action" />
+                  </InputAdornment>
+                )
+              }}
             />
           </Grid>
         </Grid>
@@ -668,7 +720,7 @@ export default function AmbientRecorder() {
           >
             Reject
           </Button>
-          <Button variant="outlined" onClick={() => setActiveStep(1)} disabled={submitting || !!success}>
+          <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => setActiveStep(1)} disabled={submitting || !!success}>
             Back
           </Button>
         </Box>
@@ -697,18 +749,18 @@ export default function AmbientRecorder() {
           <CircularProgress />
         </Box>
       ) : (
-        <Paper>
-          <TableContainer>
-            <Table size="small">
+        <Paper variant="outlined" sx={pageCardSx}>
+          <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+            <Table size="small" sx={tableSx}>
               <TableHead>
-                <TableRow>
-                  <TableCell><strong>Patient</strong></TableCell>
-                  <TableCell><strong>Chief Complaint</strong></TableCell>
-                  <TableCell><strong>Urgency</strong></TableCell>
-                  <TableCell><strong>Status</strong></TableCell>
-                  <TableCell><strong>Duration</strong></TableCell>
-                  <TableCell><strong>Created</strong></TableCell>
-                  <TableCell align="center"><strong>Actions</strong></TableCell>
+                <TableRow sx={tableHeadRowSx}>
+                  <EllipsisHeaderCell label="Patient" sx={{ width: '18%' }} />
+                  <EllipsisHeaderCell label="Chief Complaint" sx={{ width: '27%' }} />
+                  <EllipsisHeaderCell label="Urgency" sx={{ width: '11%' }} />
+                  <EllipsisHeaderCell label="Status" sx={{ width: '11%' }} />
+                  <EllipsisHeaderCell label="Duration" sx={{ width: '11%' }} />
+                  <EllipsisHeaderCell label="Created" sx={{ width: '14%' }} />
+                  <EllipsisHeaderCell label="Actions" sx={{ width: '48px' }} align="center" />
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -719,39 +771,39 @@ export default function AmbientRecorder() {
                     </TableCell>
                   </TableRow>
                 ) : sessions.map((s) => (
-                  <TableRow key={s._id} hover>
-                    <TableCell>
-                      <Typography variant="body2" fontWeight={600}>{s.patientName}</Typography>
+                  <TableRow key={s._id} hover sx={tableBodyRowSx}>
+                    <TableCell sx={{ width: '18%' }}>
+                      <Typography variant="body2" fontWeight={600} noWrap>{s.patientName}</Typography>
                       {s.patientId && (
-                        <Typography variant="caption" color="text.secondary">ID: {s.patientId}</Typography>
+                        <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>ID: {s.patientId}</Typography>
                       )}
                     </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {s.chiefComplaint}
-                      </Typography>
+                    <TableCell sx={{ width: '27%' }}>
+                      <EllipsisCell value={s.chiefComplaint} />
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '11%' }}>
                       {s.urgencyClassification ? (
                         <Chip
                           label={s.urgencyClassification}
                           size="small"
                           color={URGENCY_COLOR[s.urgencyClassification] || 'default'}
+                          sx={compactChipSx}
                         />
                       ) : <Typography variant="caption" color="text.secondary">—</Typography>}
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '11%' }}>
                       <Chip
                         label={s.status || 'pending'}
                         size="small"
                         color={STATUS_COLOR[s.status] || 'default'}
+                        sx={compactChipSx}
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '11%' }}>
                       {s.recordingDuration != null ? formatDuration(s.recordingDuration) : '—'}
                     </TableCell>
-                    <TableCell>{formatDate(s.createdAt)}</TableCell>
-                    <TableCell align="center">
+                    <TableCell sx={{ width: '14%' }}>{formatDate(s.createdAt)}</TableCell>
+                    <TableCell sx={{ width: '48px' }} align="center">
                       <Tooltip title="View Session">
                         <IconButton size="small" color="primary" onClick={() => setViewSession(s)}>
                           <ViewIcon fontSize="small" />

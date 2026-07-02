@@ -28,7 +28,9 @@ import {
   DialogActions,
   TextField,
   InputAdornment,
-  Alert
+  Alert,
+  Avatar,
+  IconButton
 } from '@mui/material';
 import { ModernLoadingIndicator } from '../../components/common';
 import {
@@ -36,7 +38,8 @@ import {
   ShoppingCart as ShoppingCartIcon,
   Token as TokenIcon,
   CheckCircle as CheckCircleIcon,
-  Search as SearchIcon
+  Search as SearchIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 
 export default function TokenRedeem() {
@@ -391,10 +394,18 @@ export default function TokenRedeem() {
         onClose={handleConfirmDialogClose}
         aria-labelledby="confirm-redemption-dialog-title"
       >
-        <DialogTitle id="confirm-redemption-dialog-title">
-          Confirm Redemption
+        <DialogTitle id="confirm-redemption-dialog-title" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Avatar sx={{ width: 40, height: 40, bgcolor: 'primary.main' }}>
+            <ShoppingCartIcon fontSize="small" />
+          </Avatar>
+          <Typography variant="h6" component="span" sx={{ flexGrow: 1 }}>
+            Confirm Redemption
+          </Typography>
+          <IconButton aria-label="close" onClick={handleConfirmDialogClose} size="small">
+            <CloseIcon fontSize="small" />
+          </IconButton>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent dividers>
           <DialogContentText>
             You are about to redeem <strong>{selectedService?.tokenCost} tokens</strong> for:
           </DialogContentText>
@@ -430,13 +441,15 @@ export default function TokenRedeem() {
         onClose={handleSuccessDialogClose}
         aria-labelledby="redemption-success-dialog-title"
       >
-        <DialogTitle id="redemption-success-dialog-title">
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <CheckCircleIcon color="success" sx={{ mr: 1 }} />
+        <DialogTitle id="redemption-success-dialog-title" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Avatar sx={{ width: 40, height: 40, bgcolor: 'success.main' }}>
+            <CheckCircleIcon fontSize="small" />
+          </Avatar>
+          <Typography variant="h6" component="span">
             Redemption Successful
-          </Box>
+          </Typography>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent dividers>
           <DialogContentText>
             You have successfully redeemed {selectedService?.tokenCost} tokens for {selectedService?.name}.
             This transaction has been recorded on the blockchain.

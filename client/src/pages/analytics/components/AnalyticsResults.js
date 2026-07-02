@@ -14,6 +14,11 @@ import {
   TableHead,
   TableRow
 } from '@mui/material';
+import EllipsisCell from '../../../components/common/EllipsisCell';
+import EllipsisHeaderCell from '../../../components/common/EllipsisHeaderCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx,
+} from '../../../components/common/adminTableStyles';
 
 // Note: In a real application, we would use a charting library like Chart.js, Recharts, or D3.js
 // For this demo, we'll create placeholder components for visualizations
@@ -189,19 +194,19 @@ export default function AnalyticsResults({ results }) {
       <Typography variant="h6" gutterBottom>
         Risk Factors
       </Typography>
-      <TableContainer component={Paper} variant="outlined" sx={{ mb: 3 }}>
-        <Table>
+      <TableContainer component={Paper} variant="outlined" sx={{ ...tableContainerSx, mb: 3 }}>
+        <Table size="small" sx={tableSx}>
           <TableHead>
-            <TableRow>
-              <TableCell>Risk Factor</TableCell>
-              <TableCell align="right">Weight</TableCell>
+            <TableRow sx={tableHeadRowSx}>
+              <EllipsisHeaderCell label="Risk Factor" sx={{ width: '80%' }} />
+              <EllipsisHeaderCell label="Weight" sx={{ width: '20%' }} align="right" />
             </TableRow>
           </TableHead>
           <TableBody>
             {results.data.riskFactors.map((factor, index) => (
-              <TableRow key={index}>
-                <TableCell>{factor.factor}</TableCell>
-                <TableCell align="right">{(factor.weight * 100).toFixed(0)}%</TableCell>
+              <TableRow key={index} hover sx={tableBodyRowSx}>
+                <TableCell sx={{ width: '80%' }}><EllipsisCell value={factor.factor} /></TableCell>
+                <TableCell align="right" sx={{ width: '20%' }}>{(factor.weight * 100).toFixed(0)}%</TableCell>
               </TableRow>
             ))}
           </TableBody>

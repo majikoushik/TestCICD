@@ -20,12 +20,23 @@ import {
   Alert,
   Stepper,
   Step,
-  StepLabel
+  StepLabel,
+  InputAdornment
 } from '@mui/material';
-import { 
+import {
   Save as SaveIcon,
   ArrowBack as ArrowBackIcon,
-  ArrowForward as ArrowForwardIcon
+  ArrowForward as ArrowForwardIcon,
+  Person as PersonIcon,
+  Event as EventIcon,
+  Email as EmailIcon,
+  Phone as PhoneIcon,
+  LocationOn as LocationOnIcon,
+  MedicalServices as MedicalServicesIcon,
+  Medication as MedicationIcon,
+  Warning as WarningIcon,
+  LocalHospital as LocalHospitalIcon,
+  Badge as BadgeIcon
 } from '@mui/icons-material';
 
 const steps = ['Personal Information', 'Medical Information', 'Insurance Details'];
@@ -177,7 +188,12 @@ export default function AddPatient() {
             <Typography variant="h6" gutterBottom>
               Personal Information
             </Typography>
-            <Grid container spacing={3}>
+
+            <Typography variant="overline" color="text.secondary">
+              Basic Details
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <TextField
                   required
@@ -186,6 +202,13 @@ export default function AddPatient() {
                   name="name"
                   value={patientData.name}
                   onChange={handleInputChange}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PersonIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -195,6 +218,13 @@ export default function AddPatient() {
                   value="Auto-generated on save"
                   disabled
                   helperText="Unique ID is automatically created from the patient's name"
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <BadgeIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -210,6 +240,13 @@ export default function AddPatient() {
                     shrink: true,
                   }}
                   inputProps={{ min: '1900-01-01', max: new Date().toISOString().split('T')[0] }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <EventIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    )
+                  }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -227,6 +264,13 @@ export default function AddPatient() {
                   </RadioGroup>
                 </FormControl>
               </Grid>
+            </Grid>
+
+            <Typography variant="overline" color="text.secondary" sx={{ mt: 3, display: 'block' }}>
+              Contact Details
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <TextField
                   required
@@ -236,6 +280,13 @@ export default function AddPatient() {
                   type="email"
                   value={patientData.contactInfo.email}
                   onChange={handleInputChange}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <EmailIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -246,6 +297,13 @@ export default function AddPatient() {
                   name="contactInfo.phone"
                   value={patientData.contactInfo.phone}
                   onChange={handleInputChange}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PhoneIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -257,6 +315,13 @@ export default function AddPatient() {
                   onChange={handleInputChange}
                   multiline
                   rows={2}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start" sx={{ mt: 1, alignSelf: 'flex-start' }}>
+                        <LocationOnIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
             </Grid>
@@ -270,9 +335,13 @@ export default function AddPatient() {
             </Typography>
             
             {/* Medical Conditions */}
-            <Typography variant="subtitle1" sx={{ mt: 3, mb: 2 }}>
-              Medical Conditions
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 3 }}>
+              <MedicalServicesIcon fontSize="small" color="action" />
+              <Typography variant="overline" color="text.secondary">
+                Medical Conditions
+              </Typography>
+            </Box>
+            <Divider sx={{ mb: 2 }} />
             <Grid container spacing={2} sx={{ mb: 2 }}>
               <Grid item xs={12} sm={4}>
                 <TextField
@@ -339,9 +408,13 @@ export default function AddPatient() {
             <Divider sx={{ my: 3 }} />
             
             {/* Medications */}
-            <Typography variant="subtitle1" sx={{ mt: 3, mb: 2 }}>
-              Medications
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 3 }}>
+              <MedicationIcon fontSize="small" color="action" />
+              <Typography variant="overline" color="text.secondary">
+                Medications
+              </Typography>
+            </Box>
+            <Divider sx={{ mb: 2 }} />
             <Grid container spacing={2} sx={{ mb: 2 }}>
               <Grid item xs={12} sm={3}>
                 <TextField
@@ -416,9 +489,13 @@ export default function AddPatient() {
             <Divider sx={{ my: 3 }} />
             
             {/* Allergies */}
-            <Typography variant="subtitle1" sx={{ mt: 3, mb: 2 }}>
-              Allergies
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 3 }}>
+              <WarningIcon fontSize="small" color="action" />
+              <Typography variant="overline" color="text.secondary">
+                Allergies
+              </Typography>
+            </Box>
+            <Divider sx={{ mb: 2 }} />
             <Grid container spacing={2} sx={{ mb: 2 }}>
               <Grid item xs={12} sm={4}>
                 <TextField
@@ -489,7 +566,7 @@ export default function AddPatient() {
             <Typography variant="h6" gutterBottom>
               Insurance Information
             </Typography>
-            <Grid container spacing={3}>
+            <Grid container spacing={2}>
               <Grid item xs={12}>
                 <TextField
                   fullWidth
@@ -497,6 +574,13 @@ export default function AddPatient() {
                   name="insuranceInfo.provider"
                   value={patientData.insuranceInfo.provider}
                   onChange={handleInputChange}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <LocalHospitalIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -506,6 +590,13 @@ export default function AddPatient() {
                   name="insuranceInfo.policyNumber"
                   value={patientData.insuranceInfo.policyNumber}
                   onChange={handleInputChange}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <BadgeIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>

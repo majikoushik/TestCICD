@@ -35,6 +35,7 @@ import {
   TextField,
   Snackbar,
   CircularProgress,
+  InputAdornment,
 } from '@mui/material';
 import {
   Person as PersonIcon,
@@ -48,6 +49,8 @@ import {
   ContentCopy as CopyIcon,
   Refresh as RefreshIcon,
   CheckCircle as CheckCircleIcon,
+  Close as CloseIcon,
+  VerifiedUser as VerifiedUserIcon,
 } from '@mui/icons-material';
 import Tooltip from '@mui/material/Tooltip';
 
@@ -820,8 +823,16 @@ export default function PatientDetail() {
 
       {/* Consent Dialog */}
       <Dialog open={consentDialogOpen} onClose={handleCloseConsentDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>Grant Access to Patient Data</DialogTitle>
-        <DialogContent>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main' }}>
+            <VerifiedUserIcon fontSize="small" />
+          </Avatar>
+          <Typography variant="h6" component="span" sx={{ flexGrow: 1 }}>Grant Access to Patient Data</Typography>
+          <IconButton onClick={handleCloseConsentDialog} size="small" aria-label="close">
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
           <Box sx={{ mt: 1 }}>
             <TextField
               margin="dense"
@@ -831,6 +842,13 @@ export default function PatientDetail() {
               value={selectedProvider}
               onChange={(e) => setSelectedProvider(e.target.value)}
               sx={{ mb: 2 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <PersonIcon fontSize="small" color="action" />
+                  </InputAdornment>
+                ),
+              }}
             />
             <TextField
               select
@@ -852,10 +870,11 @@ export default function PatientDetail() {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseConsentDialog}>Cancel</Button>
-          <Button 
-            onClick={handleGrantConsent} 
-            variant="contained" 
+          <Button
+            onClick={handleGrantConsent}
+            variant="contained"
             disabled={!selectedProvider}
+            startIcon={<ShareIcon />}
           >
             Grant Access
           </Button>

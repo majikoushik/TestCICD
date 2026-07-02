@@ -24,6 +24,8 @@ import {
   IconButton,
   Tooltip,
   TablePagination,
+  Avatar,
+  InputAdornment,
 } from '@mui/material'
 import {
   EventAvailable as BookIcon,
@@ -33,6 +35,8 @@ import {
   VideoCall as TelehealthIcon,
   Refresh as RefreshIcon,
   CalendarMonth as CalIcon,
+  Close as CloseIcon,
+  Notes as NotesIcon,
 } from '@mui/icons-material'
 import AppointmentCard from '../../components/appointments/AppointmentCard'
 import {
@@ -359,13 +363,16 @@ export default function MyAppointments() {
 
       {/* ── Cancel Dialog ─────────────────────────────────────────────────────── */}
       <Dialog open={cancelDialog.open} onClose={handleCloseCancel} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <CancelIcon color="error" />
-            <Typography variant="h6">Cancel Appointment</Typography>
-          </Box>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Avatar sx={{ width: 40, height: 40, bgcolor: 'error.main' }}>
+            <CancelIcon fontSize="small" />
+          </Avatar>
+          <Typography variant="h6" sx={{ flexGrow: 1 }}>Cancel Appointment</Typography>
+          <IconButton aria-label="close" onClick={handleCloseCancel} disabled={cancelling} size="small">
+            <CloseIcon fontSize="small" />
+          </IconButton>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent dividers>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Are you sure you want to cancel this appointment? This action cannot be undone.
           </Typography>
@@ -379,6 +386,13 @@ export default function MyAppointments() {
               setCancelDialog((prev) => ({ ...prev, reason: e.target.value }))
             }
             placeholder="Provide a reason for cancelling this appointment..."
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1.5 }}>
+                  <NotesIcon fontSize="small" color="action" />
+                </InputAdornment>
+              ),
+            }}
           />
         </DialogContent>
         <DialogActions>

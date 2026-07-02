@@ -21,13 +21,20 @@ import {
   Step,
   StepLabel,
   FormControlLabel,
-  Checkbox
+  Checkbox,
+  InputAdornment,
+  Divider
 } from '@mui/material';
 import {
   Save as SaveIcon,
   ArrowBack as ArrowBackIcon,
   ArrowForward as ArrowForwardIcon,
-  Analytics as AnalyticsIcon
+  Analytics as AnalyticsIcon,
+  Label as LabelIcon,
+  Description as DescriptionIcon,
+  CalendarToday as CalendarTodayIcon,
+  Storage as StorageIcon,
+  Notes as NotesIcon
 } from '@mui/icons-material';
 
 const steps = ['Select Analysis Type', 'Configure Parameters', 'Data Sources'];
@@ -467,6 +474,12 @@ export default function CreateAnalytics() {
               {analyticsData.type && (
                 <>
                   <Grid item xs={12}>
+                    <Typography variant="overline" color="text.secondary">
+                      Report Details
+                    </Typography>
+                    <Divider sx={{ mb: 1 }} />
+                  </Grid>
+                  <Grid item xs={12}>
                     <TextField
                       required
                       fullWidth
@@ -474,6 +487,13 @@ export default function CreateAnalytics() {
                       name="name"
                       value={analyticsData.name}
                       onChange={handleInputChange}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <LabelIcon fontSize="small" color="action" />
+                          </InputAdornment>
+                        ),
+                      }}
                     />
                   </Grid>
                   <Grid item xs={12}>
@@ -485,6 +505,13 @@ export default function CreateAnalytics() {
                       rows={2}
                       value={analyticsData.description}
                       onChange={handleInputChange}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <DescriptionIcon fontSize="small" color="action" />
+                          </InputAdornment>
+                        ),
+                      }}
                     />
                   </Grid>
                 </>
@@ -511,7 +538,12 @@ export default function CreateAnalytics() {
             </Typography>
             <Grid container spacing={3}>
               {parameterFields.map((field) => (
-                <Grid item xs={12} key={field.name}>
+                <Grid
+                  item
+                  xs={12}
+                  sm={field.type === 'select' || field.type === 'checkbox' ? 6 : 12}
+                  key={field.name}
+                >
                   {field.type === 'select' && (
                     <FormControl fullWidth>
                       <InputLabel id={`${field.name}-label`}>{field.label}</InputLabel>
@@ -597,6 +629,13 @@ export default function CreateAnalytics() {
                       value={analyticsData.parameters[field.name] || field.defaultValue}
                       onChange={(e) => handleParameterChange(field.name, e.target.value)}
                       helperText={field.helperText}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <NotesIcon fontSize="small" color="action" />
+                          </InputAdornment>
+                        ),
+                      }}
                     />
                   )}
                 </Grid>
@@ -634,6 +673,11 @@ export default function CreateAnalytics() {
                       required
                       InputProps={{
                         ...params.InputProps,
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <StorageIcon fontSize="small" color="action" />
+                          </InputAdornment>
+                        ),
                         endAdornment: (
                           <>
                             {loading ? <ModernLoadingIndicator variant="button" color="inherit" size={20} /> : null}
@@ -668,6 +712,13 @@ export default function CreateAnalytics() {
                 </FormHelperText>
               </Grid>
               
+              <Grid item xs={12}>
+                <Typography variant="overline" color="text.secondary">
+                  Time Range
+                </Typography>
+                <Divider sx={{ mb: 1 }} />
+              </Grid>
+
               <Grid item xs={12} sm={6}>
                 <TextField
                   required
@@ -680,9 +731,16 @@ export default function CreateAnalytics() {
                   InputLabelProps={{
                     shrink: true,
                   }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <CalendarTodayIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
-              
+
               <Grid item xs={12} sm={6}>
                 <TextField
                   required
@@ -695,13 +753,21 @@ export default function CreateAnalytics() {
                   InputLabelProps={{
                     shrink: true,
                   }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <CalendarTodayIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
             </Grid>
             
             {analyticsData.dataSources.length > 0 && (
               <Paper variant="outlined" sx={{ p: 2, mt: 3 }}>
-                <Typography variant="subtitle1" gutterBottom>
+                <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <StorageIcon fontSize="small" color="action" />
                   Selected Data Sources
                 </Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
@@ -770,6 +836,7 @@ export default function CreateAnalytics() {
               variant="outlined"
               onClick={handleBack}
               disabled={activeStep === 0 || isSubmitting}
+              startIcon={<ArrowBackIcon />}
             >
               Back
             </Button>

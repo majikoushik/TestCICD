@@ -332,6 +332,58 @@ function verificationEmailText(name, token) {
   ].join('\n');
 }
 
+/* ── 1b. Password reset ──────────────────────────────────────────────────── */
+
+function passwordResetEmailHtml(name, token) {
+  const link = `${CLIENT}/reset-password?token=${token}`;
+  return wrap({
+    preheader: `${name}, use this link to reset your ${BRAND} password.`,
+    headerBg: 'linear-gradient(135deg,#1565c0 0%,#0d47a1 100%)',
+    headerHtml: BRAND_HEADER,
+    bodyHtml: `
+      <p style="margin:0 0 8px;font-size:22px;font-weight:bold;color:#1a237e">Reset your password</p>
+      <p style="margin:0 0 16px">
+        Hi ${name}, we received a request to reset the password on your ${BRAND} account.
+      </p>
+      <p style="margin:0 0 28px">
+        Click the button below to choose a new password. If you didn't request this, you can safely ignore this email — your password will not be changed.
+      </p>
+
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+        <tr><td style="text-align:center;padding-bottom:28px">${btn({ href: link, label: 'Reset My Password' })}</td></tr>
+      </table>
+
+      <p style="margin:0 0 4px;font-size:12px;color:#9aa5b4;text-align:center">Button not working? Copy and paste this link into your browser:</p>
+      <p style="margin:0 0 4px;font-size:11px;text-align:center;word-break:break-all">
+        <a href="${link}" style="color:#1565c0">${link}</a>
+      </p>
+
+      ${notice(`
+        <strong>&#9203; This link expires in 1 hour.</strong><br>
+        If you did not request a password reset, no action is needed — your account is still secure.
+      `)}`,
+  });
+}
+
+function passwordResetEmailText(name, token) {
+  const link = `${CLIENT}/reset-password?token=${token}`;
+  return [
+    `Reset your ${BRAND} password`,
+    '',
+    `Hi ${name}, we received a request to reset the password on your ${BRAND} account. Visit the link below to choose a new password:`,
+    '',
+    link,
+    '',
+    'This link expires in 1 hour.',
+    '',
+    'If you did not request this, you can safely ignore this email.',
+    '',
+    '---',
+    `${BRAND} | ${PHYSICAL_ADDRESS}`,
+    `Support: ${SUPPORT}`,
+  ].join('\n');
+}
+
 /* ── 2. KYC approved ─────────────────────────────────────────────────────── */
 
 function kycApprovedHtml(name) {
@@ -797,6 +849,8 @@ module.exports = {
   // Account / onboarding
   verificationEmailHtml,
   verificationEmailText,
+  passwordResetEmailHtml,
+  passwordResetEmailText,
   kycApprovedHtml,
   kycRejectedHtml,
   kycStatusUpdateHtml,    // intermediate status changes

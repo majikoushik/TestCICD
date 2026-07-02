@@ -21,6 +21,7 @@ import {
   Grid,
   Card,
   CardContent,
+  InputAdornment,
 } from '@mui/material'
 import {
   ArrowBack as BackIcon,
@@ -32,6 +33,10 @@ import {
   Badge as BadgeIcon,
   Person as PersonIcon,
   MedicalServices as ProviderIcon,
+  CalendarMonth as DateIcon,
+  AccessTime as TimeIcon,
+  LocationOn as LocationIcon,
+  Notes as NotesIcon,
 } from '@mui/icons-material'
 import TimeSlotPicker from '../../components/appointments/TimeSlotPicker'
 import PatientSearchAutocomplete from '../../components/common/PatientSearchAutocomplete'
@@ -368,6 +373,9 @@ export default function BookAppointment() {
           <Box>
             <Typography variant="h6" gutterBottom>Patient &amp; Visit Details</Typography>
 
+            <Typography variant="overline" color="text.secondary">Visit Information</Typography>
+            <Divider sx={{ mb: 2 }} />
+
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <FormControl fullWidth>
@@ -434,7 +442,8 @@ export default function BookAppointment() {
             </Grid>
 
             <Box sx={{ mt: 3 }}>
-              <Typography variant="subtitle1" fontWeight={600} gutterBottom>Patient</Typography>
+              <Typography variant="overline" color="text.secondary">Patient</Typography>
+              <Divider sx={{ mb: 2 }} />
               <PatientSearchAutocomplete
                 required
                 value={selectedPatient}
@@ -522,47 +531,79 @@ export default function BookAppointment() {
 
             <Card sx={{ mb: 3 }}>
               <CardContent>
-                <Grid container spacing={1}>
+                <Grid container spacing={2}>
                   <Grid item xs={12} sm={6}>
-                    <Typography variant="body2" color="text.secondary">Patient</Typography>
-                    <Typography variant="body1" fontWeight={600}>{formState.patientName}</Typography>
-                    {formState.patientPhone && (
-                      <Typography variant="body2" color="text.secondary">{formState.patientPhone}</Typography>
-                    )}
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                      <PersonIcon fontSize="small" color="action" sx={{ mt: 0.25 }} />
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">Patient</Typography>
+                        <Typography variant="body1" fontWeight={600}>{formState.patientName}</Typography>
+                        {formState.patientPhone && (
+                          <Typography variant="body2" color="text.secondary">{formState.patientPhone}</Typography>
+                        )}
+                      </Box>
+                    </Box>
                   </Grid>
                   <Grid item xs={12} sm={6}>
-                    <Typography variant="body2" color="text.secondary">Provider</Typography>
-                    <Typography variant="body1" fontWeight={600}>{providerDisplayName}</Typography>
-                    {currentUser?.specialty && (
-                      <Typography variant="body2" color="text.secondary">{currentUser.specialty}</Typography>
-                    )}
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                      <ProviderIcon fontSize="small" color="action" sx={{ mt: 0.25 }} />
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">Provider</Typography>
+                        <Typography variant="body1" fontWeight={600}>{providerDisplayName}</Typography>
+                        {currentUser?.specialty && (
+                          <Typography variant="body2" color="text.secondary">{currentUser.specialty}</Typography>
+                        )}
+                      </Box>
+                    </Box>
                   </Grid>
                   <Grid item xs={12} sm={6}>
-                    <Typography variant="body2" color="text.secondary">Date</Typography>
-                    <Typography variant="body1">{formatDate(formState.selectedDate)}</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                      <DateIcon fontSize="small" color="action" sx={{ mt: 0.25 }} />
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">Date</Typography>
+                        <Typography variant="body1">{formatDate(formState.selectedDate)}</Typography>
+                      </Box>
+                    </Box>
                   </Grid>
                   <Grid item xs={12} sm={6}>
-                    <Typography variant="body2" color="text.secondary">Time</Typography>
-                    <Typography variant="body1">
-                      {formState.selectedSlot
-                        ? `${formatTime(formState.selectedSlot.startTime)} – ${formatTime(formState.selectedSlot.endTime)}`
-                        : ''}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                      <TimeIcon fontSize="small" color="action" sx={{ mt: 0.25 }} />
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">Time</Typography>
+                        <Typography variant="body1">
+                          {formState.selectedSlot
+                            ? `${formatTime(formState.selectedSlot.startTime)} – ${formatTime(formState.selectedSlot.endTime)}`
+                            : ''}
+                        </Typography>
+                      </Box>
+                    </Box>
                   </Grid>
                   <Grid item xs={12} sm={6}>
-                    <Typography variant="body2" color="text.secondary">Appointment Type</Typography>
-                    <Typography variant="body1">{getAppointmentTypeLabel(formState.appointmentType)}</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                      <BookIcon fontSize="small" color="action" sx={{ mt: 0.25 }} />
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">Appointment Type</Typography>
+                        <Typography variant="body1">{getAppointmentTypeLabel(formState.appointmentType)}</Typography>
+                      </Box>
+                    </Box>
                   </Grid>
                   <Grid item xs={12} sm={6}>
-                    <Typography variant="body2" color="text.secondary">Location</Typography>
-                    <Chip
-                      label={formState.location === 'telehealth' ? 'Telehealth' : 'In-Person'}
-                      color={formState.location === 'telehealth' ? 'primary' : 'default'}
-                      size="small"
-                    />
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                      <LocationIcon fontSize="small" color="action" sx={{ mt: 0.25 }} />
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">Location</Typography>
+                        <Chip
+                          label={formState.location === 'telehealth' ? 'Telehealth' : 'In-Person'}
+                          color={formState.location === 'telehealth' ? 'primary' : 'default'}
+                          size="small"
+                          sx={{ mt: 0.25 }}
+                        />
+                      </Box>
+                    </Box>
                   </Grid>
                   {formState.chiefComplaint && (
                     <Grid item xs={12}>
+                      <Divider sx={{ my: 0.5 }} />
                       <Typography variant="body2" color="text.secondary">Chief Complaint</Typography>
                       <Typography variant="body1">{formState.chiefComplaint}</Typography>
                     </Grid>
@@ -593,6 +634,13 @@ export default function BookAppointment() {
                 multiline rows={3}
                 value={formState.notes}
                 onChange={(e) => setFormState((prev) => ({ ...prev, notes: e.target.value }))}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1.5 }}>
+                      <NotesIcon fontSize="small" color="action" />
+                    </InputAdornment>
+                  ),
+                }}
               />
             </Paper>
 

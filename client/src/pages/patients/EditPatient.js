@@ -20,13 +20,24 @@ import {
   Alert,
   Stepper,
   Step,
-  StepLabel
+  StepLabel,
+  InputAdornment
 } from '@mui/material';
 import {
   Save as SaveIcon,
   ArrowBack as ArrowBackIcon,
   ArrowForward as ArrowForwardIcon,
-  Add as AddIcon
+  Add as AddIcon,
+  Person as PersonIcon,
+  Event as EventIcon,
+  Email as EmailIcon,
+  Phone as PhoneIcon,
+  LocationOn as LocationOnIcon,
+  MedicalServices as MedicalServicesIcon,
+  Medication as MedicationIcon,
+  Warning as WarningIcon,
+  LocalHospital as LocalHospitalIcon,
+  Badge as BadgeIcon
 } from '@mui/icons-material';
 
 const steps = ['Personal Information', 'Medical Information', 'Insurance Details'];
@@ -224,7 +235,12 @@ export default function EditPatient() {
             <Typography variant="h6" gutterBottom>
               Personal Information
             </Typography>
-            <Grid container spacing={3}>
+
+            <Typography variant="overline" color="text.secondary">
+              Basic Details
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
@@ -233,6 +249,13 @@ export default function EditPatient() {
                   value={patientData.patientId || ''}
                   onChange={handleInputChange}
                   disabled // Patient ID should not be editable
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <BadgeIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -243,6 +266,13 @@ export default function EditPatient() {
                   value={patientData.name || ''}
                   onChange={handleInputChange}
                   required
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PersonIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -258,6 +288,13 @@ export default function EditPatient() {
                   }}
                   inputProps={{ max: new Date().toISOString().split('T')[0] }}
                   required
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <EventIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    )
+                  }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -275,11 +312,13 @@ export default function EditPatient() {
                   </RadioGroup>
                 </FormControl>
               </Grid>
-              <Grid item xs={12}>
-                <Typography variant="subtitle1" gutterBottom>
-                  Contact Information
-                </Typography>
-              </Grid>
+            </Grid>
+
+            <Typography variant="overline" color="text.secondary" sx={{ mt: 3, display: 'block' }}>
+              Contact Details
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
@@ -287,6 +326,13 @@ export default function EditPatient() {
                   name="contactInfo.email"
                   value={patientData.contactInfo?.email || ''}
                   onChange={handleInputChange}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <EmailIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -296,6 +342,13 @@ export default function EditPatient() {
                   name="contactInfo.phone"
                   value={patientData.contactInfo?.phone || ''}
                   onChange={handleInputChange}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PhoneIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -307,6 +360,13 @@ export default function EditPatient() {
                   onChange={handleInputChange}
                   multiline
                   rows={2}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start" sx={{ mt: 1, alignSelf: 'flex-start' }}>
+                        <LocationOnIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
             </Grid>
@@ -321,9 +381,13 @@ export default function EditPatient() {
             
             {/* Medical History */}
             <Box sx={{ mb: 4 }}>
-              <Typography variant="subtitle1" gutterBottom>
-                Medical History
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <MedicalServicesIcon fontSize="small" color="action" />
+                <Typography variant="overline" color="text.secondary">
+                  Medical History
+                </Typography>
+              </Box>
+              <Divider sx={{ mb: 2 }} />
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={4}>
                   <TextField
@@ -393,9 +457,13 @@ export default function EditPatient() {
             
             {/* Medications */}
             <Box sx={{ mb: 4 }}>
-              <Typography variant="subtitle1" gutterBottom>
-                Medications
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <MedicationIcon fontSize="small" color="action" />
+                <Typography variant="overline" color="text.secondary">
+                  Medications
+                </Typography>
+              </Box>
+              <Divider sx={{ mb: 2 }} />
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={3}>
                   <TextField
@@ -473,9 +541,13 @@ export default function EditPatient() {
             
             {/* Allergies */}
             <Box>
-              <Typography variant="subtitle1" gutterBottom>
-                Allergies
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <WarningIcon fontSize="small" color="action" />
+                <Typography variant="overline" color="text.secondary">
+                  Allergies
+                </Typography>
+              </Box>
+              <Divider sx={{ mb: 2 }} />
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={4}>
                   <TextField
@@ -556,7 +628,7 @@ export default function EditPatient() {
             <Typography variant="h6" gutterBottom>
               Insurance Information
             </Typography>
-            <Grid container spacing={3}>
+            <Grid container spacing={2}>
               <Grid item xs={12}>
                 <TextField
                   fullWidth
@@ -564,6 +636,13 @@ export default function EditPatient() {
                   name="insuranceInfo.provider"
                   value={patientData.insuranceInfo?.provider || ''}
                   onChange={handleInputChange}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <LocalHospitalIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -573,6 +652,13 @@ export default function EditPatient() {
                   name="insuranceInfo.policyNumber"
                   value={patientData.insuranceInfo?.policyNumber || ''}
                   onChange={handleInputChange}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <BadgeIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>

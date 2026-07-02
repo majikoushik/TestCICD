@@ -5,7 +5,7 @@ import {
   Chip, TextField, FormControl, InputLabel, Select, MenuItem,
   Dialog, DialogTitle, DialogContent, DialogActions,
   IconButton, Tooltip, Grid, Card, CardContent, LinearProgress,
-  Divider, Stack, Checkbox, Collapse
+  Divider, Stack, Checkbox, Collapse, Menu, ListItemIcon, ListItemText
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -27,13 +27,18 @@ import {
   Chat as NotesIcon,
   Send as SendIcon,
   DoneAll as BulkIcon,
-  SelectAll as SelectAllIcon
+  SelectAll as SelectAllIcon,
+  MoreVert as MoreVertIcon
 } from '@mui/icons-material';
 import {
   PieChart, Pie, Cell, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid
 } from 'recharts';
 import { ModernLoadingIndicator } from '../../components/common';
+import EllipsisCell from '../../components/common/EllipsisCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+} from '../../components/common/adminTableStyles';
 import { formatDate, formatDateTime } from '../../utils/dateFormatter';
 import {
   adminGetPriorAuths,
@@ -202,6 +207,18 @@ export default function AdminPriorAuth() {
   // Notes thread
   const [adminNote, setAdminNote] = useState('');
   const [noteLoading, setNoteLoading] = useState(false);
+  // Row action menu (kebab) — keeps the grid to one action column instead of
+  // a row of icon buttons, mirroring AdminProviders.js
+  const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState(null);
+  const [actionMenuPA, setActionMenuPA] = useState(null);
+  const openActionMenu = (event, pa) => {
+    setActionMenuAnchorEl(event.currentTarget);
+    setActionMenuPA(pa);
+  };
+  const closeActionMenu = () => {
+    setActionMenuAnchorEl(null);
+    setActionMenuPA(null);
+  };
 
   const load = useCallback(async () => {
     try {
@@ -353,6 +370,40 @@ export default function AdminPriorAuth() {
 
   const overdueAppeals = stats.overdueAppeals || 0;
 
+  // Shared row-action menu — one instance, opened against whichever row's
+  // kebab button was clicked (see openActionMenu/closeActionMenu above).
+  const renderActionMenu = () => {
+    const pa = actionMenuPA;
+    if (!pa) return null;
+    const runAction = (fn) => { closeActionMenu(); fn(); };
+    return (
+      <Menu
+        anchorEl={actionMenuAnchorEl}
+        open={Boolean(actionMenuAnchorEl)}
+        onClose={closeActionMenu}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+      >
+        <MenuItem onClick={() => runAction(() => { setSelectedPA(pa); setDetailOpen(true); })}>
+          <ListItemIcon><VisibilityIcon fontSize="small" color="primary" /></ListItemIcon>
+          <ListItemText>View Details</ListItemText>
+        </MenuItem>
+        {['Pending', 'Under Review', 'Appealing'].includes(pa.status) && (
+          <MenuItem onClick={() => runAction(() => { setSelectedPA(pa); setReviewDecision(''); setReviewNotes(''); setDenialReasonCode(''); setApprovalDurationDays(90); setReviewOpen(true); })}>
+            <ListItemIcon><ApproveIcon fontSize="small" color="success" /></ListItemIcon>
+            <ListItemText>Review / Decide</ListItemText>
+          </MenuItem>
+        )}
+        {!pa.aiRecommendation && (
+          <MenuItem disabled={aiLoading} onClick={() => runAction(() => handleAIAnalysis(pa))}>
+            <ListItemIcon><AIIcon fontSize="small" color="info" /></ListItemIcon>
+            <ListItemText>Run AI Analysis</ListItemText>
+          </MenuItem>
+        )}
+      </Menu>
+    );
+  };
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -457,11 +508,11 @@ export default function AdminPriorAuth() {
         </Box>
       ) : (
         <Paper>
-          <TableContainer>
-            <Table size="small">
+          <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+            <Table size="small" sx={tableSx}>
               <TableHead>
-                <TableRow>
-                  <TableCell padding="checkbox">
+                <TableRow sx={tableHeadRowSx}>
+                  <TableCell padding="checkbox" sx={{ width: '48px' }}>
                     <Tooltip title="Select all reviewable on this page">
                       <Checkbox
                         size="small"
@@ -471,15 +522,15 @@ export default function AdminPriorAuth() {
                       />
                     </Tooltip>
                   </TableCell>
-                  <TableCell><strong>Patient</strong></TableCell>
-                  <TableCell><strong>Service</strong></TableCell>
-                  <TableCell><strong>Provider</strong></TableCell>
-                  <TableCell><strong>Urgency</strong></TableCell>
-                  <TableCell><strong>Status</strong></TableCell>
-                  <TableCell><strong>AI Rec.</strong></TableCell>
-                  <TableCell><strong>AI Conf.</strong></TableCell>
-                  <TableCell><strong>Submitted</strong></TableCell>
-                  <TableCell align="center"><strong>Actions</strong></TableCell>
+                  <TableCell sx={{ width: '14%' }}>Patient</TableCell>
+                  <TableCell sx={{ width: '13%' }}>Service</TableCell>
+                  <TableCell sx={{ width: '15%' }}>Provider</TableCell>
+                  <TableCell sx={{ width: '11%' }}>Urgency</TableCell>
+                  <TableCell sx={{ width: '13%' }}>Status</TableCell>
+                  <TableCell sx={{ width: '10%' }}>AI Rec.</TableCell>
+                  <TableCell sx={{ width: '10%' }}>AI Conf.</TableCell>
+                  <TableCell sx={{ width: '9%' }}>Submitted</TableCell>
+                  <TableCell sx={{ width: '48px' }} align="center">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -490,27 +541,27 @@ export default function AdminPriorAuth() {
                     </TableCell>
                   </TableRow>
                 ) : displayed.map((pa) => (
-                  <TableRow key={pa._id} hover selected={selectedIds.has(pa._id)}>
-                    <TableCell padding="checkbox">
+                  <TableRow key={pa._id} hover selected={selectedIds.has(pa._id)} sx={tableBodyRowSx}>
+                    <TableCell padding="checkbox" sx={{ width: '48px' }}>
                       {['Pending', 'Under Review'].includes(pa.status) && (
                         <Checkbox size="small" checked={selectedIds.has(pa._id)} onChange={() => toggleSelectId(pa._id)} />
                       )}
                     </TableCell>
-                    <TableCell>{pa.patientName}</TableCell>
-                    <TableCell>{pa.serviceType}</TableCell>
-                    <TableCell>
-                      <Typography variant="body2" noWrap>{pa.requestingProviderName}</Typography>
+                    <TableCell sx={{ width: '14%' }}><EllipsisCell value={pa.patientName} /></TableCell>
+                    <TableCell sx={{ width: '13%' }}><EllipsisCell value={pa.serviceType} /></TableCell>
+                    <TableCell sx={{ width: '15%' }}>
+                      <EllipsisCell value={pa.requestingProviderName} />
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '11%' }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                      <Chip label={pa.urgency} size="small"
+                      <Chip label={pa.urgency} size="small" sx={compactChipSx}
                         color={pa.urgency === 'Emergent' ? 'error' : pa.urgency === 'Urgent' ? 'warning' : 'default'} />
                       <PriorityBadge score={pa.priorityScore} />
                       </Box>
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '13%' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <Chip label={pa.status} size="small" color={STATUS_COLOR[pa.status] || 'default'} />
+                        <Chip label={pa.status} size="small" color={STATUS_COLOR[pa.status] || 'default'} sx={compactChipSx} />
                         {pa.autoApproved && (
                           <Tooltip title="Auto-approved by AI">
                             <AutoIcon fontSize="small" color="success" />
@@ -519,13 +570,13 @@ export default function AdminPriorAuth() {
                         <SLABadge pa={pa} />
                       </Box>
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '10%' }}>
                       {pa.aiRecommendation ? (
-                        <Chip label={pa.aiRecommendation} size="small" variant="outlined"
+                        <Chip label={pa.aiRecommendation} size="small" variant="outlined" sx={compactChipSx}
                           color={pa.aiRecommendation === 'Approve' ? 'success' : pa.aiRecommendation === 'Deny' ? 'error' : 'warning'} />
                       ) : <Typography variant="caption" color="text.secondary">—</Typography>}
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '10%' }}>
                       {pa.aiConfidenceScore != null ? (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                           <LinearProgress
@@ -538,27 +589,11 @@ export default function AdminPriorAuth() {
                         </Box>
                       ) : <Typography variant="caption" color="text.secondary">—</Typography>}
                     </TableCell>
-                    <TableCell>{formatDate(pa.createdAt)}</TableCell>
-                    <TableCell align="center">
-                      <Tooltip title="View Details">
-                        <IconButton size="small" color="primary" onClick={() => { setSelectedPA(pa); setDetailOpen(true); }}>
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      {['Pending', 'Under Review', 'Appealing'].includes(pa.status) && (
-                        <Tooltip title="Review / Decide">
-                          <IconButton size="small" color="success" onClick={() => { setSelectedPA(pa); setReviewDecision(''); setReviewNotes(''); setDenialReasonCode(''); setApprovalDurationDays(90); setReviewOpen(true); }}>
-                            <ApproveIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                      {!pa.aiRecommendation && (
-                        <Tooltip title="Run AI Analysis">
-                          <IconButton size="small" color="info" disabled={aiLoading} onClick={() => handleAIAnalysis(pa)}>
-                            <AIIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
+                    <TableCell sx={{ width: '9%' }}>{formatDate(pa.createdAt)}</TableCell>
+                    <TableCell sx={{ width: '48px' }} align="center">
+                      <IconButton size="small" onClick={(e) => openActionMenu(e, pa)}>
+                        <MoreVertIcon fontSize="small" />
+                      </IconButton>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -573,6 +608,7 @@ export default function AdminPriorAuth() {
             onPageChange={(e, p) => setPage(p)}
             rowsPerPageOptions={[15]}
           />
+          {renderActionMenu()}
         </Paper>
       )}
 

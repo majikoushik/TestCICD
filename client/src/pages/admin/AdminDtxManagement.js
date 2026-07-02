@@ -18,6 +18,10 @@ import {
   adminGetStats, adminGetPrograms, adminCreateProgram,
   adminUpdateProgram, adminGetPrescriptions,
 } from '../../services/dtxService';
+import EllipsisCell from '../../components/common/EllipsisCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+} from '../../components/common/adminTableStyles';
 
 const CATEGORY_OPTIONS = [
   { value: 'all', label: 'All Categories' },
@@ -385,18 +389,18 @@ export default function AdminDtxManagement() {
 
           {programsLoading && <LinearProgress sx={{ mb: 2 }} />}
 
-          <TableContainer component={Paper} variant="outlined">
-            <Table size="small">
+          <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+            <Table size="small" sx={tableSx}>
               <TableHead>
-                <TableRow sx={{ bgcolor: 'action.hover' }}>
-                  <TableCell><Typography variant="caption" fontWeight={700}>Program</Typography></TableCell>
-                  <TableCell><Typography variant="caption" fontWeight={700}>Category</Typography></TableCell>
-                  <TableCell><Typography variant="caption" fontWeight={700}>Evidence</Typography></TableCell>
-                  <TableCell><Typography variant="caption" fontWeight={700}>Duration</Typography></TableCell>
-                  <TableCell align="right"><Typography variant="caption" fontWeight={700}>Prescribed</Typography></TableCell>
-                  <TableCell align="right"><Typography variant="caption" fontWeight={700}>Token Reward</Typography></TableCell>
-                  <TableCell><Typography variant="caption" fontWeight={700}>Status</Typography></TableCell>
-                  <TableCell><Typography variant="caption" fontWeight={700}>Actions</Typography></TableCell>
+                <TableRow sx={tableHeadRowSx}>
+                  <TableCell sx={{ width: '22%' }}>Program</TableCell>
+                  <TableCell sx={{ width: '14%' }}>Category</TableCell>
+                  <TableCell sx={{ width: '13%' }}>Evidence</TableCell>
+                  <TableCell sx={{ width: '9%' }}>Duration</TableCell>
+                  <TableCell sx={{ width: '10%' }} align="right">Prescribed</TableCell>
+                  <TableCell sx={{ width: '10%' }} align="right">Token Reward</TableCell>
+                  <TableCell sx={{ width: '9%' }}>Status</TableCell>
+                  <TableCell sx={{ width: '13%' }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -408,36 +412,38 @@ export default function AdminDtxManagement() {
                   </TableRow>
                 ) : (
                   programs.map((prog) => (
-                    <TableRow key={prog._id} hover sx={{ opacity: prog.isActive ? 1 : 0.5 }}>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={600}>{prog.name}</Typography>
-                        <Typography variant="caption" color="text.secondary">{prog.vendor}</Typography>
+                    <TableRow key={prog._id} hover sx={{ ...tableBodyRowSx, opacity: prog.isActive ? 1 : 0.5 }}>
+                      <TableCell sx={{ width: '22%' }}>
+                        <Typography variant="body2" fontWeight={600} noWrap>{prog.name}</Typography>
+                        <Typography variant="caption" color="text.secondary" noWrap component="div">{prog.vendor}</Typography>
                       </TableCell>
-                      <TableCell>
-                        <Chip label={CATEGORY_LABELS[prog.category] || prog.category} size="small" />
+                      <TableCell sx={{ width: '14%' }}>
+                        <Chip label={CATEGORY_LABELS[prog.category] || prog.category} size="small" sx={compactChipSx} />
                       </TableCell>
-                      <TableCell>
-                        <Typography variant="caption">
-                          {EVIDENCE_OPTIONS.find(e => e.value === prog.evidenceLevel)?.label || prog.evidenceLevel}
-                        </Typography>
+                      <TableCell sx={{ width: '13%' }}>
+                        <EllipsisCell
+                          value={EVIDENCE_OPTIONS.find(e => e.value === prog.evidenceLevel)?.label || prog.evidenceLevel}
+                          variant="caption"
+                        />
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ width: '9%' }}>
                         <Typography variant="body2">{prog.durationWeeks ? prog.durationWeeks + 'w' : '—'}</Typography>
                       </TableCell>
-                      <TableCell align="right">
+                      <TableCell sx={{ width: '10%' }} align="right">
                         <Typography variant="body2" fontWeight={600}>{prog.prescriptionCount ?? 0}</Typography>
                       </TableCell>
-                      <TableCell align="right">
-                        <Chip label={`+${prog.tokenReward || 10}`} size="small" color="warning" />
+                      <TableCell sx={{ width: '10%' }} align="right">
+                        <Chip label={`+${prog.tokenReward || 10}`} size="small" color="warning" sx={compactChipSx} />
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ width: '9%' }}>
                         <Chip
                           label={prog.isActive ? 'Active' : 'Inactive'}
                           color={prog.isActive ? 'success' : 'default'}
                           size="small"
+                          sx={compactChipSx}
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ width: '13%' }}>
                         <Box display="flex" gap={0.5}>
                           <Button size="small" startIcon={<EditIcon />} onClick={() => { setEditTarget(prog); setFormOpen(true); }}>
                             Edit
@@ -479,17 +485,17 @@ export default function AdminDtxManagement() {
 
           {rxLoading && <LinearProgress sx={{ mb: 2 }} />}
 
-          <TableContainer component={Paper} variant="outlined">
-            <Table size="small">
+          <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+            <Table size="small" sx={tableSx}>
               <TableHead>
-                <TableRow sx={{ bgcolor: 'action.hover' }}>
-                  <TableCell><Typography variant="caption" fontWeight={700}>Patient</Typography></TableCell>
-                  <TableCell><Typography variant="caption" fontWeight={700}>Program</Typography></TableCell>
-                  <TableCell><Typography variant="caption" fontWeight={700}>Provider</Typography></TableCell>
-                  <TableCell><Typography variant="caption" fontWeight={700}>Status</Typography></TableCell>
-                  <TableCell><Typography variant="caption" fontWeight={700}>Prescribed</Typography></TableCell>
-                  <TableCell align="right"><Typography variant="caption" fontWeight={700}>Engagement</Typography></TableCell>
-                  <TableCell align="right"><Typography variant="caption" fontWeight={700}>Tokens</Typography></TableCell>
+                <TableRow sx={tableHeadRowSx}>
+                  <TableCell sx={{ width: '20%' }}>Patient</TableCell>
+                  <TableCell sx={{ width: '20%' }}>Program</TableCell>
+                  <TableCell sx={{ width: '15%' }}>Provider</TableCell>
+                  <TableCell sx={{ width: '12%' }}>Status</TableCell>
+                  <TableCell sx={{ width: '13%' }}>Prescribed</TableCell>
+                  <TableCell sx={{ width: '10%' }} align="right">Engagement</TableCell>
+                  <TableCell sx={{ width: '10%' }} align="right">Tokens</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -501,32 +507,32 @@ export default function AdminDtxManagement() {
                   </TableRow>
                 ) : (
                   prescriptions.map((rx) => (
-                    <TableRow key={rx._id} hover>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={600}>{rx.patientName}</Typography>
-                        {rx.patientId && <Typography variant="caption" color="text.secondary">{rx.patientId}</Typography>}
+                    <TableRow key={rx._id} hover sx={tableBodyRowSx}>
+                      <TableCell sx={{ width: '20%' }}>
+                        <Typography variant="body2" fontWeight={600} noWrap>{rx.patientName}</Typography>
+                        {rx.patientId && <Typography variant="caption" color="text.secondary" noWrap component="div">{rx.patientId}</Typography>}
                       </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">{rx.programName}</Typography>
-                        <Typography variant="caption" color="text.secondary">{rx.programVendor}</Typography>
+                      <TableCell sx={{ width: '20%' }}>
+                        <EllipsisCell value={rx.programName} />
+                        <Typography variant="caption" color="text.secondary" noWrap component="div">{rx.programVendor}</Typography>
                       </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">{rx.providerName || '—'}</Typography>
+                      <TableCell sx={{ width: '15%' }}>
+                        <EllipsisCell value={rx.providerName} />
                       </TableCell>
-                      <TableCell>
-                        <Chip label={rx.status.charAt(0).toUpperCase() + rx.status.slice(1)} color={STATUS_COLORS[rx.status] || 'default'} size="small" />
+                      <TableCell sx={{ width: '12%' }}>
+                        <Chip label={rx.status.charAt(0).toUpperCase() + rx.status.slice(1)} color={STATUS_COLORS[rx.status] || 'default'} size="small" sx={compactChipSx} />
                       </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">{formatDate(rx.prescribedAt)}</Typography>
+                      <TableCell sx={{ width: '13%' }}>
+                        <Typography variant="body2" noWrap>{formatDate(rx.prescribedAt)}</Typography>
                       </TableCell>
-                      <TableCell align="right">
+                      <TableCell sx={{ width: '10%' }} align="right">
                         {rx.engagementScore != null ? (
-                          <Chip label={`${rx.engagementScore}%`} size="small" color={rx.engagementScore >= 70 ? 'success' : rx.engagementScore >= 40 ? 'warning' : 'error'} />
+                          <Chip label={`${rx.engagementScore}%`} size="small" color={rx.engagementScore >= 70 ? 'success' : rx.engagementScore >= 40 ? 'warning' : 'error'} sx={compactChipSx} />
                         ) : '—'}
                       </TableCell>
-                      <TableCell align="right">
+                      <TableCell sx={{ width: '10%' }} align="right">
                         {rx.tokenRewardIssued ? (
-                          <Chip label={`+${rx.tokenRewardAmount}`} size="small" color="warning" />
+                          <Chip label={`+${rx.tokenRewardAmount}`} size="small" color="warning" sx={compactChipSx} />
                         ) : '—'}
                       </TableCell>
                     </TableRow>

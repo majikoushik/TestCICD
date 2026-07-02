@@ -21,6 +21,10 @@ import {
   AccountBalanceWallet as AllowanceIcon,
 } from '@mui/icons-material';
 import { get, post } from '../../utils/apiUtils';
+import EllipsisCell from '../../components/common/EllipsisCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+} from '../../components/common/adminTableStyles';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -210,37 +214,37 @@ function LedgerBrowser() {
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {loading && <LinearProgress sx={{ mb: 1 }} />}
 
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
+      <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+        <Table size="small" sx={tableSx}>
           <TableHead>
-            <TableRow>
-              <TableCell>Block #</TableCell>
-              <TableCell>Type</TableCell>
-              <TableCell>Transaction ID</TableCell>
-              <TableCell>Hash</TableCell>
-              <TableCell>Prev Hash</TableCell>
-              <TableCell>Time</TableCell>
-              <TableCell align="center">Detail</TableCell>
+            <TableRow sx={tableHeadRowSx}>
+              <TableCell sx={{ width: '9%' }}>Block #</TableCell>
+              <TableCell sx={{ width: '11%' }}>Type</TableCell>
+              <TableCell sx={{ width: '22%' }}>Transaction ID</TableCell>
+              <TableCell sx={{ width: '22%' }}>Hash</TableCell>
+              <TableCell sx={{ width: '22%' }}>Prev Hash</TableCell>
+              <TableCell sx={{ width: '14%' }}>Time</TableCell>
+              <TableCell sx={{ width: '48px' }} align="center">Detail</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {txs.map((tx) => (
-              <TableRow key={tx.transactionId} hover>
-                <TableCell>{tx.blockNumber ?? '—'}</TableCell>
-                <TableCell>
-                  <Chip label={tx.type} size="small" color={TYPE_COLOR[tx.type] || 'default'} />
+              <TableRow key={tx.transactionId} hover sx={tableBodyRowSx}>
+                <TableCell sx={{ width: '9%' }}>{tx.blockNumber ?? '—'}</TableCell>
+                <TableCell sx={{ width: '11%' }}>
+                  <Chip label={tx.type} size="small" color={TYPE_COLOR[tx.type] || 'default'} sx={compactChipSx} />
                 </TableCell>
-                <TableCell sx={{ fontFamily: 'monospace', fontSize: 11 }}>
-                  {shortHash(tx.transactionId)}
+                <TableCell sx={{ width: '22%' }}>
+                  <EllipsisCell value={shortHash(tx.transactionId)} sx={{ fontFamily: 'monospace', fontSize: 11 }} />
                 </TableCell>
-                <TableCell sx={{ fontFamily: 'monospace', fontSize: 11 }}>
-                  {shortHash(tx.hash)}
+                <TableCell sx={{ width: '22%' }}>
+                  <EllipsisCell value={shortHash(tx.hash)} sx={{ fontFamily: 'monospace', fontSize: 11 }} />
                 </TableCell>
-                <TableCell sx={{ fontFamily: 'monospace', fontSize: 11 }}>
-                  {shortHash(tx.previousHash)}
+                <TableCell sx={{ width: '22%' }}>
+                  <EllipsisCell value={shortHash(tx.previousHash)} sx={{ fontFamily: 'monospace', fontSize: 11 }} />
                 </TableCell>
-                <TableCell>{timeAgo(tx.timestamp)}</TableCell>
-                <TableCell align="center">
+                <TableCell sx={{ width: '14%' }}>{timeAgo(tx.timestamp)}</TableCell>
+                <TableCell sx={{ width: '48px' }} align="center">
                   <Tooltip title="View detail & verify">
                     <IconButton size="small" onClick={() => loadDetail(tx.transactionId)}>
                       <InfoIcon fontSize="small" />
@@ -393,40 +397,40 @@ function IntegrityAudit() {
           {result.issues.length > 0 && (
             <Box>
               <Typography variant="subtitle2" sx={{ mb: 1 }}>Broken Records</Typography>
-              <TableContainer component={Paper} variant="outlined">
-                <Table size="small">
+              <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+                <Table size="small" sx={tableSx}>
                   <TableHead>
-                    <TableRow>
-                      <TableCell>Block #</TableCell>
-                      <TableCell>Transaction ID</TableCell>
-                      <TableCell>Hash OK</TableCell>
-                      <TableCell>Link OK</TableCell>
-                      <TableCell>Expected Prev</TableCell>
-                      <TableCell>Got Prev</TableCell>
+                    <TableRow sx={tableHeadRowSx}>
+                      <TableCell sx={{ width: '10%' }}>Block #</TableCell>
+                      <TableCell sx={{ width: '26%' }}>Transaction ID</TableCell>
+                      <TableCell sx={{ width: '12%' }}>Hash OK</TableCell>
+                      <TableCell sx={{ width: '12%' }}>Link OK</TableCell>
+                      <TableCell sx={{ width: '20%' }}>Expected Prev</TableCell>
+                      <TableCell sx={{ width: '20%' }}>Got Prev</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {result.issues.map((issue) => (
-                      <TableRow key={issue.transactionId}>
-                        <TableCell>{issue.blockNumber}</TableCell>
-                        <TableCell sx={{ fontFamily: 'monospace', fontSize: 11 }}>
-                          {shortHash(issue.transactionId)}
+                      <TableRow key={issue.transactionId} sx={tableBodyRowSx}>
+                        <TableCell sx={{ width: '10%' }}>{issue.blockNumber}</TableCell>
+                        <TableCell sx={{ width: '26%' }}>
+                          <EllipsisCell value={shortHash(issue.transactionId)} sx={{ fontFamily: 'monospace', fontSize: 11 }} />
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ width: '12%' }}>
                           {issue.hashOk
                             ? <CheckCircleIcon color="success" fontSize="small" />
                             : <CancelIcon color="error" fontSize="small" />}
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ width: '12%' }}>
                           {issue.linkOk
                             ? <CheckCircleIcon color="success" fontSize="small" />
                             : <CancelIcon color="error" fontSize="small" />}
                         </TableCell>
-                        <TableCell sx={{ fontFamily: 'monospace', fontSize: 11 }}>
-                          {shortHash(issue.expected)}
+                        <TableCell sx={{ width: '20%' }}>
+                          <EllipsisCell value={shortHash(issue.expected)} sx={{ fontFamily: 'monospace', fontSize: 11 }} />
                         </TableCell>
-                        <TableCell sx={{ fontFamily: 'monospace', fontSize: 11 }}>
-                          {shortHash(issue.got)}
+                        <TableCell sx={{ width: '20%' }}>
+                          <EllipsisCell value={shortHash(issue.got)} sx={{ fontFamily: 'monospace', fontSize: 11 }} />
                         </TableCell>
                       </TableRow>
                     ))}

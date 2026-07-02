@@ -89,7 +89,8 @@ router.get('/sessions', async (req, res) => {
     const limit = parseInt(req.query.limit, 10) || 15;
     const skip = (page - 1) * limit;
 
-    const filter = { requestedBy: req.user._id };
+    const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
+    const filter = isAdmin ? {} : { requestedBy: req.user._id };
 
     const [sessions, total] = await Promise.all([
       MatchSession.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),

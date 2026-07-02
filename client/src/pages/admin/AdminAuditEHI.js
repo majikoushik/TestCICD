@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ModernLoadingIndicator } from '../../components/common';
+import EllipsisCell from '../../components/common/EllipsisCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+} from '../../components/common/adminTableStyles';
 import { get } from '../../utils/apiUtils';
 import {
   Container,
@@ -225,58 +229,61 @@ const AdminAuditEHI = () => {
         </Box>
       ) : (
         <>
-          <TableContainer component={Paper}>
-            <Table size="small">
+          <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+            <Table size="small" sx={tableSx}>
               <TableHead>
-                <TableRow>
-                  <TableCell>Timestamp</TableCell>
-                  <TableCell>User</TableCell>
-                  <TableCell>Role</TableCell>
-                  <TableCell>Action</TableCell>
-                  <TableCell>Resource</TableCell>
-                  <TableCell>HTTP</TableCell>
-                  <TableCell>ONC Exception</TableCell>
-                  <TableCell>IP Address</TableCell>
+                <TableRow sx={tableHeadRowSx}>
+                  <TableCell sx={{ width: '14%' }}>Timestamp</TableCell>
+                  <TableCell sx={{ width: '19%' }}>User</TableCell>
+                  <TableCell sx={{ width: '10%' }}>Role</TableCell>
+                  <TableCell sx={{ width: '12%' }}>Action</TableCell>
+                  <TableCell sx={{ width: '13%' }}>Resource</TableCell>
+                  <TableCell sx={{ width: '8%' }}>HTTP</TableCell>
+                  <TableCell sx={{ width: '14%' }}>ONC Exception</TableCell>
+                  <TableCell sx={{ width: '10%' }}>IP Address</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {logs.map((log, idx) => (
-                  <TableRow key={log._id || idx} hover>
-                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                  <TableRow key={log._id || idx} hover sx={tableBodyRowSx}>
+                    <TableCell sx={{ width: '14%', whiteSpace: 'nowrap' }}>
                       {formatDateTime(log.timestamp)}
                     </TableCell>
-                    <TableCell>{log.userEmail || '—'}</TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '19%' }}><EllipsisCell value={log.userEmail} /></TableCell>
+                    <TableCell sx={{ width: '10%' }}>
                       <Chip
                         label={log.userRole || 'unknown'}
                         size="small"
                         color={log.userRole === 'admin' || log.userRole === 'superadmin' ? 'primary' : 'default'}
+                        sx={compactChipSx}
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '12%' }}>
                       <Chip
                         label={log.action}
                         size="small"
                         color={ACTION_COLORS[log.action] || 'default'}
+                        sx={compactChipSx}
                       />
                     </TableCell>
-                    <TableCell>{log.resourceType}</TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '13%' }}><EllipsisCell value={log.resourceType} /></TableCell>
+                    <TableCell sx={{ width: '8%' }}>
                       <Chip
                         label={log.responseStatus}
                         size="small"
                         color={log.responseStatus < 400 ? 'success' : 'error'}
                         variant="outlined"
+                        sx={compactChipSx}
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '14%' }}>
                       {log.oncException ? (
                         <Tooltip title={`ONC Exception: ${log.oncException}`}>
-                          <Chip label={log.oncException} size="small" color="warning" variant="outlined" />
+                          <Chip label={log.oncException} size="small" color="warning" variant="outlined" sx={compactChipSx} />
                         </Tooltip>
                       ) : '—'}
                     </TableCell>
-                    <TableCell>{log.ipAddress || '—'}</TableCell>
+                    <TableCell sx={{ width: '10%' }}><EllipsisCell value={log.ipAddress} /></TableCell>
                   </TableRow>
                 ))}
                 {logs.length === 0 && (

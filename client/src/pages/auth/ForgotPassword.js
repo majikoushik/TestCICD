@@ -33,7 +33,7 @@ export default function ForgotPassword() {
 
     setLocalError('');
     setIsSubmitting(true);
-    
+
     try {
       await forgotPassword(email);
       setSubmitted(true);

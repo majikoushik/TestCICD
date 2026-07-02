@@ -20,6 +20,11 @@ import {
   Security as SecurityIcon,
   CalendarToday as CalendarIcon
 } from '@mui/icons-material';
+import EllipsisCell from '../../../components/common/EllipsisCell';
+import EllipsisHeaderCell from '../../../components/common/EllipsisHeaderCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+} from '../../../components/common/adminTableStyles';
 
 export default function AnalyticsDataSources({ dataSources }) {
   if (!dataSources || dataSources.length === 0) {
@@ -95,49 +100,51 @@ export default function AnalyticsDataSources({ dataSources }) {
       </Card>
       
       {/* Data Sources Table */}
-      <TableContainer component={Paper} variant="outlined" sx={{ mb: 3 }}>
-        <Table>
+      <TableContainer component={Paper} variant="outlined" sx={{ ...tableContainerSx, mb: 3 }}>
+        <Table size="small" sx={tableSx}>
           <TableHead>
-            <TableRow>
-              <TableCell>Source</TableCell>
-              <TableCell>Type</TableCell>
-              <TableCell align="right">Records</TableCell>
-              <TableCell>Date Range</TableCell>
-              <TableCell>Anonymized</TableCell>
+            <TableRow sx={tableHeadRowSx}>
+              <EllipsisHeaderCell label="Source" sx={{ width: '28%' }} />
+              <EllipsisHeaderCell label="Type" sx={{ width: '15%' }} />
+              <EllipsisHeaderCell label="Records" sx={{ width: '15%' }} align="right" />
+              <EllipsisHeaderCell label="Date Range" sx={{ width: '27%' }} />
+              <EllipsisHeaderCell label="Anonymized" sx={{ width: '15%' }} />
             </TableRow>
           </TableHead>
           <TableBody>
             {dataSources.map((source, index) => (
-              <TableRow key={index}>
-                <TableCell>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <StorageIcon sx={{ mr: 1, color: 'primary.main' }} />
-                    {source.source}
+              <TableRow key={index} hover sx={tableBodyRowSx}>
+                <TableCell sx={{ width: '28%' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                    <StorageIcon sx={{ mr: 1, color: 'primary.main', flexShrink: 0 }} />
+                    <EllipsisCell value={source.source} />
                   </Box>
                 </TableCell>
-                <TableCell>{source.type}</TableCell>
-                <TableCell align="right">{source.recordCount.toLocaleString()}</TableCell>
-                <TableCell>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <CalendarIcon fontSize="small" sx={{ mr: 0.5 }} />
-                    {formatDate(source.dateRange.start)} - {formatDate(source.dateRange.end)}
+                <TableCell sx={{ width: '15%' }}><EllipsisCell value={source.type} /></TableCell>
+                <TableCell sx={{ width: '15%' }} align="right">{source.recordCount.toLocaleString()}</TableCell>
+                <TableCell sx={{ width: '27%' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                    <CalendarIcon fontSize="small" sx={{ mr: 0.5, flexShrink: 0 }} />
+                    <EllipsisCell value={`${formatDate(source.dateRange.start)} - ${formatDate(source.dateRange.end)}`} />
                   </Box>
                 </TableCell>
-                <TableCell>
+                <TableCell sx={{ width: '15%' }}>
                   {source.anonymized ? (
-                    <Chip 
-                      icon={<SecurityIcon />} 
-                      label="Anonymized" 
-                      color="success" 
-                      size="small" 
-                      variant="outlined" 
+                    <Chip
+                      icon={<SecurityIcon />}
+                      label="Anonymized"
+                      color="success"
+                      size="small"
+                      variant="outlined"
+                      sx={compactChipSx}
                     />
                   ) : (
-                    <Chip 
-                      label="Not Anonymized" 
-                      color="default" 
-                      size="small" 
-                      variant="outlined" 
+                    <Chip
+                      label="Not Anonymized"
+                      color="default"
+                      size="small"
+                      variant="outlined"
+                      sx={compactChipSx}
                     />
                   )}
                 </TableCell>

@@ -38,8 +38,9 @@ import {
   Autocomplete,
   CircularProgress,
   Chip,
+  Tooltip,
 } from '@mui/material';
-import { 
+import {
   Add as AddIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
@@ -54,16 +55,23 @@ import {
   BarChart as AnalyticsIcon,
   Tune as PolicyIcon,
   TrendingUp as TrendingUpIcon,
-  TrendingDown as TrendingDownIcon
+  TrendingDown as TrendingDownIcon,
+  History as HistoryIcon,
+  AddCircle as MintIcon,
+  Whatshot as BurnIcon,
 } from '@mui/icons-material';
 import { DataGrid } from '@mui/x-data-grid';
 import adminTokenService from '../../services/adminTokenService';
 import { formatDateTime } from '../../utils/dateFormatter';
 import { ModernLoadingIndicator } from '../../components/common';
-import { 
-  mockProviders, 
-  mockCatalogItems, 
-  mockConversionRules 
+import EllipsisCell from '../../components/common/EllipsisCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+} from '../../components/common/adminTableStyles';
+import {
+  mockProviders,
+  mockCatalogItems,
+  mockConversionRules
 } from '../../services/mockData';
 
 const AdminTokenManagement = () => {
@@ -131,66 +139,59 @@ const AdminTokenManagement = () => {
     // Provider token balance columns
   // Provider token balance columns
   const providerColumns = [
-    { field: 'id', headerName: 'ID', width: 70 },
-    { field: 'name', headerName: 'Provider Name', width: 200 },
-    { field: 'organization', headerName: 'Organization', width: 200 },
-    { 
-      field: 'tokenBalance', 
-      headerName: 'Token Balance', 
-      width: 150, 
-      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '0' 
+    { field: 'name', headerName: 'Provider Name', flex: 1.6, minWidth: 160 },
+    { field: 'organization', headerName: 'Organization', flex: 1.6, minWidth: 160 },
+    {
+      field: 'tokenBalance',
+      headerName: 'Token Balance',
+      flex: 1.1,
+      minWidth: 120,
+      valueFormatter: (params) => params.value ? params.value.toLocaleString() : '0'
     },
-    { 
-      field: 'lastTransaction', 
-      headerName: 'Last Transaction', 
-      width: 200,
+    {
+      field: 'lastTransaction',
+      headerName: 'Last Transaction',
+      flex: 1.2,
+      minWidth: 130,
       valueFormatter: (params) => params.value ? formatDateTime(params.value) : 'N/A'
     },
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 300,
+      flex: 1.1,
+      minWidth: 140,
+      sortable: false,
       renderCell: (params) => (
-        <Box>
-          <Button 
-            size="small" 
-            variant="outlined" 
-            color="primary" 
-            onClick={() => handleViewHistory(params.row)}
-            sx={{ mr: 1 }}
-          >
-            History
-          </Button>
-          <Button 
-            size="small" 
-            variant="outlined" 
-            color="success" 
-            onClick={() => handleOpenMintDialog(params.row)}
-            sx={{ mr: 1 }}
-          >
-            Mint
-          </Button>
-          <Button 
-            size="small" 
-            variant="outlined" 
-            color="error" 
-            onClick={() => handleOpenBurnDialog(params.row)}
-          >
-            Burn
-          </Button>
+        <Box sx={{ display: 'flex', gap: 0.5 }}>
+          <Tooltip title="History">
+            <IconButton size="small" color="primary" onClick={() => handleViewHistory(params.row)}>
+              <HistoryIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Mint">
+            <IconButton size="small" color="success" onClick={() => handleOpenMintDialog(params.row)}>
+              <MintIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Burn">
+            <IconButton size="small" color="error" onClick={() => handleOpenBurnDialog(params.row)}>
+              <BurnIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
         </Box>
       )
     }
   ];
-      
+
   // Token history columns
   const historyColumns = [
-    { field: 'id', headerName: 'ID', width: 70 },
-    { field: 'type', headerName: 'Type', width: 100 },
-    { 
-      field: 'amount', 
-      headerName: 'Amount', 
-      width: 100,
+    { field: 'id', headerName: 'ID', flex: 0.4, minWidth: 50 },
+    { field: 'type', headerName: 'Type', flex: 0.6, minWidth: 70 },
+    {
+      field: 'amount',
+      headerName: 'Amount',
+      flex: 0.7,
+      minWidth: 80,
       valueFormatter: (params) => {
         const value = Number(params.value);
         return value > 0 ? `+${value}` : value;
@@ -200,14 +201,15 @@ const AdminTokenManagement = () => {
         return value > 0 ? 'positive-amount' : 'negative-amount';
       }
     },
-    { field: 'reason', headerName: 'Reason', width: 200 },
-    { 
-      field: 'timestamp', 
-      headerName: 'Timestamp', 
-      width: 200,
+    { field: 'reason', headerName: 'Reason', flex: 1.4, minWidth: 140 },
+    {
+      field: 'timestamp',
+      headerName: 'Timestamp',
+      flex: 1.2,
+      minWidth: 130,
       valueFormatter: (params) => params.value ? formatDateTime(params.value) : 'N/A'
     },
-    { field: 'status', headerName: 'Status', width: 120 }
+    { field: 'status', headerName: 'Status', flex: 0.8, minWidth: 90 }
   ];
       
   // Fetch providers and token data on component mount
@@ -1080,33 +1082,33 @@ const AdminTokenManagement = () => {
                   </Typography>
                 </Box>
               ) : (
-                <TableContainer>
-                  <Table size="small">
+                <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+                  <Table size="small" sx={tableSx}>
                     <TableHead>
-                      <TableRow>
-                        <TableCell>Provider</TableCell>
-                        <TableCell align="right">Amount</TableCell>
-                        <TableCell>Reason</TableCell>
-                        <TableCell>Time</TableCell>
+                      <TableRow sx={tableHeadRowSx}>
+                        <TableCell sx={{ width: '30%' }}>Provider</TableCell>
+                        <TableCell sx={{ width: '15%' }} align="right">Amount</TableCell>
+                        <TableCell sx={{ width: '35%' }}>Reason</TableCell>
+                        <TableCell sx={{ width: '20%' }}>Time</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {recentBonuses.map((b, i) => (
-                        <TableRow key={i}>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight={600}>{b.providerName}</Typography>
+                        <TableRow key={i} hover sx={tableBodyRowSx}>
+                          <TableCell sx={{ width: '30%' }}>
+                            <Typography variant="body2" fontWeight={600} noWrap>{b.providerName}</Typography>
                             {b.organization && (
-                              <Typography variant="caption" color="text.secondary">{b.organization}</Typography>
+                              <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>{b.organization}</Typography>
                             )}
                           </TableCell>
-                          <TableCell align="right">
-                            <Chip label={`+${b.amount}`} color="success" size="small" />
+                          <TableCell sx={{ width: '15%' }} align="right">
+                            <Chip label={`+${b.amount}`} color="success" size="small" sx={compactChipSx} />
                           </TableCell>
-                          <TableCell>
-                            <Typography variant="caption">{b.reason || '—'}</Typography>
+                          <TableCell sx={{ width: '35%' }}>
+                            <EllipsisCell value={b.reason} variant="caption" />
                           </TableCell>
-                          <TableCell>
-                            <Typography variant="caption">{formatDateTime(b.createdAt)}</Typography>
+                          <TableCell sx={{ width: '20%' }}>
+                            <Typography variant="caption" noWrap>{formatDateTime(b.createdAt)}</Typography>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1140,27 +1142,27 @@ const AdminTokenManagement = () => {
             Manage the catalog of services and items that providers can redeem tokens for.
           </Typography>
           
-          <TableContainer>
-            <Table>
+          <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+            <Table size="small" sx={tableSx}>
               <TableHead>
-                <TableRow>
-                  <TableCell>Name</TableCell>
-                  <TableCell>Description</TableCell>
-                  <TableCell>Category</TableCell>
-                  <TableCell>Token Cost</TableCell>
-                  <TableCell>Actions</TableCell>
+                <TableRow sx={tableHeadRowSx}>
+                  <TableCell sx={{ width: '20%' }}>Name</TableCell>
+                  <TableCell sx={{ width: '38%' }}>Description</TableCell>
+                  <TableCell sx={{ width: '17%' }}>Category</TableCell>
+                  <TableCell sx={{ width: '15%' }}>Token Cost</TableCell>
+                  <TableCell sx={{ width: '10%' }} align="center">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {catalogItems.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{item.name}</TableCell>
-                    <TableCell>{item.description}</TableCell>
-                    <TableCell>{item.category}</TableCell>
-                    <TableCell>{item.tokenCost}</TableCell>
-                    <TableCell>
-                      <IconButton 
-                        size="small" 
+                  <TableRow key={item.id} hover sx={tableBodyRowSx}>
+                    <TableCell sx={{ width: '20%' }}><EllipsisCell value={item.name} /></TableCell>
+                    <TableCell sx={{ width: '38%' }}><EllipsisCell value={item.description} /></TableCell>
+                    <TableCell sx={{ width: '17%' }}><EllipsisCell value={item.category} /></TableCell>
+                    <TableCell sx={{ width: '15%' }}>{item.tokenCost}</TableCell>
+                    <TableCell sx={{ width: '10%' }} align="center">
+                      <IconButton
+                        size="small"
                         color="primary"
                         onClick={() => {
                           setNewCatalogItem(item);
@@ -1169,8 +1171,8 @@ const AdminTokenManagement = () => {
                       >
                         <EditIcon />
                       </IconButton>
-                      <IconButton 
-                        size="small" 
+                      <IconButton
+                        size="small"
                         color="error"
                         onClick={() => handleRemoveCatalogItem(item.id)}
                       >
@@ -1205,25 +1207,25 @@ const AdminTokenManagement = () => {
             Set and manage rules for converting tokens to services.
           </Typography>
           
-          <TableContainer>
-            <Table>
+          <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+            <Table size="small" sx={tableSx}>
               <TableHead>
-                <TableRow>
-                  <TableCell>Service</TableCell>
-                  <TableCell>Token Amount</TableCell>
-                  <TableCell>Description</TableCell>
-                  <TableCell>Actions</TableCell>
+                <TableRow sx={tableHeadRowSx}>
+                  <TableCell sx={{ width: '25%' }}>Service</TableCell>
+                  <TableCell sx={{ width: '17%' }}>Token Amount</TableCell>
+                  <TableCell sx={{ width: '48%' }}>Description</TableCell>
+                  <TableCell sx={{ width: '10%' }} align="center">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {conversionRules.map((rule) => (
-                  <TableRow key={rule.id}>
-                    <TableCell>{rule.service}</TableCell>
-                    <TableCell>{rule.tokenAmount}</TableCell>
-                    <TableCell>{rule.description}</TableCell>
-                    <TableCell>
-                      <IconButton 
-                        size="small" 
+                  <TableRow key={rule.id} hover sx={tableBodyRowSx}>
+                    <TableCell sx={{ width: '25%' }}><EllipsisCell value={rule.service} /></TableCell>
+                    <TableCell sx={{ width: '17%' }}>{rule.tokenAmount}</TableCell>
+                    <TableCell sx={{ width: '48%' }}><EllipsisCell value={rule.description} /></TableCell>
+                    <TableCell sx={{ width: '10%' }} align="center">
+                      <IconButton
+                        size="small"
                         color="primary"
                         onClick={() => {
                           setNewConversionRule(rule);
@@ -1232,8 +1234,8 @@ const AdminTokenManagement = () => {
                       >
                         <EditIcon />
                       </IconButton>
-                      <IconButton 
-                        size="small" 
+                      <IconButton
+                        size="small"
                         color="error"
                         onClick={() => handleRemoveConversionRule(rule.id)}
                       >
@@ -1294,17 +1296,17 @@ const AdminTokenManagement = () => {
               <Grid item xs={12} md={6}>
                 <Paper sx={{ p: 2 }}>
                   <Typography variant="subtitle1" gutterBottom>Top 10 Earners</Typography>
-                  <TableContainer>
-                    <Table size="small">
-                      <TableHead><TableRow>
-                        <TableCell>Provider</TableCell>
-                        <TableCell align="right">Balance</TableCell>
+                  <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+                    <Table size="small" sx={tableSx}>
+                      <TableHead><TableRow sx={tableHeadRowSx}>
+                        <TableCell sx={{ width: '70%' }}>Provider</TableCell>
+                        <TableCell sx={{ width: '30%' }} align="right">Balance</TableCell>
                       </TableRow></TableHead>
                       <TableBody>
                         {(analyticsData.topEarners || []).map((e, i) => (
-                          <TableRow key={i}>
-                            <TableCell>{e.name || e.email}</TableCell>
-                            <TableCell align="right">{e.tokenBalance?.toLocaleString()}</TableCell>
+                          <TableRow key={i} hover sx={tableBodyRowSx}>
+                            <TableCell sx={{ width: '70%' }}><EllipsisCell value={e.name || e.email} /></TableCell>
+                            <TableCell sx={{ width: '30%' }} align="right">{e.tokenBalance?.toLocaleString()}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -1315,17 +1317,17 @@ const AdminTokenManagement = () => {
               <Grid item xs={12} md={6}>
                 <Paper sx={{ p: 2 }}>
                   <Typography variant="subtitle1" gutterBottom>Most Redeemed Services</Typography>
-                  <TableContainer>
-                    <Table size="small">
-                      <TableHead><TableRow>
-                        <TableCell>Service</TableCell>
-                        <TableCell align="right">Redemptions</TableCell>
+                  <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+                    <Table size="small" sx={tableSx}>
+                      <TableHead><TableRow sx={tableHeadRowSx}>
+                        <TableCell sx={{ width: '70%' }}>Service</TableCell>
+                        <TableCell sx={{ width: '30%' }} align="right">Redemptions</TableCell>
                       </TableRow></TableHead>
                       <TableBody>
                         {(analyticsData.topServices || []).map((s, i) => (
-                          <TableRow key={i}>
-                            <TableCell>{s.serviceId}</TableCell>
-                            <TableCell align="right">{s.count}</TableCell>
+                          <TableRow key={i} hover sx={tableBodyRowSx}>
+                            <TableCell sx={{ width: '70%' }}><EllipsisCell value={s.serviceId} /></TableCell>
+                            <TableCell sx={{ width: '30%' }} align="right">{s.count}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

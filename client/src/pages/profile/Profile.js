@@ -20,7 +20,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogContentText,
-  DialogActions
+  DialogActions,
+  InputAdornment
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -28,7 +29,15 @@ import {
   Cancel as CancelIcon,
   Person as PersonIcon,
   VerifiedUser as VerifiedUserIcon,
-  ContentCopy as ContentCopyIcon
+  ContentCopy as ContentCopyIcon,
+  Close as CloseIcon,
+  Email as EmailIcon,
+  Phone as PhoneIcon,
+  Business as BusinessIcon,
+  LocalHospital as SpecialtyIcon,
+  Home as HomeIcon,
+  Notes as BioIcon,
+  Shield as ShieldIcon
 } from '@mui/icons-material';
 
 export default function Profile() {
@@ -267,6 +276,8 @@ export default function Profile() {
               )}
             </Box>
             
+            <Typography variant="overline" color="text.secondary">Basic Information</Typography>
+            <Divider sx={{ mb: 2 }} />
             <Grid container spacing={3}>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -277,6 +288,7 @@ export default function Profile() {
                   onChange={handleInputChange}
                   disabled={!isEditing}
                   required
+                  InputProps={{ startAdornment: <InputAdornment position="start"><PersonIcon fontSize="small" color="action" /></InputAdornment> }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -289,6 +301,7 @@ export default function Profile() {
                   onChange={handleInputChange}
                   disabled={!isEditing}
                   required
+                  InputProps={{ startAdornment: <InputAdornment position="start"><EmailIcon fontSize="small" color="action" /></InputAdornment> }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -299,6 +312,7 @@ export default function Profile() {
                   value={profileData.organization}
                   onChange={handleInputChange}
                   disabled={!isEditing}
+                  InputProps={{ startAdornment: <InputAdornment position="start"><BusinessIcon fontSize="small" color="action" /></InputAdornment> }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -309,7 +323,13 @@ export default function Profile() {
                   value={profileData.specialty}
                   onChange={handleInputChange}
                   disabled={!isEditing}
+                  InputProps={{ startAdornment: <InputAdornment position="start"><SpecialtyIcon fontSize="small" color="action" /></InputAdornment> }}
                 />
+              </Grid>
+
+              <Grid item xs={12}>
+                <Typography variant="overline" color="text.secondary">Contact Details</Typography>
+                <Divider sx={{ mb: 1 }} />
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -319,6 +339,7 @@ export default function Profile() {
                   value={profileData.phone}
                   onChange={handleInputChange}
                   disabled={!isEditing}
+                  InputProps={{ startAdornment: <InputAdornment position="start"><PhoneIcon fontSize="small" color="action" /></InputAdornment> }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -329,7 +350,13 @@ export default function Profile() {
                   value={profileData.address}
                   onChange={handleInputChange}
                   disabled={!isEditing}
+                  InputProps={{ startAdornment: <InputAdornment position="start"><HomeIcon fontSize="small" color="action" /></InputAdornment> }}
                 />
+              </Grid>
+
+              <Grid item xs={12}>
+                <Typography variant="overline" color="text.secondary">About</Typography>
+                <Divider sx={{ mb: 1 }} />
               </Grid>
               <Grid item xs={12}>
                 <TextField
@@ -341,6 +368,11 @@ export default function Profile() {
                   value={profileData.bio}
                   onChange={handleInputChange}
                   disabled={!isEditing}
+                  InputProps={{ startAdornment: (
+                    <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1.5 }}>
+                      <BioIcon fontSize="small" color="action" />
+                    </InputAdornment>
+                  ) }}
                 />
               </Grid>
             </Grid>
@@ -444,10 +476,16 @@ export default function Profile() {
         onClose={handleVerifyDialogClose}
         aria-labelledby="verify-dialog-title"
       >
-        <DialogTitle id="verify-dialog-title">
-          Verify Blockchain Identity
+        <DialogTitle id="verify-dialog-title" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36 }}>
+            <ShieldIcon fontSize="small" />
+          </Avatar>
+          <Typography variant="h6" sx={{ flex: 1 }}>Verify Blockchain Identity</Typography>
+          <IconButton onClick={handleVerifyDialogClose} size="small" disabled={verifying}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent dividers>
           <DialogContentText>
             To verify your blockchain identity, we need to confirm your professional credentials.
             This process typically takes 1-2 business days and requires the following:
@@ -481,7 +519,7 @@ export default function Profile() {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleVerifyDialogClose} disabled={verifying}>Cancel</Button>
-          <Button variant="contained" onClick={handleStartVerification} disabled={verifying}>
+          <Button variant="contained" onClick={handleStartVerification} disabled={verifying} startIcon={!verifying && <ShieldIcon />}>
             {verifying ? 'Verifying…' : 'Start Verification'}
           </Button>
         </DialogActions>

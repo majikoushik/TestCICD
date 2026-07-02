@@ -32,7 +32,14 @@ import {
   Tooltip,
   Grid,
   LinearProgress,
+  Avatar,
+  InputAdornment,
 } from '@mui/material'
+import EllipsisCell from '../../components/common/EllipsisCell'
+import EllipsisHeaderCell from '../../components/common/EllipsisHeaderCell'
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+} from '../../components/common/adminTableStyles'
 import {
   Schedule as ScheduleIcon,
   Add as AddIcon,
@@ -45,6 +52,12 @@ import {
   ChevronRight as ChevronRightIcon,
   Today as TodayIcon,
   EventAvailable as AppointmentsIcon,
+  Close as CloseIcon,
+  CheckCircle as CheckCircleIcon,
+  CalendarMonth as CalendarMonthIcon,
+  AccessTime as AccessTimeIcon,
+  Notes as NotesIcon,
+  Category as CategoryIcon,
 } from '@mui/icons-material'
 import { getAvailability, saveAvailability, getExceptions, addException, deleteException } from '../../services/scheduleService'
 import { getMySchedule, updateAppointmentStatus, sendReminder } from '../../services/appointmentService'
@@ -611,29 +624,30 @@ export default function ProviderSchedule() {
       {availLoading ? (
         <LinearProgress sx={{ mb: 2 }} />
       ) : (
-        <TableContainer component={Paper} variant="outlined">
-          <Table>
+        <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+          <Table size="small" sx={tableSx}>
             <TableHead>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 700 }}>Day</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Active</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Start Time</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>End Time</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Slot Duration</TableCell>
+              <TableRow sx={tableHeadRowSx}>
+                <EllipsisHeaderCell label="Day" sx={{ width: '18%' }} />
+                <EllipsisHeaderCell label="Active" sx={{ width: '16%' }} />
+                <EllipsisHeaderCell label="Start Time" sx={{ width: '22%' }} />
+                <EllipsisHeaderCell label="End Time" sx={{ width: '22%' }} />
+                <EllipsisHeaderCell label="Slot Duration" sx={{ width: '22%' }} />
               </TableRow>
             </TableHead>
             <TableBody>
               {editableSchedule.map((day, index) => (
                 <TableRow
                   key={day.dayOfWeek}
-                  sx={{ opacity: day.isActive ? 1 : 0.5, bgcolor: day.isActive ? 'inherit' : 'action.hover' }}
+                  hover
+                  sx={{ ...tableBodyRowSx, opacity: day.isActive ? 1 : 0.5, bgcolor: day.isActive ? 'inherit' : 'action.hover' }}
                 >
-                  <TableCell>
+                  <TableCell sx={{ width: '18%' }}>
                     <Typography variant="body2" fontWeight={600}>
                       {day.dayName}
                     </Typography>
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ width: '16%' }}>
                     <FormControlLabel
                       control={
                         <Switch
@@ -647,7 +661,7 @@ export default function ProviderSchedule() {
                       sx={{ m: 0 }}
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ width: '22%' }}>
                     <TextField
                       type="time"
                       size="small"
@@ -655,10 +669,17 @@ export default function ProviderSchedule() {
                       onChange={e => handleDayField(index, 'startTime', e.target.value)}
                       disabled={!day.isActive}
                       InputLabelProps={{ shrink: true }}
-                      sx={{ width: 130 }}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <AccessTimeIcon fontSize="small" color="action" />
+                          </InputAdornment>
+                        ),
+                      }}
+                      sx={{ width: 160 }}
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ width: '22%' }}>
                     <TextField
                       type="time"
                       size="small"
@@ -666,10 +687,17 @@ export default function ProviderSchedule() {
                       onChange={e => handleDayField(index, 'endTime', e.target.value)}
                       disabled={!day.isActive}
                       InputLabelProps={{ shrink: true }}
-                      sx={{ width: 130 }}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <AccessTimeIcon fontSize="small" color="action" />
+                          </InputAdornment>
+                        ),
+                      }}
+                      sx={{ width: 160 }}
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ width: '22%' }}>
                     <FormControl size="small" disabled={!day.isActive} sx={{ minWidth: 130 }}>
                       <Select
                         value={day.slotDuration}
@@ -738,15 +766,15 @@ export default function ProviderSchedule() {
           <CircularProgress />
         </Box>
       ) : (
-        <TableContainer component={Paper} variant="outlined">
-          <Table>
+        <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+          <Table size="small" sx={tableSx}>
             <TableHead>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Type</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Hours</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Reason</TableCell>
-                <TableCell sx={{ fontWeight: 700 }} align="center">Actions</TableCell>
+              <TableRow sx={tableHeadRowSx}>
+                <EllipsisHeaderCell label="Date" sx={{ width: '20%' }} />
+                <EllipsisHeaderCell label="Type" sx={{ width: '20%' }} />
+                <EllipsisHeaderCell label="Hours" sx={{ width: '18%' }} />
+                <EllipsisHeaderCell label="Reason" sx={{ width: '32%' }} />
+                <EllipsisHeaderCell label="Actions" sx={{ width: '48px' }} align="center" />
               </TableRow>
             </TableHead>
             <TableBody>
@@ -758,19 +786,20 @@ export default function ProviderSchedule() {
                 </TableRow>
               ) : (
                 exceptions.map(exc => (
-                  <TableRow key={exc._id} hover>
-                    <TableCell>
-                      <Typography variant="body2">{formatDateDisplay(exc.date)}</Typography>
+                  <TableRow key={exc._id} hover sx={tableBodyRowSx}>
+                    <TableCell sx={{ width: '20%' }}>
+                      <EllipsisCell value={formatDateDisplay(exc.date)} />
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '20%' }}>
                       <Chip
                         label={EXCEPTION_TYPE_LABELS[exc.type] || exc.type}
                         size="small"
                         color={EXCEPTION_TYPE_COLORS[exc.type] || 'default'}
                         icon={exc.type === 'unavailable' ? <BlockIcon /> : <EventIcon />}
+                        sx={compactChipSx}
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '18%' }}>
                       {exc.type === 'unavailable' ? (
                         <Typography variant="body2" color="text.secondary">All day</Typography>
                       ) : (
@@ -779,17 +808,13 @@ export default function ProviderSchedule() {
                         </Typography>
                       )}
                     </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
-                        {exc.reason || '—'}
-                      </Typography>
+                    <TableCell sx={{ width: '32%' }}>
+                      <EllipsisCell value={exc.reason || '—'} sx={{ textTransform: 'capitalize' }} />
                       {exc.notes && (
-                        <Typography variant="caption" color="text.secondary">
-                          {exc.notes}
-                        </Typography>
+                        <EllipsisCell value={exc.notes} variant="caption" sx={{ color: 'text.secondary' }} />
                       )}
                     </TableCell>
-                    <TableCell align="center">
+                    <TableCell sx={{ width: '48px' }} align="center">
                       <Tooltip title="Delete">
                         <IconButton
                           size="small"
@@ -810,10 +835,22 @@ export default function ProviderSchedule() {
 
       {/* Add Exception Dialog */}
       <Dialog open={addExceptionDialog.open} onClose={handleCloseAddException} fullWidth maxWidth="sm">
-        <DialogTitle>Add Schedule Exception</DialogTitle>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Avatar sx={{ width: 38, height: 38, bgcolor: 'error.light' }}>
+            <BlockIcon fontSize="small" />
+          </Avatar>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="h6" component="span" sx={{ fontWeight: 700, lineHeight: 1.2, display: 'block' }}>
+              Add Schedule Exception
+            </Typography>
+          </Box>
+          <IconButton onClick={handleCloseAddException} disabled={savingException} size="small">
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
         <DialogContent dividers>
           <Grid container spacing={2} sx={{ pt: 1 }}>
-            <Grid item xs={12}>
+            <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label="Date"
@@ -821,15 +858,27 @@ export default function ProviderSchedule() {
                 value={addExceptionDialog.date}
                 onChange={e => handleExceptionDialogChange('date', e.target.value)}
                 InputLabelProps={{ shrink: true }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <CalendarMonthIcon fontSize="small" color="action" />
+                    </InputAdornment>
+                  ),
+                }}
                 required
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} sm={6}>
               <FormControl fullWidth>
                 <InputLabel>Type</InputLabel>
                 <Select
                   value={addExceptionDialog.type}
                   label="Type"
+                  startAdornment={
+                    <InputAdornment position="start" sx={{ ml: 1 }}>
+                      <CategoryIcon fontSize="small" color="action" />
+                    </InputAdornment>
+                  }
                   onChange={e => handleExceptionDialogChange('type', e.target.value)}
                 >
                   <MenuItem value="unavailable">Unavailable All Day</MenuItem>
@@ -840,7 +889,7 @@ export default function ProviderSchedule() {
             </Grid>
             {addExceptionDialog.type !== 'unavailable' && (
               <>
-                <Grid item xs={6}>
+                <Grid item xs={12} sm={6}>
                   <TextField
                     fullWidth
                     label="Start Time"
@@ -848,9 +897,16 @@ export default function ProviderSchedule() {
                     value={addExceptionDialog.startTime}
                     onChange={e => handleExceptionDialogChange('startTime', e.target.value)}
                     InputLabelProps={{ shrink: true }}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <AccessTimeIcon fontSize="small" color="action" />
+                        </InputAdornment>
+                      ),
+                    }}
                   />
                 </Grid>
-                <Grid item xs={6}>
+                <Grid item xs={12} sm={6}>
                   <TextField
                     fullWidth
                     label="End Time"
@@ -858,6 +914,13 @@ export default function ProviderSchedule() {
                     value={addExceptionDialog.endTime}
                     onChange={e => handleExceptionDialogChange('endTime', e.target.value)}
                     InputLabelProps={{ shrink: true }}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <AccessTimeIcon fontSize="small" color="action" />
+                        </InputAdornment>
+                      ),
+                    }}
                   />
                 </Grid>
               </>
@@ -888,6 +951,13 @@ export default function ProviderSchedule() {
                 value={addExceptionDialog.notes}
                 onChange={e => handleExceptionDialogChange('notes', e.target.value)}
                 placeholder="Optional notes..."
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1 }}>
+                      <NotesIcon fontSize="small" color="action" />
+                    </InputAdornment>
+                  ),
+                }}
               />
             </Grid>
           </Grid>
@@ -1012,7 +1082,19 @@ export default function ProviderSchedule() {
 
       {/* Outcome Capture Dialog */}
       <Dialog open={outcomeDialog.open} onClose={() => setOutcomeDialog({ open: false, appointment: null })} maxWidth="sm" fullWidth>
-        <DialogTitle>Complete Visit — Capture Outcome</DialogTitle>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Avatar sx={{ width: 38, height: 38, bgcolor: 'success.light' }}>
+            <CheckCircleIcon fontSize="small" />
+          </Avatar>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="h6" component="span" sx={{ fontWeight: 700, lineHeight: 1.2, display: 'block' }}>
+              Complete Visit — Capture Outcome
+            </Typography>
+          </Box>
+          <IconButton onClick={() => setOutcomeDialog({ open: false, appointment: null })} disabled={outcomeSaving} size="small">
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
         <DialogContent dividers>
           <Grid container spacing={2} sx={{ pt: 1 }}>
             <Grid item xs={12}>
@@ -1022,6 +1104,13 @@ export default function ProviderSchedule() {
                 value={outcomeForm.diagnosis}
                 onChange={e => setOutcomeForm(p => ({ ...p, diagnosis: e.target.value }))}
                 placeholder="e.g. Hypertension Stage 1, managed"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <NotesIcon fontSize="small" color="action" />
+                    </InputAdornment>
+                  ),
+                }}
               />
             </Grid>
             <Grid item xs={12}>
@@ -1033,6 +1122,13 @@ export default function ProviderSchedule() {
                 value={outcomeForm.outcomeNotes}
                 onChange={e => setOutcomeForm(p => ({ ...p, outcomeNotes: e.target.value }))}
                 placeholder="Summary of visit, treatment administered, patient response..."
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1 }}>
+                      <NotesIcon fontSize="small" color="action" />
+                    </InputAdornment>
+                  ),
+                }}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -1080,7 +1176,7 @@ export default function ProviderSchedule() {
             color="success"
             onClick={handleCompleteWithOutcome}
             disabled={outcomeSaving}
-            startIcon={outcomeSaving ? <CircularProgress size={16} color="inherit" /> : null}
+            startIcon={outcomeSaving ? <CircularProgress size={16} color="inherit" /> : <CheckCircleIcon />}
           >
             {outcomeSaving ? 'Saving...' : 'Complete Visit'}
           </Button>

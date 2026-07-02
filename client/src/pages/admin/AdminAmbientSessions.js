@@ -19,6 +19,10 @@ import {
   Send as SubmittedIcon
 } from '@mui/icons-material';
 import { adminGetStats, adminGetSessions } from '../../services/ambientSessionService';
+import EllipsisCell from '../../components/common/EllipsisCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+} from '../../components/common/adminTableStyles';
 
 const URGENCY_COLOR = {
   routine: 'info',
@@ -219,18 +223,18 @@ export default function AdminAmbientSessions() {
       {/* Main Table */}
       <Paper>
         {loading && <LinearProgress />}
-        <TableContainer>
-          <Table size="small">
+        <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+          <Table size="small" sx={tableSx}>
             <TableHead>
-              <TableRow>
-                <TableCell><strong>Patient</strong></TableCell>
-                <TableCell><strong>Chief Complaint</strong></TableCell>
-                <TableCell><strong>Provider</strong></TableCell>
-                <TableCell><strong>Urgency</strong></TableCell>
-                <TableCell><strong>Status</strong></TableCell>
-                <TableCell><strong>Duration</strong></TableCell>
-                <TableCell><strong>Created</strong></TableCell>
-                <TableCell align="center"><strong>Actions</strong></TableCell>
+              <TableRow sx={tableHeadRowSx}>
+                <TableCell sx={{ width: '15%' }}>Patient</TableCell>
+                <TableCell sx={{ width: '24%' }}>Chief Complaint</TableCell>
+                <TableCell sx={{ width: '17%' }}>Provider</TableCell>
+                <TableCell sx={{ width: '11%' }}>Urgency</TableCell>
+                <TableCell sx={{ width: '11%' }}>Status</TableCell>
+                <TableCell sx={{ width: '11%' }}>Duration</TableCell>
+                <TableCell sx={{ width: '11%' }}>Created</TableCell>
+                <TableCell sx={{ width: '48px' }} align="center">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -241,35 +245,33 @@ export default function AdminAmbientSessions() {
                   </TableCell>
                 </TableRow>
               ) : sessions.map((session) => (
-                <TableRow key={session._id} hover>
-                  <TableCell>{session.patientName}</TableCell>
-                  <TableCell>
-                    <Typography variant="body2" noWrap sx={{ maxWidth: 180 }}>
-                      {session.chiefComplaint || '—'}
-                    </Typography>
+                <TableRow key={session._id} hover sx={tableBodyRowSx}>
+                  <TableCell sx={{ width: '15%' }}><EllipsisCell value={session.patientName} /></TableCell>
+                  <TableCell sx={{ width: '24%' }}>
+                    <EllipsisCell value={session.chiefComplaint} />
                   </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" noWrap>
-                      {session.providerName || session.provider || '—'}
-                    </Typography>
+                  <TableCell sx={{ width: '17%' }}>
+                    <EllipsisCell value={session.providerName || session.provider} />
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ width: '11%' }}>
                     <Chip
                       label={session.urgency || 'routine'}
                       size="small"
                       color={URGENCY_COLOR[session.urgency] || 'default'}
+                      sx={compactChipSx}
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ width: '11%' }}>
                     <Chip
                       label={session.status || 'draft'}
                       size="small"
                       color={STATUS_COLOR[session.status] || 'default'}
+                      sx={compactChipSx}
                     />
                   </TableCell>
-                  <TableCell>{formatDuration(session.recordingDuration || session.duration)}</TableCell>
-                  <TableCell>{formatDate(session.createdAt)}</TableCell>
-                  <TableCell align="center">
+                  <TableCell sx={{ width: '11%' }}>{formatDuration(session.recordingDuration || session.duration)}</TableCell>
+                  <TableCell sx={{ width: '11%' }}>{formatDate(session.createdAt)}</TableCell>
+                  <TableCell sx={{ width: '48px' }} align="center">
                     <Tooltip title="View Session">
                       <IconButton size="small" color="primary" onClick={() => setViewSession(session)}>
                         <VisibilityIcon fontSize="small" />

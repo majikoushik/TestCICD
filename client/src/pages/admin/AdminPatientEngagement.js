@@ -25,6 +25,10 @@ import {
   Edit as EditIcon
 } from '@mui/icons-material';
 import adminEngagementService from '../../services/adminEngagementService';
+import EllipsisCell from '../../components/common/EllipsisCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+} from '../../components/common/adminTableStyles';
 
 // ============================================================================
 // CONSTANTS
@@ -616,17 +620,17 @@ export default function AdminPatientEngagement() {
           {/* Notifications Table */}
           <Paper>
             {loading && <LinearProgress />}
-            <TableContainer>
-              <Table size="small">
+            <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+              <Table size="small" sx={tableSx}>
                 <TableHead>
-                  <TableRow>
-                    <TableCell><strong>Patient Name</strong></TableCell>
-                    <TableCell><strong>Type</strong></TableCell>
-                    <TableCell><strong>Channels</strong></TableCell>
-                    <TableCell><strong>Priority</strong></TableCell>
-                    <TableCell><strong>Status</strong></TableCell>
-                    <TableCell><strong>Date</strong></TableCell>
-                    <TableCell align="center"><strong>Actions</strong></TableCell>
+                  <TableRow sx={tableHeadRowSx}>
+                    <TableCell sx={{ width: '18%' }}>Patient Name</TableCell>
+                    <TableCell sx={{ width: '16%' }}>Type</TableCell>
+                    <TableCell sx={{ width: '18%' }}>Channels</TableCell>
+                    <TableCell sx={{ width: '10%' }}>Priority</TableCell>
+                    <TableCell sx={{ width: '12%' }}>Status</TableCell>
+                    <TableCell sx={{ width: '18%' }}>Date</TableCell>
+                    <TableCell sx={{ width: '8%' }} align="center">Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -638,50 +642,53 @@ export default function AdminPatientEngagement() {
                     </TableRow>
                   )}
                   {notifications.map(notif => (
-                    <TableRow key={notif._id} hover>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={500}>
+                    <TableRow key={notif._id} hover sx={tableBodyRowSx}>
+                      <TableCell sx={{ width: '18%' }}>
+                        <Typography variant="body2" fontWeight={500} noWrap>
                           {notif.patientName || '—'}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="text.secondary" noWrap component="div">
                           {notif.patientId}
                         </Typography>
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ width: '16%' }}>
                         <Chip
                           label={getTypeLabel(notif.type)}
                           color={getTypeColor(notif.type)}
                           size="small"
                           variant="outlined"
+                          sx={compactChipSx}
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ width: '18%' }}>
                         <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                           {(notif.channels || []).map(ch => (
-                            <Chip key={ch} label={getChannelLabel(ch)} size="small" variant="outlined" />
+                            <Chip key={ch} label={getChannelLabel(ch)} size="small" variant="outlined" sx={compactChipSx} />
                           ))}
                         </Box>
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ width: '10%' }}>
                         <Chip
                           label={capitalize(notif.priority)}
                           color={getPriorityColor(notif.priority)}
                           size="small"
+                          sx={compactChipSx}
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ width: '12%' }}>
                         <Chip
                           label={capitalize(notif.status)}
                           color={getStatusColor(notif.status)}
                           size="small"
+                          sx={compactChipSx}
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ width: '18%' }}>
                         <Typography variant="body2" noWrap>
                           {formatDate(notif.createdAt)}
                         </Typography>
                       </TableCell>
-                      <TableCell align="center">
+                      <TableCell sx={{ width: '8%' }} align="center">
                         <Tooltip title="View Details">
                           <IconButton size="small" onClick={() => handleViewNotification(notif)}>
                             <VisibilityIcon fontSize="small" />
@@ -858,18 +865,18 @@ export default function AdminPatientEngagement() {
 
           <Paper>
             {campaignLoading && <LinearProgress />}
-            <TableContainer>
-              <Table size="small">
+            <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+              <Table size="small" sx={tableSx}>
                 <TableHead>
-                  <TableRow>
-                    <TableCell><strong>Name</strong></TableCell>
-                    <TableCell><strong>Template</strong></TableCell>
-                    <TableCell><strong>Status</strong></TableCell>
-                    <TableCell><strong>Targeted</strong></TableCell>
-                    <TableCell><strong>Sent</strong></TableCell>
-                    <TableCell><strong>Open Rate</strong></TableCell>
-                    <TableCell><strong>Created</strong></TableCell>
-                    <TableCell align="center"><strong>Actions</strong></TableCell>
+                  <TableRow sx={tableHeadRowSx}>
+                    <TableCell sx={{ width: '22%' }}>Name</TableCell>
+                    <TableCell sx={{ width: '16%' }}>Template</TableCell>
+                    <TableCell sx={{ width: '11%' }}>Status</TableCell>
+                    <TableCell sx={{ width: '10%' }}>Targeted</TableCell>
+                    <TableCell sx={{ width: '9%' }}>Sent</TableCell>
+                    <TableCell sx={{ width: '11%' }}>Open Rate</TableCell>
+                    <TableCell sx={{ width: '13%' }}>Created</TableCell>
+                    <TableCell sx={{ width: '8%' }} align="center">Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -881,41 +888,35 @@ export default function AdminPatientEngagement() {
                     </TableRow>
                   )}
                   {campaigns.map(camp => (
-                    <TableRow key={camp._id} hover>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={500}>{camp.name}</Typography>
+                    <TableRow key={camp._id} hover sx={tableBodyRowSx}>
+                      <TableCell sx={{ width: '22%' }}>
+                        <Typography variant="body2" fontWeight={500} noWrap>{camp.name}</Typography>
                         {camp.description && (
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            noWrap
-                            sx={{ maxWidth: 200, display: 'block' }}
-                          >
-                            {camp.description}
-                          </Typography>
+                          <EllipsisCell value={camp.description} variant="caption" sx={{ color: 'text.secondary' }} />
                         )}
                       </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">{camp.templateName || '—'}</Typography>
+                      <TableCell sx={{ width: '16%' }}>
+                        <EllipsisCell value={camp.templateName} />
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ width: '11%' }}>
                         <Chip
                           label={capitalize(camp.status)}
                           color={getCampaignStatusColor(camp.status)}
                           size="small"
+                          sx={compactChipSx}
                         />
                       </TableCell>
-                      <TableCell>{camp.targeted ?? '—'}</TableCell>
-                      <TableCell>{camp.sent ?? '—'}</TableCell>
-                      <TableCell>
+                      <TableCell sx={{ width: '10%' }}>{camp.targeted ?? '—'}</TableCell>
+                      <TableCell sx={{ width: '9%' }}>{camp.sent ?? '—'}</TableCell>
+                      <TableCell sx={{ width: '11%' }}>
                         {camp.openRate != null ? `${Number(camp.openRate).toFixed(1)}%` : '—'}
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ width: '13%' }}>
                         <Typography variant="body2" noWrap>
                           {formatDate(camp.createdAt)}
                         </Typography>
                       </TableCell>
-                      <TableCell align="center">
+                      <TableCell sx={{ width: '8%' }} align="center">
                         {(camp.status === 'draft' || camp.status === 'scheduled') && (
                           <Tooltip title="Launch Campaign">
                             <IconButton
@@ -1123,14 +1124,14 @@ export default function AdminPatientEngagement() {
                 <Typography variant="subtitle2" gutterBottom>
                   Channel Delivery Status
                 </Typography>
-                <TableContainer component={Paper} variant="outlined">
-                  <Table size="small">
+                <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+                  <Table size="small" sx={tableSx}>
                     <TableHead>
-                      <TableRow>
-                        <TableCell><strong>Channel</strong></TableCell>
-                        <TableCell align="center"><strong>Sent</strong></TableCell>
-                        <TableCell align="center"><strong>Delivered</strong></TableCell>
-                        <TableCell><strong>Details / Error</strong></TableCell>
+                      <TableRow sx={tableHeadRowSx}>
+                        <TableCell sx={{ width: '20%' }}>Channel</TableCell>
+                        <TableCell sx={{ width: '20%' }} align="center">Sent</TableCell>
+                        <TableCell sx={{ width: '20%' }} align="center">Delivered</TableCell>
+                        <TableCell sx={{ width: '40%' }}>Details / Error</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -1142,9 +1143,9 @@ export default function AdminPatientEngagement() {
                         </TableRow>
                       )}
                       {(selectedNotification.channelDelivery || []).map(cd => (
-                        <TableRow key={cd.channel}>
-                          <TableCell>{getChannelLabel(cd.channel)}</TableCell>
-                          <TableCell align="center">
+                        <TableRow key={cd.channel} sx={tableBodyRowSx}>
+                          <TableCell sx={{ width: '20%' }}>{getChannelLabel(cd.channel)}</TableCell>
+                          <TableCell sx={{ width: '20%' }} align="center">
                             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.25 }}>
                               {cd.sent
                                 ? <CheckIcon color="success" fontSize="small" />
@@ -1156,7 +1157,7 @@ export default function AdminPatientEngagement() {
                               )}
                             </Box>
                           </TableCell>
-                          <TableCell align="center">
+                          <TableCell sx={{ width: '20%' }} align="center">
                             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.25 }}>
                               {cd.delivered
                                 ? <CheckIcon color="success" fontSize="small" />
@@ -1168,7 +1169,7 @@ export default function AdminPatientEngagement() {
                               )}
                             </Box>
                           </TableCell>
-                          <TableCell sx={{ maxWidth: 220 }}>
+                          <TableCell sx={{ width: '40%' }}>
                             {cd.error ? (
                               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
                                 <Typography variant="caption" color="error.main" sx={{ fontWeight: 600 }}>

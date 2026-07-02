@@ -9,6 +9,10 @@ import {
   LinearProgress, Tooltip, Avatar,
 } from '@mui/material';
 import { ModernLoadingIndicator } from '../../components/common';
+import EllipsisCell from '../../components/common/EllipsisCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+} from '../../components/common/adminTableStyles';
 import {
   FileDownload as DownloadIcon,
   Schedule as ScheduleIcon,
@@ -567,39 +571,39 @@ const AdminDashboard = () => {
                   </BarChart>
                 </ResponsiveContainer>
 
-                <TableContainer component={Paper} variant="outlined" sx={{ mt: 3 }}>
-                  <Table size="small">
+                <TableContainer component={Paper} variant="outlined" sx={{ mt: 3, ...tableContainerSx }}>
+                  <Table size="small" sx={tableSx}>
                     <TableHead>
-                      <TableRow sx={{ bgcolor: 'grey.50' }}>
-                        <TableCell><strong>Provider</strong></TableCell>
-                        <TableCell align="right"><strong>Referrals</strong></TableCell>
-                        <TableCell align="right"><strong>Accept %</strong></TableCell>
-                        <TableCell align="right"><strong>Appts</strong></TableCell>
-                        <TableCell align="right"><strong>No-Show %</strong></TableCell>
-                        <TableCell align="right"><strong>DTx Rx</strong></TableCell>
-                        <TableCell align="right"><strong>Tokens Earned</strong></TableCell>
-                        <TableCell align="right"><strong>Balance</strong></TableCell>
+                      <TableRow sx={tableHeadRowSx}>
+                        <TableCell sx={{ width: '24%' }}>Provider</TableCell>
+                        <TableCell align="right" sx={{ width: '10%' }}>Referrals</TableCell>
+                        <TableCell align="right" sx={{ width: '12%' }}>Accept %</TableCell>
+                        <TableCell align="right" sx={{ width: '12%' }}>Appts</TableCell>
+                        <TableCell align="right" sx={{ width: '12%' }}>No-Show %</TableCell>
+                        <TableCell align="right" sx={{ width: '10%' }}>DTx Rx</TableCell>
+                        <TableCell align="right" sx={{ width: '10%' }}>Tokens Earned</TableCell>
+                        <TableCell align="right" sx={{ width: '10%' }}>Balance</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {providerPerformance.map((p) => (
-                        <TableRow key={p.id} hover>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight={500}>{p.name}</Typography>
-                            <Typography variant="caption" color="text.secondary">{p.specialty}</Typography>
+                        <TableRow key={p.id} hover sx={tableBodyRowSx}>
+                          <TableCell sx={{ width: '24%' }}>
+                            <Typography variant="body2" fontWeight={500} noWrap>{p.name}</Typography>
+                            <EllipsisCell value={p.specialty} variant="caption" sx={{ color: 'text.secondary' }} />
                           </TableCell>
-                          <TableCell align="right">{p.referrals}</TableCell>
-                          <TableCell align="right">
-                            <Chip label={pct(Math.round((p.acceptanceRate || 0) * 100))} size="small"
+                          <TableCell align="right" sx={{ width: '10%' }}>{p.referrals}</TableCell>
+                          <TableCell align="right" sx={{ width: '12%' }}>
+                            <Chip label={pct(Math.round((p.acceptanceRate || 0) * 100))} size="small" sx={compactChipSx}
                               color={(p.acceptanceRate || 0) >= 0.8 ? 'success' : (p.acceptanceRate || 0) >= 0.6 ? 'warning' : 'error'} />
                           </TableCell>
-                          <TableCell align="right">{p.appointmentsCompleted}/{p.appointmentsTotal}</TableCell>
-                          <TableCell align="right">
-                            <Chip label={pct(p.noShowRate)} size="small" color={p.noShowRate > 20 ? 'error' : p.noShowRate > 10 ? 'warning' : 'success'} />
+                          <TableCell align="right" sx={{ width: '12%' }}>{p.appointmentsCompleted}/{p.appointmentsTotal}</TableCell>
+                          <TableCell align="right" sx={{ width: '12%' }}>
+                            <Chip label={pct(p.noShowRate)} size="small" sx={compactChipSx} color={p.noShowRate > 20 ? 'error' : p.noShowRate > 10 ? 'warning' : 'success'} />
                           </TableCell>
-                          <TableCell align="right">{p.dtxPrescriptions}</TableCell>
-                          <TableCell align="right">+{p.tokenEarnedThisMonth}</TableCell>
-                          <TableCell align="right">{fmtNum(p.tokenBalance)}</TableCell>
+                          <TableCell align="right" sx={{ width: '10%' }}>{p.dtxPrescriptions}</TableCell>
+                          <TableCell align="right" sx={{ width: '10%' }}>+{p.tokenEarnedThisMonth}</TableCell>
+                          <TableCell align="right" sx={{ width: '10%' }}>{fmtNum(p.tokenBalance)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -980,27 +984,27 @@ const AdminDashboard = () => {
             </Box>
             {loading.reports ? <ModernLoadingIndicator variant="dots" message="Loading…" />
               : scheduledReports.length > 0 ? (
-                <TableContainer component={Paper} variant="outlined">
-                  <Table size="small">
+                <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+                  <Table size="small" sx={tableSx}>
                     <TableHead>
-                      <TableRow sx={{ bgcolor: 'grey.50' }}>
-                        <TableCell>Report Name</TableCell>
-                        <TableCell>Frequency</TableCell>
-                        <TableCell>Recipients</TableCell>
-                        <TableCell>Last Sent</TableCell>
-                        <TableCell>Next Scheduled</TableCell>
-                        <TableCell>Actions</TableCell>
+                      <TableRow sx={tableHeadRowSx}>
+                        <TableCell sx={{ width: '22%' }}>Report Name</TableCell>
+                        <TableCell sx={{ width: '13%' }}>Frequency</TableCell>
+                        <TableCell sx={{ width: '30%' }}>Recipients</TableCell>
+                        <TableCell sx={{ width: '15%' }}>Last Sent</TableCell>
+                        <TableCell sx={{ width: '15%' }}>Next Scheduled</TableCell>
+                        <TableCell sx={{ width: '5%' }}>Actions</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {scheduledReports.map(r => (
-                        <TableRow key={r.id} hover>
-                          <TableCell>{r.name}</TableCell>
-                          <TableCell><Chip label={r.frequency} size="small" color={r.frequency === 'weekly' ? 'primary' : 'secondary'} /></TableCell>
-                          <TableCell>{r.recipients?.join(', ')}</TableCell>
-                          <TableCell>{r.lastSent ? formatDate(r.lastSent) : '—'}</TableCell>
-                          <TableCell>{r.nextScheduled ? formatDate(r.nextScheduled) : '—'}</TableCell>
-                          <TableCell>
+                        <TableRow key={r.id} hover sx={tableBodyRowSx}>
+                          <TableCell sx={{ width: '22%' }}><EllipsisCell value={r.name} /></TableCell>
+                          <TableCell sx={{ width: '13%' }}><Chip label={r.frequency} size="small" color={r.frequency === 'weekly' ? 'primary' : 'secondary'} sx={compactChipSx} /></TableCell>
+                          <TableCell sx={{ width: '30%' }}><EllipsisCell value={r.recipients?.join(', ')} /></TableCell>
+                          <TableCell sx={{ width: '15%' }}>{r.lastSent ? formatDate(r.lastSent) : '—'}</TableCell>
+                          <TableCell sx={{ width: '15%' }}>{r.nextScheduled ? formatDate(r.nextScheduled) : '—'}</TableCell>
+                          <TableCell sx={{ width: '5%' }}>
                             <IconButton size="small" onClick={() => { setSelectedReport(r); setScheduleDialogOpen(true); }}><EditIcon fontSize="small" /></IconButton>
                             <IconButton size="small" onClick={() => handleDeleteReport(r.id)}><DeleteIcon fontSize="small" /></IconButton>
                           </TableCell>

@@ -19,6 +19,10 @@ import {
   Star as StarIcon
 } from '@mui/icons-material';
 import { getStats, getSessions, getProviders, updateProvider } from '../../services/referralMatchingService';
+import EllipsisCell from '../../components/common/EllipsisCell';
+import {
+  tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
+} from '../../components/common/adminTableStyles';
 
 // ============================================================================
 // HELPERS
@@ -35,6 +39,21 @@ function safeNum(val, decimals = 1) {
   const n = parseFloat(val);
   if (isNaN(n)) return '—';
   return decimals === 0 ? n.toFixed(0) : n.toFixed(decimals);
+}
+
+// Suggestions don't carry a persisted "reason" string (see server/models/MatchSession.js
+// suggestionSchema) — only the numeric scoreBreakdown that produced matchScore. Render
+// that breakdown as a short human-readable summary instead of leaving the cell blank.
+const SCORE_BREAKDOWN_LABELS = {
+  specialty: 'Specialty', insurance: 'Insurance', acceptanceRate: 'Acceptance',
+  availability: 'Availability', tokenStanding: 'Token standing', bonuses: 'Bonus', outcome: 'Outcomes',
+};
+function formatScoreBreakdown(breakdown) {
+  if (!breakdown || typeof breakdown !== 'object') return null;
+  const parts = Object.entries(breakdown)
+    .filter(([, v]) => v)
+    .map(([k, v]) => `${SCORE_BREAKDOWN_LABELS[k] || k} +${v}`);
+  return parts.length ? parts.join(', ') : null;
 }
 
 // ============================================================================
@@ -383,17 +402,17 @@ export default function AdminReferralMatching() {
               <Typography variant="h6" fontWeight={600}>Recent Match Sessions</Typography>
             </Box>
             <Divider />
-            <TableContainer>
-              <Table size="small">
+            <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+              <Table size="small" sx={tableSx}>
                 <TableHead>
-                  <TableRow>
-                    <TableCell><strong>Provider</strong></TableCell>
-                    <TableCell><strong>Specialty</strong></TableCell>
-                    <TableCell><strong>Insurance</strong></TableCell>
-                    <TableCell><strong>Top Score</strong></TableCell>
-                    <TableCell><strong>Selected</strong></TableCell>
-                    <TableCell><strong>Date</strong></TableCell>
-                    <TableCell align="center"><strong>Actions</strong></TableCell>
+                  <TableRow sx={tableHeadRowSx}>
+                    <TableCell sx={{ width: '20%' }}>Provider</TableCell>
+                    <TableCell sx={{ width: '20%' }}>Specialty</TableCell>
+                    <TableCell sx={{ width: '20%' }}>Insurance</TableCell>
+                    <TableCell sx={{ width: '13%' }}>Top Score</TableCell>
+                    <TableCell sx={{ width: '13%' }}>Selected</TableCell>
+                    <TableCell sx={{ width: '14%' }}>Date</TableCell>
+                    <TableCell sx={{ width: '48px' }} align="center">Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -411,34 +430,32 @@ export default function AdminReferralMatching() {
                     </TableRow>
                   ) : (
                     sessions.map((s, idx) => (
-                      <TableRow key={s._id || s.id || idx} hover>
-                        <TableCell>
-                          <Typography variant="body2" fontWeight={500}>
-                            {s.providerName || s.provider?.name || '—'}
+                      <TableRow key={s._id || s.id || idx} hover sx={tableBodyRowSx}>
+                        <TableCell sx={{ width: '20%' }}>
+                          <EllipsisCell value={s.requestedByName || s.selectedProviderName} sx={{ fontWeight: 500 }} />
+                        </TableCell>
+                        <TableCell sx={{ width: '20%' }}>
+                          <Chip label={s.specialty || '—'} size="small" variant="outlined" sx={compactChipSx} />
+                        </TableCell>
+                        <TableCell sx={{ width: '20%' }}>
+                          <EllipsisCell value={s.patientInsurance} />
+                        </TableCell>
+                        <TableCell sx={{ width: '13%' }}>
+                          <Typography variant="body2" fontWeight={600} color="primary.main" noWrap>
+                            {s.topMatchScore != null ? safeNum(s.topMatchScore) : '—'}
                           </Typography>
                         </TableCell>
-                        <TableCell>
-                          <Chip label={s.specialty || '—'} size="small" variant="outlined" />
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">{s.insurance || s.insurancePlan || '—'}</Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" fontWeight={600} color="primary.main">
-                            {s.topScore != null ? safeNum(s.topScore) : '—'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ width: '13%' }}>
                           {s.selectedProviderId != null ? (
-                            <Chip label="Yes" size="small" color="success" />
+                            <Chip label="Yes" size="small" color="success" sx={compactChipSx} />
                           ) : (
-                            <Chip label="No" size="small" color="default" />
+                            <Chip label="No" size="small" color="default" sx={compactChipSx} />
                           )}
                         </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">{formatDate(s.createdAt || s.date)}</Typography>
+                        <TableCell sx={{ width: '14%' }}>
+                          <Typography variant="body2" noWrap>{formatDate(s.createdAt || s.date)}</Typography>
                         </TableCell>
-                        <TableCell align="center">
+                        <TableCell sx={{ width: '48px' }} align="center">
                           <Tooltip title="View Details">
                             <IconButton size="small" onClick={() => handleViewSession(s)}>
                               <VisibilityIcon fontSize="small" />
@@ -528,18 +545,18 @@ export default function AdminReferralMatching() {
 
           {/* Providers Table */}
           <Paper variant="outlined">
-            <TableContainer>
-              <Table size="small">
+            <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+              <Table size="small" sx={tableSx}>
                 <TableHead>
-                  <TableRow>
-                    <TableCell><strong>Provider</strong></TableCell>
-                    <TableCell><strong>Specialty</strong></TableCell>
-                    <TableCell><strong>Location</strong></TableCell>
-                    <TableCell><strong>Acceptance Rate</strong></TableCell>
-                    <TableCell><strong>Avg Response</strong></TableCell>
-                    <TableCell><strong>Token Earned</strong></TableCell>
-                    <TableCell><strong>Available</strong></TableCell>
-                    <TableCell align="center"><strong>Actions</strong></TableCell>
+                  <TableRow sx={tableHeadRowSx}>
+                    <TableCell sx={{ width: '18%' }}>Provider</TableCell>
+                    <TableCell sx={{ width: '14%' }}>Specialty</TableCell>
+                    <TableCell sx={{ width: '14%' }}>Location</TableCell>
+                    <TableCell sx={{ width: '17%' }}>Acceptance Rate</TableCell>
+                    <TableCell sx={{ width: '13%' }}>Avg Response</TableCell>
+                    <TableCell sx={{ width: '12%' }}>Token Earned</TableCell>
+                    <TableCell sx={{ width: '12%' }}>Available</TableCell>
+                    <TableCell sx={{ width: '48px' }} align="center">Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -560,22 +577,20 @@ export default function AdminReferralMatching() {
                       const acceptRate = parseFloat(p.acceptanceRate ?? p.acceptRate ?? 0);
                       const location = [p.city, p.state].filter(Boolean).join(', ') || p.location || '—';
                       return (
-                        <TableRow key={p._id || p.id || idx} hover>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight={500}>
-                              {p.name || `${p.firstName || ''} ${p.lastName || ''}`.trim() || '—'}
-                            </Typography>
+                        <TableRow key={p._id || p.id || idx} hover sx={tableBodyRowSx}>
+                          <TableCell sx={{ width: '18%' }}>
+                            <EllipsisCell value={p.name || `${p.firstName || ''} ${p.lastName || ''}`.trim()} sx={{ fontWeight: 500 }} />
                             {p.npi && (
-                              <Typography variant="caption" color="text.secondary">NPI: {p.npi}</Typography>
+                              <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>NPI: {p.npi}</Typography>
                             )}
                           </TableCell>
-                          <TableCell>
-                            <Chip label={p.specialty || '—'} size="small" variant="outlined" />
+                          <TableCell sx={{ width: '14%' }}>
+                            <Chip label={p.specialty || '—'} size="small" variant="outlined" sx={compactChipSx} />
                           </TableCell>
-                          <TableCell>
-                            <Typography variant="body2">{location}</Typography>
+                          <TableCell sx={{ width: '14%' }}>
+                            <EllipsisCell value={location} />
                           </TableCell>
-                          <TableCell sx={{ minWidth: 140 }}>
+                          <TableCell sx={{ width: '17%' }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                               <Box sx={{ flex: 1 }}>
                                 <LinearProgress
@@ -590,24 +605,24 @@ export default function AdminReferralMatching() {
                               </Typography>
                             </Box>
                           </TableCell>
-                          <TableCell>
-                            <Typography variant="body2">
+                          <TableCell sx={{ width: '13%' }}>
+                            <Typography variant="body2" noWrap>
                               {p.avgResponseTime != null ? `${safeNum(p.avgResponseTime, 1)}h` : '—'}
                             </Typography>
                           </TableCell>
-                          <TableCell>
-                            <Typography variant="body2">
+                          <TableCell sx={{ width: '12%' }}>
+                            <Typography variant="body2" noWrap>
                               {p.tokenEarned != null ? p.tokenEarned : '—'}
                             </Typography>
                           </TableCell>
-                          <TableCell>
+                          <TableCell sx={{ width: '12%' }}>
                             {p.isAcceptingReferrals ? (
-                              <Chip label="Yes" size="small" color="success" />
+                              <Chip label="Yes" size="small" color="success" sx={compactChipSx} />
                             ) : (
-                              <Chip label="No" size="small" color="error" />
+                              <Chip label="No" size="small" color="error" sx={compactChipSx} />
                             )}
                           </TableCell>
-                          <TableCell align="center">
+                          <TableCell sx={{ width: '48px' }} align="center">
                             <Tooltip title="View / Edit">
                               <IconButton size="small" onClick={() => handleEditProvider(p)}>
                                 <VisibilityIcon fontSize="small" />
@@ -649,7 +664,7 @@ export default function AdminReferralMatching() {
                 <Grid item xs={6}>
                   <Typography variant="caption" color="text.secondary">Provider</Typography>
                   <Typography variant="body1" fontWeight={600}>
-                    {detailSession.providerName || detailSession.provider?.name || '—'}
+                    {detailSession.requestedByName || detailSession.selectedProviderName || '—'}
                   </Typography>
                 </Grid>
                 <Grid item xs={6}>
@@ -658,12 +673,12 @@ export default function AdminReferralMatching() {
                 </Grid>
                 <Grid item xs={6}>
                   <Typography variant="caption" color="text.secondary">Insurance</Typography>
-                  <Typography variant="body1">{detailSession.insurance || detailSession.insurancePlan || '—'}</Typography>
+                  <Typography variant="body1">{detailSession.patientInsurance || '—'}</Typography>
                 </Grid>
                 <Grid item xs={6}>
                   <Typography variant="caption" color="text.secondary">Top Score</Typography>
                   <Typography variant="body1" fontWeight={600} color="primary.main">
-                    {detailSession.topScore != null ? safeNum(detailSession.topScore) : '—'}
+                    {detailSession.topMatchScore != null ? safeNum(detailSession.topMatchScore) : '—'}
                   </Typography>
                 </Grid>
                 <Grid item xs={6}>
@@ -682,34 +697,30 @@ export default function AdminReferralMatching() {
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
                     AI Suggestions ({detailSession.suggestions.length})
                   </Typography>
-                  <TableContainer component={Paper} variant="outlined">
-                    <Table size="small">
+                  <TableContainer component={Paper} variant="outlined" sx={tableContainerSx}>
+                    <Table size="small" sx={tableSx}>
                       <TableHead>
-                        <TableRow>
-                          <TableCell><strong>Rank</strong></TableCell>
-                          <TableCell><strong>Provider</strong></TableCell>
-                          <TableCell><strong>Score</strong></TableCell>
-                          <TableCell><strong>Reason</strong></TableCell>
+                        <TableRow sx={tableHeadRowSx}>
+                          <TableCell sx={{ width: '10%' }}>Rank</TableCell>
+                          <TableCell sx={{ width: '25%' }}>Provider</TableCell>
+                          <TableCell sx={{ width: '15%' }}>Score</TableCell>
+                          <TableCell sx={{ width: '50%' }}>Reason</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
                         {detailSession.suggestions.map((sug, i) => (
-                          <TableRow key={i}>
-                            <TableCell>{i + 1}</TableCell>
-                            <TableCell>
-                              <Typography variant="body2" fontWeight={500}>
-                                {sug.providerName || sug.provider?.name || sug.name || '—'}
+                          <TableRow key={i} sx={tableBodyRowSx}>
+                            <TableCell sx={{ width: '10%' }}>{i + 1}</TableCell>
+                            <TableCell sx={{ width: '25%' }}>
+                              <EllipsisCell value={sug.providerName || sug.provider?.name || sug.name} sx={{ fontWeight: 500 }} />
+                            </TableCell>
+                            <TableCell sx={{ width: '15%' }}>
+                              <Typography variant="body2" fontWeight={600} color="primary.main" noWrap>
+                                {sug.matchScore != null ? safeNum(sug.matchScore) : '—'}
                               </Typography>
                             </TableCell>
-                            <TableCell>
-                              <Typography variant="body2" fontWeight={600} color="primary.main">
-                                {sug.score != null ? safeNum(sug.score) : '—'}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              <Typography variant="body2" color="text.secondary">
-                                {sug.reason || sug.rationale || '—'}
-                              </Typography>
+                            <TableCell sx={{ width: '50%' }}>
+                              <EllipsisCell value={sug.reason || sug.rationale || formatScoreBreakdown(sug.scoreBreakdown)} sx={{ color: 'text.secondary' }} />
                             </TableCell>
                           </TableRow>
                         ))}
