@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ModernLoadingIndicator } from '../../components/common'; 
+import { ModernLoadingIndicator } from '../../components/common';
+import { formatDateTime } from '../../utils/dateFormatter';
 import {
   Box,
   Container,
@@ -375,20 +376,6 @@ export default function AnalyticsDetail() {
     setReferrals(refs);
   };
   
-  // Format date for display
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
@@ -501,7 +488,7 @@ export default function AnalyticsDetail() {
               Created Date
             </Typography>
             <Typography variant="body1">
-              {formatDate(analytics.createdAt)}
+              {formatDateTime(analytics.createdAt)}
             </Typography>
           </Grid>
           <Grid item xs={12} sm={4}>
@@ -509,7 +496,7 @@ export default function AnalyticsDetail() {
               Completed Date
             </Typography>
             <Typography variant="body1">
-              {formatDate(analytics.completedAt)}
+              {formatDateTime(analytics.completedAt)}
             </Typography>
           </Grid>
           <Grid item xs={12} sm={4}>

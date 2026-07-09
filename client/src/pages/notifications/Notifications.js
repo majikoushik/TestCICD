@@ -29,7 +29,7 @@ import {
   Info as InfoIcon,
   Error as ErrorIcon
 } from '@mui/icons-material';
-import { format } from 'date-fns';
+import { formatDateTime } from '../../utils/dateFormatter';
 import * as notificationService from '../../services/notificationService';
 
 function TabPanel(props) {
@@ -195,7 +195,7 @@ export default function Notifications() {
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
-    return format(new Date(dateString), 'MMM d, yyyy h:mm a');
+    return formatDateTime(dateString);
   };
 
   if (loading) {

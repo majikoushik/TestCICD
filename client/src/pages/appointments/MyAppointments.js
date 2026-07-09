@@ -43,17 +43,12 @@ import {
   getMyAppointments,
   cancelAppointment,
 } from '../../services/appointmentService'
+import { formatDate, formatDateTime } from '../../utils/dateFormatter'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 function fmt(dateStr) {
-  if (!dateStr) return '—'
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
+  return formatDate(dateStr) || '—'
 }
 
 function fmtTime(timeStr) {
@@ -65,14 +60,7 @@ function fmtTime(timeStr) {
 }
 
 function fmtDateTime(dateStr) {
-  if (!dateStr) return '—'
-  return new Date(dateStr).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
+  return formatDateTime(dateStr) || '—'
 }
 
 const STATUS_COLOR = {

@@ -29,6 +29,7 @@ import {
 } from '../../components/common/adminTableStyles';
 import { getPriorAuths, submitAppeal, getAppealDraft, getPAHistory, addPANote } from '../../services/priorAuthService';
 import CreatePriorAuth from './CreatePriorAuth';
+import { formatDate, formatDateTime } from '../../utils/dateFormatter';
 
 const STATUS_COLOR = {
   Pending: 'warning',
@@ -80,7 +81,7 @@ function PATimeline({ history, loading }) {
             <Box sx={{ pb: isLast ? 0 : 2 }}>
               <Chip label={meta.label} size="small" color={meta.color} variant="outlined" sx={{ mb: 0.25 }} />
               <Typography variant="caption" color="text.secondary" display="block">
-                {new Date(entry.timestamp).toLocaleString()}
+                {formatDateTime(entry.timestamp)}
               </Typography>
             </Box>
           </Box>
@@ -230,8 +231,6 @@ export default function PriorAuth() {
       setAppealLoading(false);
     }
   };
-
-  const formatDate = (d) => d ? new Date(d).toLocaleDateString() : '—';
 
   // Shared row-action menu — one instance, opened against whichever row's
   // kebab button was clicked (see openActionMenu/closeActionMenu above).
@@ -506,8 +505,8 @@ export default function PriorAuth() {
               {selectedPA.approvedDate && (
                 <Grid item xs={12}>
                   <Alert severity="success" sx={{ mt: 0.5 }}>
-                    <strong>Approved</strong> {new Date(selectedPA.approvedDate).toLocaleDateString()} →
-                    Expires <strong>{selectedPA.expiryDate ? new Date(selectedPA.expiryDate).toLocaleDateString() : '—'}</strong>
+                    <strong>Approved</strong> {formatDate(selectedPA.approvedDate)} →
+                    Expires <strong>{selectedPA.expiryDate ? formatDate(selectedPA.expiryDate) : '—'}</strong>
                     {' '}({selectedPA.approvalDurationDays || 90}-day window)
                     {selectedPA.autoApproved && <Chip icon={<AutoIcon />} label="Auto-approved by AI" size="small" color="success" variant="outlined" sx={{ ml: 1 }} />}
                   </Alert>
@@ -609,7 +608,7 @@ export default function PriorAuth() {
                                 {note.authorEmail || note.authorRole} {isAdmin ? '(Admin)' : '(Provider)'}
                               </Typography>
                               <Typography variant="body2">{note.message}</Typography>
-                              <Typography variant="caption" color="text.secondary">{new Date(note.createdAt).toLocaleString()}</Typography>
+                              <Typography variant="caption" color="text.secondary">{formatDateTime(note.createdAt)}</Typography>
                             </Box>
                           </Box>
                         </Box>
@@ -687,7 +686,7 @@ export default function PriorAuth() {
         </DialogTitle>
         <DialogContent dividers>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-            {selectedPA?.serviceType} · Submitted {selectedPA ? new Date(selectedPA.createdAt).toLocaleDateString() : ''}
+            {selectedPA?.serviceType} · Submitted {selectedPA ? formatDate(selectedPA.createdAt) : ''}
           </Typography>
           <PATimeline history={paHistory} loading={historyLoading} />
         </DialogContent>

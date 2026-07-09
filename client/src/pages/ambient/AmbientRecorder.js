@@ -59,6 +59,7 @@ import {
 } from '@mui/icons-material';
 import ambientSessionService from '../../services/ambientSessionService';
 import PatientSearchAutocomplete from '../../components/common/PatientSearchAutocomplete';
+import { formatDate as formatDateShared } from '../../utils/dateFormatter';
 
 const STEPS = ['Patient & Setup', 'Record & Transcribe', 'Review & Approve'];
 
@@ -85,7 +86,7 @@ function formatDuration(seconds) {
 
 function formatDate(d) {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString();
+  return formatDateShared(d) || '—';
 }
 
 export default function AmbientRecorder() {

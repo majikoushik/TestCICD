@@ -36,15 +36,9 @@ import {
 } from '@mui/icons-material'
 import AppointmentCard from './AppointmentCard'
 import { getMyAppointments, cancelAppointment } from '../../services/appointmentService'
+import { formatDate, formatDateTime } from '../../utils/dateFormatter'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
-
-function fmt(dateStr) {
-  if (!dateStr) return '—'
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
-  })
-}
 
 function fmtTime(timeStr) {
   if (!timeStr) return '—'
@@ -52,13 +46,6 @@ function fmtTime(timeStr) {
   const period = h >= 12 ? 'PM' : 'AM'
   const display = h % 12 === 0 ? 12 : h % 12
   return `${display}:${String(m).padStart(2, '0')} ${period}`
-}
-
-function fmtDateTime(dateStr) {
-  if (!dateStr) return '—'
-  return new Date(dateStr).toLocaleString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
-  })
 }
 
 const STATUS_COLOR = {
@@ -353,7 +340,7 @@ export default function AllAppointmentsTab({ onBookNew }) {
                   <Typography>{viewDetail.patientName || '—'}</Typography>
                 </DetailRow>
                 <DetailRow label="Date">
-                  <Typography>{fmt(viewDetail.scheduledDate)}</Typography>
+                  <Typography>{formatDate(viewDetail.scheduledDate)}</Typography>
                 </DetailRow>
                 <DetailRow label="Time">
                   <Typography>
@@ -382,7 +369,7 @@ export default function AllAppointmentsTab({ onBookNew }) {
                   </DetailRow>
                 )}
                 <DetailRow label="Booked On">
-                  <Typography>{fmtDateTime(viewDetail.createdAt)}</Typography>
+                  <Typography>{formatDateTime(viewDetail.createdAt)}</Typography>
                 </DetailRow>
               </Grid>
 
@@ -423,9 +410,9 @@ export default function AllAppointmentsTab({ onBookNew }) {
                   {viewDetail.rescheduleHistory.map((entry, i) => (
                     <Box key={i} sx={{ p: 1.5, mb: 1, borderRadius: 1, bgcolor: 'grey.50', border: '1px solid', borderColor: 'divider' }}>
                       <Typography variant="body2">
-                        <strong>From:</strong> {fmt(entry.previousDate)} {fmtTime(entry.previousTime)}
+                        <strong>From:</strong> {formatDate(entry.previousDate)} {fmtTime(entry.previousTime)}
                         {' → '}
-                        <strong>To:</strong> {fmt(entry.newDate)} {fmtTime(entry.newTime)}
+                        <strong>To:</strong> {formatDate(entry.newDate)} {fmtTime(entry.newTime)}
                       </Typography>
                       {entry.reason && (
                         <Typography variant="caption" color="text.secondary">Reason: {entry.reason}</Typography>

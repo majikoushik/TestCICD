@@ -24,6 +24,7 @@ import {
   LocalPharmacy as RxIcon,
 } from '@mui/icons-material';
 import PrescribeDtxModal from '../../components/dtx/PrescribeDtxModal';
+import { formatDate } from '../../utils/dateFormatter';
 
 // Import components
 import ReferralStatusUpdate from './components/ReferralStatusUpdate';
@@ -150,17 +151,8 @@ export default function ReferralDetail() {
     }
   };
 
-  // Format date for display
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Not scheduled';
-    
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
+  // Format date for display (falls back to "Not scheduled" when absent)
+  const formatDisplayDate = (dateString) => formatDate(dateString) || 'Not scheduled';
 
   // Get status chip for referral
   const getStatusChip = (status) => {
@@ -341,7 +333,7 @@ export default function ReferralDetail() {
               Created Date
             </Typography>
             <Typography variant="body1">
-              {formatDate(referral.createdAt)}
+              {formatDisplayDate(referral.createdAt)}
             </Typography>
           </Grid>
           <Grid item xs={12} sm={4}>
@@ -349,7 +341,7 @@ export default function ReferralDetail() {
               Appointment Date
             </Typography>
             <Typography variant="body1">
-              {formatDate(referral.appointmentDate)}
+              {formatDisplayDate(referral.appointmentDate)}
             </Typography>
           </Grid>
           <Grid item xs={12} sm={4}>

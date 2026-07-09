@@ -16,6 +16,7 @@ import {
   Alert
 } from '@mui/material';
 import { ModernLoadingIndicator } from '../../components/common';
+import { formatDateTime } from '../../utils/dateFormatter';
 import {
   ContentCopy as CopyIcon,
   OpenInNew as OpenInNewIcon
@@ -168,7 +169,7 @@ const TransactionDetails = ({ open, onClose, transaction, loading, error }) => {
                 />
                 <DetailItem 
                   label="Timestamp" 
-                  value={new Date(transaction.timestamp).toLocaleString()} 
+                  value={formatDateTime(transaction.timestamp)}
                 />
               </Grid>
               

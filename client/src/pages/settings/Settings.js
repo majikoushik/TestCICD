@@ -36,12 +36,14 @@ import {
   Email as EmailIcon,
   Phone as PhoneIcon,
   Fax as FaxIcon,
-  Badge as BadgeIcon
+  Badge as BadgeIcon,
+  CalendarMonth as CalendarMonthIcon
 } from '@mui/icons-material';
 import { updateUserProfile, updateProfileImage, getUserSettings, updateUserSettings } from '../../services/userService';
 import { post } from '../../utils/apiUtils';
 import { authStorage } from '../../utils/storageUtils';
 import { useAuth } from '../../contexts/AuthContext';
+import { setDateFormat } from '../../utils/dateFormatter';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -174,6 +176,10 @@ const DEFAULT_PROFILE = {
   phone: '', fax: '', organization: '', bio: '', npi: '',
 };
 
+const DEFAULT_DISPLAY = {
+  dateFormat: 'MM/DD/YYYY',
+};
+
 const DEFAULT_PRACTICE = {
   acceptingNewPatients: true, maxNewPatientsPerWeek: 10,
   telehealthAvailable: false, telehealthOnly: false,
@@ -245,6 +251,7 @@ export default function Settings() {
   const [saveSuccess, setSaveSuccess] = useState('');
 
   const [profile, setProfile] = useState(DEFAULT_PROFILE);
+  const [display, setDisplay] = useState(DEFAULT_DISPLAY);
   const [practice, setPractice] = useState(DEFAULT_PRACTICE);
   const [referralPrefs, setReferralPrefs] = useState(DEFAULT_REFERRAL_PREFS);
   const [notifications, setNotifications] = useState(DEFAULT_NOTIFICATIONS);
@@ -294,6 +301,11 @@ export default function Settings() {
         try {
           const saved = await getUserSettings();
           const s = saved?.data || saved || {};
+          if (s.display) {
+            const merged = { ...DEFAULT_DISPLAY, ...s.display };
+            setDisplay(merged);
+            setDateFormat(merged.dateFormat);
+          }
           if (s.practice) setPractice({ ...DEFAULT_PRACTICE, ...s.practice });
           if (s.referralPrefs) setReferralPrefs({ ...DEFAULT_REFERRAL_PREFS, ...s.referralPrefs });
           if (s.notifications) setNotifications({ ...DEFAULT_NOTIFICATIONS, ...s.notifications });
@@ -350,6 +362,12 @@ export default function Settings() {
         specialty: profile.specialty, credential: profile.credential,
         phone: profile.phone, fax: profile.fax, bio: profile.bio,
       });
+
+      // 2b. Save display preferences (date format, etc.) alongside the profile
+      const currentSettings = await getUserSettings().catch(() => ({}));
+      const currentSettingsData = currentSettings?.data || currentSettings || {};
+      await updateUserSettings({ ...currentSettingsData, display });
+      setDateFormat(display.dateFormat);
 
       // 3. Update local auth storage
       const stored = authStorage.get('user') || {};
@@ -420,6 +438,7 @@ export default function Settings() {
 
   // ── generic updaters ────────────────────────────────────────────────────────
   const setP = useCallback((k, v) => setProfile((s) => ({ ...s, [k]: v })), []);
+  const setDisp = useCallback((k, v) => setDisplay((s) => ({ ...s, [k]: v })), []);
   const setPr = useCallback((k, v) => setPractice((s) => ({ ...s, [k]: v })), []);
   const setRp = useCallback((k, v) => setReferralPrefs((s) => ({ ...s, [k]: v })), []);
   const setN = useCallback((k, v) => setNotifications((s) => ({ ...s, [k]: v })), []);
@@ -578,6 +597,32 @@ export default function Settings() {
                     placeholder="Brief professional summary visible to referring providers..."
                     inputProps={{ maxLength: 500 }}
                     helperText={`${profile.bio.length}/500 characters`} />
+                </Grid>
+              </Grid>
+            </SectionCard>
+
+            {/* Display Preferences */}
+            <SectionCard title="Display Preferences" icon={<CalendarMonthIcon color="primary" />}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Date Format</InputLabel>
+                    <Select
+                      label="Date Format"
+                      value={display.dateFormat}
+                      onChange={(e) => {
+                        setDisp('dateFormat', e.target.value);
+                        setDateFormat(e.target.value); // live preview across the app immediately
+                      }}
+                    >
+                      <MenuItem value="MM/DD/YYYY">MM/DD/YYYY (e.g. 12/31/2024)</MenuItem>
+                      <MenuItem value="DD/MM/YYYY">DD/MM/YYYY (e.g. 31/12/2024)</MenuItem>
+                      <MenuItem value="YYYY-MM-DD">YYYY-MM-DD (e.g. 2024-12-31)</MenuItem>
+                    </Select>
+                    <FormHelperText>
+                      Controls how dates are displayed throughout your provider portal
+                    </FormHelperText>
+                  </FormControl>
                 </Grid>
               </Grid>
             </SectionCard>

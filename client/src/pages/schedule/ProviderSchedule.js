@@ -63,6 +63,7 @@ import { getAvailability, saveAvailability, getExceptions, addException, deleteE
 import { getMySchedule, updateAppointmentStatus, sendReminder } from '../../services/appointmentService'
 import AllAppointmentsTab from '../../components/appointments/AllAppointmentsTab'
 import AppointmentCard from '../../components/appointments/AppointmentCard'
+import { formatDate } from '../../utils/dateFormatter'
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
@@ -121,11 +122,11 @@ function formatDateKey(date) {
 function formatDateDisplay(dateStr) {
   if (!dateStr) return ''
   const d = new Date(dateStr + 'T00:00:00')
-  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+  return formatDate(d)
 }
 
 function formatShortDate(date) {
-  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+  return formatDate(date)
 }
 
 const EXCEPTION_TYPE_COLORS = {

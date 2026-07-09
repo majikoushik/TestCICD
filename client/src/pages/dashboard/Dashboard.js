@@ -49,6 +49,7 @@ import {
 } from '@mui/icons-material';
 import { getMySchedule } from '../../services/appointmentService';
 import { getMyPrescriptions } from '../../services/dtxService';
+import { formatDate } from '../../utils/dateFormatter';
 
 // Import recharts for data visualization
 import {
@@ -566,18 +567,6 @@ function Dashboard() {
     ]);
   }, []);
 
-  // Format date for display - memoized with useCallback
-  const formatDate = useCallback((dateString) => {
-    if (!dateString) return '';
-    
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  }, []);
-
   // Get activity icon - memoized with useCallback
   const getActivityIcon = useCallback((type) => {
     switch (type) {
@@ -746,7 +735,7 @@ function Dashboard() {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <ApptIcon color="primary" />
                     <Typography variant="h6">Today's Schedule</Typography>
-                    <Chip label={new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} size="small" variant="outlined" />
+                    <Chip label={formatDate(new Date())} size="small" variant="outlined" />
                   </Box>
                   <Button size="small" variant="outlined" onClick={() => navigate('/app/schedule')}>
                     Full Schedule

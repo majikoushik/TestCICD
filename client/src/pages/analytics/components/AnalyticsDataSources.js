@@ -25,6 +25,7 @@ import EllipsisHeaderCell from '../../../components/common/EllipsisHeaderCell';
 import {
   tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
 } from '../../../components/common/adminTableStyles';
+import { formatDate } from '../../../utils/dateFormatter';
 
 export default function AnalyticsDataSources({ dataSources }) {
   if (!dataSources || dataSources.length === 0) {
@@ -36,18 +37,6 @@ export default function AnalyticsDataSources({ dataSources }) {
       </Paper>
     );
   }
-
-  // Format date for display
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
 
   // Calculate total records
   const totalRecords = dataSources.reduce((sum, source) => sum + source.recordCount, 0);

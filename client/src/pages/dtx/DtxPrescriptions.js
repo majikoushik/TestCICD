@@ -18,6 +18,7 @@ import EllipsisHeaderCell from '../../components/common/EllipsisHeaderCell';
 import {
   tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
 } from '../../components/common/adminTableStyles';
+import { formatDate } from '../../utils/dateFormatter';
 
 // Percentages sum to 100% — with tableLayout: 'fixed' this guarantees the
 // table always fits the container's width on any screen size.
@@ -57,11 +58,6 @@ const CATEGORY_LABELS = {
   behavioral: 'Behavioral', respiratory: 'Respiratory',
   neurology: 'Neurology', general: 'General',
 };
-
-function formatDate(d) {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
 
 function UpdateStatusDialog({ prescription, open, onClose, onDone }) {
   const [status, setStatus] = useState('');
@@ -331,7 +327,7 @@ export default function DtxPrescriptions() {
                       />
                     </TableCell>
                     <TableCell sx={{ width: COLUMN_WIDTHS.prescribed }}>
-                      <Typography variant="body2">{formatDate(rx.prescribedAt)}</Typography>
+                      <Typography variant="body2">{rx.prescribedAt ? formatDate(rx.prescribedAt) : '—'}</Typography>
                     </TableCell>
                     <TableCell sx={{ width: COLUMN_WIDTHS.engagement }}>
                       {rx.engagementScore != null ? (

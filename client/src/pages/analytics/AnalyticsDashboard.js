@@ -40,6 +40,7 @@ import EllipsisHeaderCell from '../../components/common/EllipsisHeaderCell';
 import {
   tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
 } from '../../components/common/adminTableStyles';
+import { formatDate } from '../../utils/dateFormatter';
 import {
   Add as AddIcon,
   TrendingUp as TrendingUpIcon,
@@ -336,18 +337,6 @@ export default function AnalyticsDashboard() {
     }
   };
 
-  // Format date for display
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-  
   // Generate chart data based on time range
   const generateChartData = (range) => {
     // Patient risk trend data
@@ -360,7 +349,7 @@ export default function AnalyticsDashboard() {
       date.setDate(now.getDate() - (dataPoints - i));
       
       riskData.push({
-        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        date: formatDate(date),
         highRisk: Math.floor(Math.random() * 10) + 5,
         mediumRisk: Math.floor(Math.random() * 15) + 10,
         lowRisk: Math.floor(Math.random() * 25) + 20,
@@ -385,7 +374,7 @@ export default function AnalyticsDashboard() {
       date.setDate(now.getDate() - (dataPoints - i));
       
       tokenData.push({
-        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        date: formatDate(date),
         earned: Math.floor(Math.random() * 8) + 1,
         spent: Math.floor(Math.random() * 5),
       });
@@ -776,7 +765,7 @@ export default function AnalyticsDashboard() {
                                 sx={compactChipSx}
                               />
                             </TableCell>
-                            <TableCell sx={{ width: '20%' }}>{new Date(patient.lastVisit).toLocaleDateString()}</TableCell>
+                            <TableCell sx={{ width: '20%' }}>{formatDate(patient.lastVisit)}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

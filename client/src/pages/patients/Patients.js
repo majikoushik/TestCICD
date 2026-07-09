@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useCallback, memo, useState } from 'react';
 import { get } from '../../utils/apiUtils';
+import { formatDate } from '../../utils/dateFormatter';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -283,13 +284,6 @@ function Patients() {
     if (normalized === 'male') return { icon: <ManIcon />, bgcolor: 'info.light' };
     if (normalized === 'female') return { icon: <WomanIcon />, bgcolor: 'secondary.light' };
     return { icon: <PersonIcon />, bgcolor: 'primary.light' };
-  }, []);
-
-  const formatLastUpdated = useCallback((dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return 'N/A';
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   }, []);
 
   const getRiskLevel = useCallback((score) => {
@@ -685,7 +679,7 @@ function Patients() {
                         </TableCell>
                         <TableCell sx={{ width: COLUMN_WIDTHS.updated }}>
                           <Typography variant="body2" color="text.secondary">
-                            {formatLastUpdated(patient.updatedAt)}
+                            {patient.updatedAt ? formatDate(patient.updatedAt) : 'N/A'}
                           </Typography>
                         </TableCell>
                         <TableCell sx={{ width: COLUMN_WIDTHS.actions }} align="center">

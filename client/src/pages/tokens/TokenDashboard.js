@@ -58,6 +58,7 @@ import {
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { post, get, del } from '../../utils/apiUtils';
+import { formatDate, formatDateTime } from '../../utils/dateFormatter';
 
 // Import token components with dynamic imports
 import { TokenEarnSources, RedeemServicesCatalog } from '../../components/tokens';
@@ -132,20 +133,6 @@ function TokenDashboard() {
   const handleRedeemTokens = useCallback(() => {
     navigate('/app/tokens/redeem');
   }, [navigate]);
-
-  // Format date for display - memoized with useCallback
-  const formatDate = useCallback((dateString) => {
-    if (!dateString) return 'N/A';
-    
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  }, []);
 
   // Get transaction icon based on type - memoized with useCallback
   const getTransactionIcon = useCallback((type) => {
@@ -309,7 +296,7 @@ function TokenDashboard() {
                       secondary={
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
                           <Typography variant="body2" color="text.secondary">
-                            {formatDate(transaction.createdAt || transaction.timestamp)}
+                            {formatDateTime(transaction.createdAt || transaction.timestamp)}
                           </Typography>
                           <Chip
                             label={(transaction.type || 'transaction').charAt(0).toUpperCase() + (transaction.type || 'transaction').slice(1)}
@@ -605,7 +592,7 @@ function StakingTab({ tokenBalance, onBalanceChange }) {
             </Box>
             <Typography variant="body2" color="text.secondary">
               {stake.status === 'active'
-                ? `Matures: ${new Date(stake.endDate).toLocaleDateString()} (${daysLeft(stake.endDate)})`
+                ? `Matures: ${formatDate(stake.endDate)} (${daysLeft(stake.endDate)})`
                 : stake.status === 'completed'
                 ? `Completed — Bonus earned: ${stake.bonusAmount} CLT`
                 : `Cancelled — ${stake.amount} CLT returned`}

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { requestBlockchainVerification } from '../../services/userService';
 import { ModernLoadingIndicator } from '../../components/common';
+import { formatDate } from '../../utils/dateFormatter';
 import {
   Box,
   Container,
@@ -184,18 +185,6 @@ export default function Profile() {
     } finally {
       setVerifying(false);
     }
-  };
-
-  // Format date for display
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
   };
 
   // Get verification status chip
@@ -436,7 +425,7 @@ export default function Profile() {
                 Registration Date
               </Typography>
               <Typography variant="body1">
-                {formatDate(blockchainData.registrationDate)}
+                {formatDate(blockchainData.registrationDate) || 'N/A'}
               </Typography>
             </Box>
             

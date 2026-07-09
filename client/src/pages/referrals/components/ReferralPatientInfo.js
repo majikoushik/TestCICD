@@ -12,21 +12,12 @@ import {
   Person as PersonIcon,
   Launch as LaunchIcon
 } from '@mui/icons-material';
+import { formatDate } from '../../../utils/dateFormatter';
 
 export default function ReferralPatientInfo({ patient }) {
   const navigate = useNavigate();
 
   if (!patient) return null;
-
-  // Format date for display
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
 
   // Calculate age from date of birth
   const calculateAge = (dateOfBirth) => {

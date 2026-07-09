@@ -26,6 +26,7 @@ import {
   Share as ShareIcon,
   Close as CloseIcon,
 } from '@mui/icons-material';
+import { formatDate } from '../../../utils/dateFormatter';
 
 export default function ShareAnalyticsDialog({ open, onClose, onShare, sharedWith = [] }) {
   const [selectedUser, setSelectedUser] = useState('');
@@ -128,18 +129,6 @@ export default function ShareAnalyticsDialog({ open, onClose, onShare, sharedWit
     setSelectedUser('');
     setAccessLevel('view');
     onClose();
-  };
-
-  // Format date for display
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
   };
 
   return (

@@ -21,6 +21,7 @@ import {
   Warning as WarningIcon,
   Schedule as ScheduleIcon
 } from '@mui/icons-material';
+import { formatDate } from '../../../utils/dateFormatter';
 
 export default function ReferralBilling({ billing: billingProp, onBillingUpdate, status }) {
   const billing = billingProp || {};
@@ -211,8 +212,8 @@ export default function ReferralBilling({ billing: billingProp, onBillingUpdate,
               Submission Date
             </Typography>
             <Typography variant="body1">
-              {billing.insuranceClaim?.submissionDate ? 
-                new Date(billing.insuranceClaim.submissionDate).toLocaleDateString() : 
+              {billing.insuranceClaim?.submissionDate ?
+                formatDate(billing.insuranceClaim.submissionDate) :
                 'Not submitted'
               }
             </Typography>

@@ -17,22 +17,9 @@ import {
   Token as TokenIcon,
   Verified as VerifiedIcon
 } from '@mui/icons-material';
+import { formatDateTime } from '../../../utils/dateFormatter';
 
 export default function AnalyticsOverview({ analytics }) {
-  // Format date for display
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
   return (
     <Box>
       <Grid container spacing={3}>
@@ -145,7 +132,7 @@ export default function AnalyticsOverview({ analytics }) {
                         <>
                           {share.user.organization} | Access: {share.accessLevel.charAt(0).toUpperCase() + share.accessLevel.slice(1)}
                           <br />
-                          Shared on: {formatDate(share.sharedAt)}
+                          Shared on: {formatDateTime(share.sharedAt)}
                         </>
                       } 
                     />
@@ -172,7 +159,7 @@ export default function AnalyticsOverview({ analytics }) {
                   </Typography>
                 </Box>
                 <Typography variant="body2" gutterBottom>
-                  Timestamp: {formatDate(analytics.blockchainReference.timestamp)}
+                  Timestamp: {formatDateTime(analytics.blockchainReference.timestamp)}
                 </Typography>
                 <Typography variant="caption" sx={{ fontFamily: 'monospace', display: 'block' }}>
                   Transaction ID: {analytics.blockchainReference.transactionId}

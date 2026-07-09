@@ -18,6 +18,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import VideoCallIcon from '@mui/icons-material/VideoCall'
 import DoneAllIcon from '@mui/icons-material/DoneAll'
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive'
+import { formatDate } from '../../utils/dateFormatter'
 
 const STATUS_COLORS = {
   scheduled: 'info',
@@ -44,17 +45,6 @@ const TYPE_LABELS = {
   telehealth: 'Telehealth',
   urgent: 'Urgent',
   procedure: 'Procedure',
-}
-
-function formatDate(dateStr) {
-  if (!dateStr) return ''
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
 }
 
 function formatTime(timeStr) {

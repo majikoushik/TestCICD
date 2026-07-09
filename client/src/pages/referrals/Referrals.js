@@ -62,6 +62,7 @@ import EllipsisHeaderCell from '../../components/common/EllipsisHeaderCell';
 import {
   tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
 } from '../../components/common/adminTableStyles';
+import { formatDate } from '../../utils/dateFormatter';
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -289,17 +290,8 @@ export default function Referrals() {
     }
   };
 
-  // Format date for display
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Not scheduled';
-    
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
+  // Format date for display (falls back to "Not scheduled" when absent)
+  const formatAppointmentDate = (dateString) => formatDate(dateString) || 'Not scheduled';
 
   // Get status chip for referrals
   const getStatusChip = (status) => {
@@ -629,7 +621,7 @@ export default function Referrals() {
                 handleMenuOpen={handleMenuOpen}
                 getStatusChip={getStatusChip}
                 getUrgencyChip={getUrgencyChip}
-                formatDate={formatDate}
+                formatDate={formatAppointmentDate}
               />
             </TabPanel>
 
@@ -644,7 +636,7 @@ export default function Referrals() {
                 handleMenuOpen={handleMenuOpen}
                 getStatusChip={getStatusChip}
                 getUrgencyChip={getUrgencyChip}
-                formatDate={formatDate}
+                formatDate={formatAppointmentDate}
               />
             </TabPanel>
 
@@ -659,7 +651,7 @@ export default function Referrals() {
                 handleMenuOpen={handleMenuOpen}
                 getStatusChip={getStatusChip}
                 getUrgencyChip={getUrgencyChip}
-                formatDate={formatDate}
+                formatDate={formatAppointmentDate}
               />
             </TabPanel>
 
@@ -674,7 +666,7 @@ export default function Referrals() {
                 handleMenuOpen={handleMenuOpen}
                 getStatusChip={getStatusChip}
                 getUrgencyChip={getUrgencyChip}
-                formatDate={formatDate}
+                formatDate={formatAppointmentDate}
               />
             </TabPanel>
 
@@ -689,7 +681,7 @@ export default function Referrals() {
                 handleMenuOpen={handleMenuOpen}
                 getStatusChip={getStatusChip}
                 getUrgencyChip={getUrgencyChip}
-                formatDate={formatDate}
+                formatDate={formatAppointmentDate}
               />
             </TabPanel>
           </Box>

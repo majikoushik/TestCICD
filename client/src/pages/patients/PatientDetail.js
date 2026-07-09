@@ -11,6 +11,7 @@ import {
 import { createConsentRecord, exportPatientEHI } from '../../services/patientService';
 import fhirService from '../../services/fhirService';
 import { ModernLoadingIndicator } from '../../components/common';
+import { formatDate } from '../../utils/dateFormatter';
 import {
   Box,
   Container,
@@ -200,16 +201,6 @@ export default function PatientDetail() {
       console.error('Error granting consent:', error);
       // Handle error (could show an error message)
     }
-  };
-
-  // Format date for display
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
   };
 
   // Calculate age from date of birth

@@ -13,16 +13,12 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts';
 import messagingService from '../../services/messagingService';
+import { formatRelativeTime } from '../../utils/dateFormatter';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const fmtTime = (ts) => {
   if (!ts) return '';
-  const d = new Date(ts);
-  const diff = (Date.now() - d) / 60000;
-  if (diff < 1)   return 'just now';
-  if (diff < 60)  return `${Math.floor(diff)}m ago`;
-  if (diff < 1440) return `${Math.floor(diff / 60)}h ago`;
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return formatRelativeTime(ts);
 };
 
 const initials = (name = '') =>

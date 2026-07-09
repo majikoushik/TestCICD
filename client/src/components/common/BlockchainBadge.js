@@ -18,6 +18,7 @@ import {
   Schedule as ScheduleIcon,
   Error as ErrorIcon
 } from '@mui/icons-material';
+import { formatDateTime } from '../../utils/dateFormatter';
 
 /**
  * BlockchainBadge component
@@ -67,13 +68,6 @@ export default function BlockchainBadge({
     if (!id) return '';
     if (id.length <= 12) return id;
     return `${id.substring(0, 6)}...${id.substring(id.length - 6)}`;
-  };
-  
-  // Format date for display
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleString();
   };
   
   // Get icon and color based on status
@@ -190,7 +184,7 @@ export default function BlockchainBadge({
                 Timestamp
               </Typography>
               <Typography variant="body2">
-                {formatDate(timestamp)}
+                {formatDateTime(timestamp)}
               </Typography>
             </Box>
           )}

@@ -18,6 +18,7 @@ import {
   OpenInNew as OpenInNewIcon
 } from '@mui/icons-material';
 import { blockchainService } from '../../services';
+import { formatDateTime } from '../../utils/dateFormatter';
 import { ModernLoadingIndicator } from '../../components/common';
 
 const BlockchainTransactionDetails = () => {
@@ -195,7 +196,7 @@ const BlockchainTransactionDetails = () => {
                 />
                 <DetailItem 
                   label="Timestamp" 
-                  value={new Date(transaction.timestamp).toLocaleString()} 
+                  value={formatDateTime(transaction.timestamp)}
                 />
               </Grid>
               

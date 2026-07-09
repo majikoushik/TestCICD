@@ -45,6 +45,7 @@ import { blockchainService } from '../../services';
 import { ModernLoadingIndicator } from '../../components/common';
 import EllipsisCell from '../../components/common/EllipsisCell';
 import EllipsisHeaderCell from '../../components/common/EllipsisHeaderCell';
+import { formatDateTime } from '../../utils/dateFormatter';
 import {
   tableContainerSx, tableSx, tableHeadRowSx, tableBodyRowSx, compactChipSx,
 } from '../../components/common/adminTableStyles';
@@ -523,7 +524,7 @@ const BlockchainHistory = () => {
                         <EllipsisCell value={tx.to} sx={{ fontFamily: 'monospace' }} />
                       </TableCell>
                       <TableCell sx={{ width: '15%' }}>
-                        {new Date(tx.timestamp).toLocaleString()}
+                        {formatDateTime(tx.timestamp)}
                       </TableCell>
                       <TableCell sx={{ width: '11%' }}>
                         <Chip

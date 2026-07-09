@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authService, userService } from '../services';
 import { authStorage } from '../utils/storageUtils';
+import { setDateFormat } from '../utils/dateFormatter';
 
 const AuthContext = createContext();
 
@@ -43,6 +44,27 @@ export function AuthProvider({ children }) {
 
     return () => { isMounted = false; };
   }, [token]);
+
+  // Apply the provider's saved date-format preference as soon as we know who
+  // they are — not just when they happen to visit Settings — so every date
+  // rendered via dateFormatter.js is correct from the first page after login.
+  useEffect(() => {
+    const userId = currentUser?._id || currentUser?.id;
+    if (!userId) return;
+    let isMounted = true;
+    (async () => {
+      try {
+        const res = await userService.getUserSettings();
+        const settings = res?.data || res || {};
+        if (isMounted && settings.display?.dateFormat) {
+          setDateFormat(settings.display.dateFormat);
+        }
+      } catch (_) {
+        // no persisted preference yet — dateFormatter falls back to MM/DD/YYYY
+      }
+    })();
+    return () => { isMounted = false; };
+  }, [currentUser?._id, currentUser?.id]);
 
   // Register user
   const register = async (userData) => {

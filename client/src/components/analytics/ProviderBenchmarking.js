@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatDate } from '../../utils/dateFormatter';
 import {
   Box,
   Paper,
@@ -128,7 +129,7 @@ const ProviderBenchmarking = ({ metrics, loading = false }) => {
       
       <Box sx={{ mt: 3 }}>
         <Typography variant="caption" color="text.secondary">
-          Data is compared against the average of all clinics in the ClinicTrust AI network. Last updated: {new Date().toLocaleDateString()}
+          Data is compared against the average of all clinics in the ClinicTrust AI network. Last updated: {formatDate(new Date())}
         </Typography>
       </Box>
     </Paper>

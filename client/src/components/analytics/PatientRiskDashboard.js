@@ -42,6 +42,7 @@ import {
 
 // Import chart components
 import { LineChart, RadarChart } from '../charts';
+import { formatDate } from '../../utils/dateFormatter';
 
 /**
  * PatientRiskDashboard Component
@@ -240,7 +241,7 @@ export default function PatientRiskDashboard({
             </Typography>
             {getRiskLevelChip(riskLevel)}
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              Last updated: {new Date().toLocaleDateString()}
+              Last updated: {formatDate(new Date())}
             </Typography>
           </Box>
         </Box>

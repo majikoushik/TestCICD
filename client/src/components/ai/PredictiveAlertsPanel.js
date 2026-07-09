@@ -37,6 +37,7 @@ import {
   NotificationsActive,
 } from '@mui/icons-material';
 import { get, patch } from '../../utils/apiUtils';
+import { formatDateTime } from '../../utils/dateFormatter';
 
 const SEVERITY_ORDER = ['critical', 'high', 'medium', 'low'];
 
@@ -141,9 +142,9 @@ function AlertCard({ alert, onAcknowledge, onResolve, onDismiss, actionLoading }
   const isLoading = actionLoading === alert._id || actionLoading === alert.id;
 
   const formattedTime = alert.generatedAt
-    ? new Date(alert.generatedAt).toLocaleString()
+    ? formatDateTime(alert.generatedAt)
     : alert.createdAt
-    ? new Date(alert.createdAt).toLocaleString()
+    ? formatDateTime(alert.createdAt)
     : 'Unknown time';
 
   return (

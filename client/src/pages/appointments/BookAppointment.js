@@ -43,6 +43,7 @@ import PatientSearchAutocomplete from '../../components/common/PatientSearchAuto
 import { bookAppointment, rescheduleAppointment, getAppointment, getAvailableSlots } from '../../services/appointmentService'
 import { getPatientById } from '../../services/patientService'
 import { useAuth } from '../../contexts'
+import { formatDate, formatTime } from '../../utils/dateFormatter'
 
 const steps = ['Patient Details', 'Select Time', 'Confirm & Schedule']
 
@@ -277,23 +278,16 @@ export default function BookAppointment() {
   const getAppointmentTypeLabel = (value) =>
     appointmentTypeOptions.find((o) => o.value === value)?.label ?? value
 
-  const formatDate = (date) => {
-    if (!date) return ''
-    try {
-      return new Date(date).toLocaleDateString(undefined, {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-      })
-    } catch { return String(date) }
-  }
-
-  const formatTime = (timeStr) => {
-    if (!timeStr) return ''
+  // Converts a plain "HH:MM" time-of-day string (as stored on slot objects)
+  // into a Date so it can be passed to the shared formatTime() helper.
+  const toTimeDate = (timeStr) => {
+    if (!timeStr) return null
     try {
       const [h, m] = timeStr.split(':')
       const d = new Date()
       d.setHours(parseInt(h, 10), parseInt(m, 10))
-      return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
-    } catch { return timeStr }
+      return d
+    } catch { return null }
   }
 
   if (success) {
@@ -572,7 +566,7 @@ export default function BookAppointment() {
                         <Typography variant="body2" color="text.secondary">Time</Typography>
                         <Typography variant="body1">
                           {formState.selectedSlot
-                            ? `${formatTime(formState.selectedSlot.startTime)} – ${formatTime(formState.selectedSlot.endTime)}`
+                            ? `${formatTime(toTimeDate(formState.selectedSlot.startTime))} – ${formatTime(toTimeDate(formState.selectedSlot.endTime))}`
                             : ''}
                         </Typography>
                       </Box>

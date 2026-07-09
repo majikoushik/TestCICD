@@ -40,6 +40,7 @@ import {
   CalendarToday as CalendarTodayIcon,
   AttachFile as AttachFileIcon
 } from '@mui/icons-material';
+import { formatDate } from '../../utils/dateFormatter';
 
 const steps = ['Select Patient', 'Provider Information', 'Referral Details'];
 
@@ -304,7 +305,7 @@ export default function CreateReferral() {
                       Date of Birth
                     </Typography>
                     <Typography variant="body1">
-                      {new Date(referralData.patient.dateOfBirth || referralData.patient.birthDate).toLocaleDateString()}
+                      {formatDate(referralData.patient.dateOfBirth || referralData.patient.birthDate)}
                     </Typography>
                   </Grid>
                   <Grid item xs={12} sm={6}>
@@ -566,7 +567,7 @@ export default function CreateReferral() {
                       <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                         <Typography variant="body1">{option.recordType}</Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {option.description} | {new Date(option.date).toLocaleDateString()}
+                          {option.description} | {formatDate(option.date)}
                         </Typography>
                       </Box>
                     </li>

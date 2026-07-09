@@ -8,12 +8,11 @@ import {
   CheckCircle as CheckCircleIcon
 } from '@mui/icons-material';
 import { get } from '../../utils/apiUtils';
+import { formatDate } from '../../utils/dateFormatter';
 
 function formatDOB(dateStr) {
   if (!dateStr) return 'N/A';
-  try {
-    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  } catch { return dateStr; }
+  return formatDate(dateStr) || dateStr;
 }
 
 function calcAge(dateStr) {
