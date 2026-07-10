@@ -1,0 +1,526 @@
+================================================================================
+   CLAUDE CERTIFIED ARCHITECT – FOUNDATIONS (CCAR-F)
+   VIDEO NARRATION SCRIPT  ·  19 SLIDES  ·  ~30 MINUTES
+================================================================================
+
+HOW TO USE THIS SCRIPT
+- Each slide is a clearly marked block below. Read the block while that slide is
+  on screen, then advance to the next slide at the block break.
+- Target pace is a relaxed, natural ~145 words per minute. If you speak faster,
+  the video comes in under 30 minutes, which is fine.
+- Approximate spoken time is shown in each slide header so you can stay on pace.
+- It's written the way you'd actually talk, so read it conversationally. Where you
+  see a dash or a short sentence, let yourself breathe. Don't rush the meta-rules
+  slides — those are the heart of the video.
+
+--------------------------------------------------------------------------------
+
+
+================================================================================
+SLIDE 1 — TITLE
+"How to PASS the Claude Certified Architect – Foundations Exam"
+(~1.1 min)
+================================================================================
+
+Hey everyone, and welcome. If you're planning to sit the Claude Certified
+Architect – Foundations exam — the one with the code CCAR-F — then you are in
+exactly the right place.
+
+In the next thirty minutes I'm going to give you a complete, no-fluff plan for
+passing this exam. Not a giant reading list, not a summary of every page of the
+documentation — but the specific things that actually move your score. We'll cover
+how the exam is built, where you should spend your study time, and most
+importantly, the handful of reasoning patterns — I call them the meta-rules — that
+quietly decide most of the questions.
+
+Here's the truth about this exam: a lot of people who fail it aren't failing
+because they don't know the material. They're failing on the close calls, where
+two answers both look reasonable. By the end of this video, you'll know how to win
+those close calls. So grab a notebook, and let's get into it.
+
+Quick thing before we start — I want to actually help you personally with this exam. So down in the comments, tell me two things: when your exam is, and which topic scares you the most. I'll reply to every single one with a specific tip. Oh, and I've put together three free PDF study packs for this exam — two focused study guides and a sixty-question practice set. They're completely free; Those are linked in the description — grab them anytime.
+
+
+================================================================================
+SLIDE 2 — AGENDA
+"Your 30-minute game plan"
+(~1.1 min)
+================================================================================
+
+Let me quickly show you the plan for today so you know what's coming.
+
+First, we'll look at the exam at a glance — the format and the scoring, so there
+are no surprises on the day. Then we'll talk about where to focus, because the
+five content domains are not weighted equally, and you should study in proportion
+to that.
+
+After that, we get to the core of the video: the eight meta-rules. These are the
+reasoning patterns behind the correct answers, and once you internalize them,
+whole categories of questions become easy.
+
+Then I'll show you the traps to auto-eliminate — the fake features and the
+wrong-answer patterns that you can cross out on sight. We'll finish with a focused
+study plan for people who are short on time, and a clear exam-day strategy for
+reading questions and managing the clock.
+
+Stick with me all the way to the end — the meta-rules and the exam-day section are
+where most people recover the points that were costing them a pass.
+
+
+================================================================================
+SLIDE 3 — THE EXAM AT A GLANCE
+(~1.4 min)
+================================================================================
+
+Okay, let's start with the shape of the exam, because knowing this changes how
+you prepare.
+
+You get sixty scored items, and you have a hundred and twenty minutes to complete
+them. That works out to about two minutes per question on average — keep that
+number in your head, we'll come back to it.
+
+The passing score is seven hundred and twenty, but here's the important detail:
+that's a scaled score out of a thousand, not a percentage. Scaled scoring lets the
+exam stay fair across different versions that might be slightly harder or easier.
+So don't think of it as "I need seventy-two percent." Think of it as a performance
+standard you have to clear.
+
+The exam is scenario-based. There are six possible scenarios, and on your exam
+you'll be shown four of them, chosen at random. Each scenario sets up a realistic
+production situation and then asks you several questions about it.
+
+Your credential is valid for twelve months, because the technology moves fast. And
+the questions come in two formats — multiple choice, where you pick one answer,
+and multiple response, where you pick more than one. On the multiple-response
+ones, the item tells you exactly how many to select — so read that carefully and
+pick that exact number. No more, no less.
+
+
+================================================================================
+SLIDE 4 — WHERE TO FOCUS (BLUEPRINT WEIGHTING)
+"Spend study time by domain weight"
+(~1.5 min)
+================================================================================
+
+Now, this slide might be the most practical one in the whole video, so pay
+attention here.
+
+The exam is divided into five content domains, and they are not equal. Look at the
+weighting. Agentic Architecture and Orchestration is the biggest slice at
+twenty-seven percent. Then Claude Code Configuration and Prompt Engineering and
+Structured Output are tied at twenty percent each. Tool Design and MCP Integration
+is eighteen percent. And Context Management and Reliability is fifteen percent.
+
+Why does this matter? Because your study time is limited, and you should spend it
+in proportion to the points on offer. Roughly speaking, out of sixty questions,
+about sixteen come from Agentic Architecture. Twelve each from Claude Code and
+from Prompt Engineering. Eleven from Tool and MCP. And about nine from Context and
+Reliability.
+
+So here's the takeaway: study Agentic Architecture the hardest. The agentic loop,
+coordinator and subagent orchestration, passing context between agents, hooks,
+task decomposition, session management — that's the domain that can move your
+score more than any other. If you're rusty on multi-agent systems, that's where to
+start. And don't over-invest in the smallest domain just because it feels
+comfortable. Follow the weighting.
+
+
+================================================================================
+SLIDE 5 — THE BIG IDEA
+"This is a judgment exam — not a recall exam"
+(~1.4 min)
+================================================================================
+
+Before we get into specifics, I want to give you the single most important mindset
+shift for this exam. Here it is: this is a judgment exam, not a recall exam.
+
+What do I mean by that? Almost every question puts you inside a realistic, broken
+production system, and then asks you for the most effective fix, or the best first
+step. It's rarely "what is this feature" — it's "given this situation, what should
+you do about it."
+
+And that changes everything about how you answer. Because the wrong options aren't
+obviously wrong. They're plausible. They're things a reasonable engineer might try.
+The trap is that each wrong answer quietly breaks one simple rule of good
+engineering judgment — maybe it uses a prompt where the situation demands a
+guarantee, or it reaches for a heavyweight solution when a small fix would do.
+
+So passing this exam is less about memorizing facts and more about recognizing
+which principle applies. And that's exactly what the next four slides are about.
+These are the eight meta-rules — the reasoning that resolves the close calls. If
+you learn nothing else from this video, learn these.
+
+
+================================================================================
+SLIDE 6 — THE 8 META-RULES (1 & 2)
+(~2.1 min)
+================================================================================
+
+Alright, meta-rule number one, and this is the one the exam tests the most.
+
+When a requirement is deterministic — when something must always happen — you
+enforce it programmatically, with a hook or a prerequisite gate. You do not rely
+on a prompt instruction. Think about it: if your agent must verify a customer's
+identity before it processes a refund, or it must never issue a refund above a
+certain limit — those are guarantees. And a prompt, no matter how strongly you
+word it, has a non-zero failure rate. It'll comply most of the time, but "most of
+the time" is not acceptable when money or safety is on the line. So the moment you
+see the words "must," "always," or a financial or identity requirement — your
+answer is a hook or a gate, never a prompt.
+
+Meta-rule number two: prefer the proportionate, root-cause fix. When a question
+asks for the "first step" or the "most effective" change, it's usually looking for
+the lowest-effort fix that actually addresses the real cause of the problem. And
+this is where people get tricked — because there's almost always a tempting,
+impressive-sounding option: train a classifier, add a machine-learning routing
+layer, deploy a second model. Cross those out. If a simple prompt fix or a better
+tool description hasn't even been tried yet, the fancy solution is over-engineered,
+and it's the wrong answer. Match the size of the fix to the size of the problem.
+
+
+================================================================================
+SLIDE 7 — THE 8 META-RULES (3 & 4)
+(~2.1 min)
+================================================================================
+
+Meta-rule number three is about how the model actually picks a tool. Tool
+descriptions are the primary mechanism the model uses to choose between tools. So
+when you see a scenario where the agent keeps calling the wrong tool — it grabs
+"get customer" when the user asked about an order, and both tools have these thin,
+one-line descriptions — the fix is to rewrite the descriptions. Make them explain
+the inputs they take, give example queries, describe edge cases, and say when to
+use this tool versus a similar one. That beats adding few-shot examples, it beats
+building a routing layer, and it beats merging the tools together. Descriptions
+first. That's almost always the correct first step for tool confusion.
+
+Meta-rule number four is a quiet one, but it eliminates a lot of distractors.
+Self-reported confidence and sentiment are unreliable proxies. So any answer that
+says "have the model rate its own confidence and escalate when it's low" — cross
+it out. Why? Because a language model's confidence is poorly calibrated. On the
+hard cases, the ones you actually want to catch, it's often confidently wrong. And
+the same goes for sentiment analysis. A frustrated customer is not the same as a
+complex case — sentiment doesn't track difficulty. So whenever an option routes,
+escalates, or makes a decision based on the model's own confidence score or on
+customer emotion, that's your signal it's a trap.
+
+
+================================================================================
+SLIDE 8 — THE 8 META-RULES (5 & 6)
+(~2.1 min)
+================================================================================
+
+Meta-rule number five: least privilege for tools. The more tools you give an
+agent, the worse it gets at choosing the right one. There's a classic example on
+this exam — an agent with something like eighteen tools that keeps misusing them,
+versus scoping it down to the four or five it actually needs for its role. Fewer,
+well-chosen tools means more reliable selection. And when an agent occasionally
+needs something outside its role — say a synthesis agent that needs to do a quick
+fact check now and then — you don't hand it every search tool in the system. You
+give it one narrow, scoped tool for that specific need, and you route the
+complicated cases back through the coordinator. Scope tightly.
+
+Meta-rule number six is one I see people miss constantly. A bigger context window,
+or a bigger model, does not fix attention. Here's the setup: you're reviewing a
+pull request with a lot of files in one pass, and the review comes back
+inconsistent — deep on some files, shallow on others, even contradicting itself.
+That's attention dilution. And the tempting answer is "use a model with a larger
+context window so it can see everything at once." Wrong. A bigger context doesn't
+improve the quality of attention across all that content. The real fix is to split
+the work — do a focused pass on each file for local issues, then a separate
+integration pass for the cross-file stuff. Split into passes, don't scale up.
+
+
+================================================================================
+SLIDE 9 — THE 8 META-RULES (7 & 8)
+(~2.1 min)
+================================================================================
+
+Meta-rule number seven: structured data beats prose, basically everywhere on this
+exam. Whenever you're choosing between passing information as free-flowing text
+versus passing it as structured data, the structured option is almost always
+right. When a tool fails, return structured error context — the failure type,
+what was attempted, whether it's retryable — not a generic "operation failed."
+When you're combining research from multiple sources, preserve structured
+claim-and-source mappings, so attribution survives the synthesis step. And in a
+long support conversation, keep the key facts — the amounts, the order numbers,
+the dates — in a persistent, structured "case facts" block, instead of letting
+them get flattened into a vague summary. If an option keeps the structure and the
+metadata, favor it.
+
+And meta-rule number eight: diagnose the actual failing component. This one's about
+reading the evidence carefully. The exam loves to give you a scenario where several
+agents are involved, and then drop a clue in the logs. For example, the final
+report is missing whole topics, and the logs show the coordinator decomposed the
+task too narrowly. In that case, the fault is the coordinator — not the subagents,
+which correctly executed the flawed plan they were handed. So don't blame a
+component that actually did its job. Read the log detail in the question — it
+usually points straight at the culprit — and match your fix to that.
+
+
+================================================================================
+SLIDE 10 — AUTO-ELIMINATE: FEATURES THAT DON'T EXIST
+(~1.5 min)
+================================================================================
+
+Okay, let's talk about free points. Because some questions include answer options
+that reference features which simply do not exist. If you can recognize them, you
+eliminate them instantly.
+
+Here are the three big ones. First, there is no environment variable called
+CLAUDE_HEADLESS. If you want to run Claude Code non-interactively — say, in a CI
+pipeline so it doesn't hang waiting for input — the real flag is dash-p, or
+dash-dash-print. That's it.
+
+Second, there is no dash-dash-batch flag on the Claude Code command line. Batch
+processing is a completely separate thing — it's the Message Batches API, which
+you call for large, non-urgent workloads. It is not a CLI flag you tack onto a
+command.
+
+And third, there's no "commands" array inside a dot-claude slash config-dot-json
+file. Custom slash commands live as files in the dot-claude slash commands
+directory. That's how they get shared with your team through version control.
+
+So memorize the real answers on the right side of this slide. When a distractor
+mentions one of these three fake features, it's gone. Cross it out and move on.
+
+
+================================================================================
+SLIDE 11 — CONFUSABLE PAIRS WHERE POINTS HIDE
+(~2.0 min)
+================================================================================
+
+Now, this slide is where a lot of near-miss scores are actually lost. These are
+pairs of concepts that are easy to mix up, and the exam deliberately puts both of
+them in the answer options. Let me walk you through them quickly, and your homework
+is to drill these until the distinction is automatic.
+
+Resume versus fork versus fresh start. You resume a session to continue where you
+left off when the context is still valid. You fork a session to branch off and
+explore a different approach from the same starting point. And you start fresh with
+an injected summary when your old results have gone stale — for example, after the
+code has changed a lot.
+
+Resource versus tool in MCP. A resource is read-only content — a catalog, a schema,
+a list. A tool is an action the agent performs.
+
+Tool choice — "any" versus forced. "Any" means the model must call some tool, but
+it chooses which. Forced means it must call one specific tool you named.
+
+PostToolUse versus a call-interception hook. PostToolUse transforms results after a
+tool runs. Interception blocks or redirects an outgoing call before it happens.
+
+Grep versus Glob. Grep searches inside file contents. Glob matches file names and
+paths.
+
+And plan mode versus direct execution. Plan mode for architectural, multi-file
+work with several possible approaches. Direct execution for a simple, well-scoped
+change. Learn these six pairs cold.
+
+
+================================================================================
+SLIDE 12 — ANSWERS THAT ARE ALMOST ALWAYS WRONG
+(~1.7 min)
+================================================================================
+
+Let's flip it around. Instead of hunting for the right answer, sometimes it's
+faster to recognize the wrong ones. Here are the distractor patterns that are
+almost always incorrect on this exam.
+
+Training a classifier or adding a machine-learning routing layer, when a simple
+prompt or description fix hasn't been tried. Using the model's own self-reported
+confidence to route the hard cases. Using sentiment as a stand-in for how complex a
+case is. Reaching for a bigger model or a larger context window to fix what's
+really an attention problem. Consensus voting that only flags an issue if it shows
+up in multiple runs — which sounds careful, but actually suppresses real bugs that
+only get caught intermittently. Using a prompt instruction where the situation
+clearly demands a deterministic hook or gate. Silently swallowing errors, or
+killing an entire workflow because one small piece failed. And of course,
+referencing those non-existent features we just covered.
+
+If an answer option matches any of these patterns, it's very likely the trap. Train
+yourself to spot them on sight. This kind of fast, confident elimination is exactly
+what buys you time and accuracy under pressure.
+
+
+================================================================================
+SLIDE 13 — PART TWO: HOW TO STUDY
+(~0.9 min)
+================================================================================
+
+Alright — that's the reasoning half of the video. You now have the meta-rules and
+the traps. Let's switch gears and talk about how to actually prepare, especially if
+you're short on time.
+
+And I want to reassure you right up front: you do not need to read every page of
+the documentation to pass this. What you need is targeted, hands-on practice, plus
+a deliberate way of drilling questions. So over the next few slides I'll give you a
+focused study plan and a practice method that genuinely moves your score. Let's
+dig in.
+
+
+================================================================================
+SLIDE 14 — A FOCUSED STUDY PLAN
+(~2.1 min)
+================================================================================
+
+Here's the thing about this exam — it rewards people who have actually built with
+these tools, because it's testing your judgment about tradeoffs. So the best
+preparation is to build small versions of each system. Let me give you six
+workstreams.
+
+One: build an agent. Implement a full agentic loop — driven by the stop reason,
+with tool calls, structured error handling, and session management. Practice
+spawning subagents and passing context between them, because that's the biggest
+domain.
+
+Two: configure Claude Code for a real project. Set up the CLAUDE.md hierarchy,
+create path-scoped rules with glob patterns, build a skill with frontmatter options
+like context-fork, and wire in at least one MCP server.
+
+Three: design MCP tools. Write descriptions that clearly differentiate similar
+tools, and implement structured error responses with error categories and
+retryable flags.
+
+Four: build a structured data extraction pipeline. Use tool-use with a JSON schema,
+make fields nullable so the model doesn't fabricate, add a validation-and-retry
+loop, and try batch processing with custom IDs.
+
+Five: practice the prompt techniques — few-shot examples for ambiguous cases,
+explicit criteria to cut false positives, and multi-pass reviews.
+
+And six: study context management and escalation — case-facts blocks, scratchpad
+files, subagent delegation, and knowing when to escalate versus resolve. Every one
+of these maps directly to an exam scenario.
+
+
+================================================================================
+SLIDE 15 — PRACTICE THE WAY THE EXAM REWARDS
+(~1.8 min)
+================================================================================
+
+Building gives you the knowledge. But how you practice questions is what turns that
+knowledge into a passing score. So let me give you four habits.
+
+First, work in timed scenario blocks. Do about ten questions in twenty minutes.
+This builds the two-minute-per-item rhythm you'll need on the real thing, so the
+clock never surprises you.
+
+Second — and this is the single highest-value habit — name the trap out loud. For
+every wrong option, say why it's wrong. "That one uses a prompt where it needs a
+gate." "That one relies on self-confidence." This is the exact skill that converts
+a near-miss into a pass, because it trains fast elimination.
+
+Third, use active recall, not re-reading. Re-reading your notes feels productive,
+but it's weak. Instead, cover the answer and try to recall it. Cover the
+confusable-pairs list and reproduce the definitions from memory. Retrieval is what
+makes it stick.
+
+And fourth, redo what you miss. Come back to the questions you got wrong a day
+later and re-attempt them. Even better, track which meta-rule each miss maps to —
+if you keep missing the deterministic-versus-prompt questions, you know exactly
+what to review.
+
+If there's one part of this exam that's confusing you, drop it in the comments right now — I read every one and I'll point you in the right direction. And that 60-question practice set is in the free pack, link's in the description.
+
+
+================================================================================
+SLIDE 16 — EXAM-DAY STRATEGY & TIME MANAGEMENT
+(~2.0 min)
+================================================================================
+
+Okay, it's exam day. Let's talk about how to actually take the test, because good
+process here is worth real points.
+
+Step one: read the whole question stem before you look at the options. The deciding
+detail is very often buried in a sentence like "the logs show..." — and that
+detail frequently names the culprit for you. Don't skim past it.
+
+Step two: classify the requirement. Ask yourself — is this a deterministic
+requirement, something that must always happen? Or is it best-effort? That single
+call instantly narrows your answer toward a hook or gate versus a prompt.
+
+Step three: eliminate before you choose. Cross out the fake features, the
+over-engineered solutions, and anything built on sentiment or self-confidence.
+Often you're down to two options before you even think hard.
+
+Step four: mind the clock. About two minutes per item. Answer the reflex questions
+fast — the scope questions, the CLI flags, the stop-reason ones — and bank that
+time for the close judgment calls that actually need it. Don't let two hard
+questions eat the time meant for ten easy ones.
+
+And step five: on any "select two" item, pick exactly the number requested. Not
+one, not three. Read the instruction and match it.
+
+
+================================================================================
+SLIDE 17 — FIVE REMINDERS THAT CARRY YOU ACROSS THE LINE
+(~1.4 min)
+================================================================================
+
+Alright, if you take a screenshot of one slide in this whole video, make it this
+one. Here are the five reminders that will carry you across the line.
+
+One — deterministic requirement means a hook or a gate, never a prompt.
+
+Two — when it asks for the "first step," pick the proportionate, root-cause fix,
+not the flashy one.
+
+Three — when tools get confused, fix the descriptions first.
+
+Four — attention problems get solved by splitting into passes, not by throwing a
+bigger context window at them.
+
+And five — the fancy-sounding answers, the ones built on a classifier, on
+sentiment, or on the model's own confidence — those are almost always the traps.
+
+If those five are second nature when you walk into the exam, you are in great
+shape. Everything else is just supporting detail around these ideas.
+
+
+================================================================================
+SLIDE 18 — STUDY REFERENCE LINKS
+(~1.2 min)
+================================================================================
+
+Before we wrap up, let me point you to the resources worth your time — and I'll put
+all of these links in the description below.
+
+Start with the official Claude documentation. From there, the Claude Code docs and
+the Claude Agent SDK docs cover the two biggest technical areas. The tool-use guide
+and the prompt-engineering overview map directly onto whole exam domains. The
+Message Batches API page is worth a read so you're solid on when batch is
+appropriate. And if MCP still feels fuzzy, the Model Context Protocol site is the
+place to fix that.
+
+One more thing — and this is important. The exam guide itself, the one you download
+from the Anthropic Partner Academy, is the authoritative blueprint for what's
+tested. Read it in full. And registration and scheduling go through the Partner
+Academy and Pearson VUE. Don't skip the guide — it tells you exactly what's on the
+exam.
+
+
+================================================================================
+SLIDE 19 — OUTRO
+"Good luck — you've got this."
+(~1.0 min)
+================================================================================
+
+And that's the plan. Study in proportion to the domain weights, drill those eight
+meta-rules until they're automatic, and get fast at eliminating the traps. Do that,
+and this exam becomes very manageable.
+
+I really believe you can pass this — a lot of people are just one or two habits away
+from clearing that line, and now you know exactly which habits those are.
+
+If this video helped you, do me a favor and hit like, subscribe, and drop a comment
+— it genuinely helps the channel reach more people preparing for this exam. And I'd
+love to hear how you do. Come back and tell me your score in the comments; I read
+every single one.
+
+Thanks so much for watching, good luck with your exam, and I'll see you in the next
+one.
+
+Before you go — comment your exam date and your toughest topic below, and I'll reply with a tip tailored to you. Don't forget the free study packs in the description. Good luck, and tell me how it goes.
+================================================================================
+   END OF SCRIPT  ·  Approx. total: ~30 minutes at a natural speaking pace
+================================================================================
